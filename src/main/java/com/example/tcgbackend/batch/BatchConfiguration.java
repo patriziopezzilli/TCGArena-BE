@@ -1,13 +1,13 @@
 package com.example.tcgbackend.batch;
 
 import com.example.tcgbackend.model.Card;
-import com.example.tcgbackend.model.CardCondition;
+import com.example.tcgbackend.model.CardTemplate;
 import com.example.tcgbackend.model.Expansion;
 import com.example.tcgbackend.model.Rarity;
 import com.example.tcgbackend.model.TCGType;
-import com.example.tcgbackend.repository.CardRepository;
+import com.example.tcgbackend.repository.CardTemplateRepository;
 import com.example.tcgbackend.service.ApiService;
-import com.example.tcgbackend.service.CardService;
+import com.example.tcgbackend.service.CardTemplateService;
 import com.example.tcgbackend.service.TCGApiClient;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
@@ -35,13 +35,13 @@ public class BatchConfiguration {
     private ApiService apiService;
 
     @Autowired
-    private CardService cardService;
+    private CardTemplateService cardTemplateService;
 
     @Autowired
     private TCGApiClient tcgApiClient;
 
     @Autowired
-    private CardRepository cardRepository;
+    private CardTemplateRepository cardTemplateRepository;
 
     @Bean
     public Job importCardsJob(JobRepository jobRepository, Step step1) {
@@ -53,7 +53,7 @@ public class BatchConfiguration {
     @Bean
     public Step step1(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
         return new StepBuilder("step1", jobRepository)
-                .<Card, Card>chunk(50, transactionManager) // Process 50 cards at a time
+                .<CardTemplate, CardTemplate>chunk(50, transactionManager) // Process 50 cards at a time
                 .reader(reader())
                 .processor(processor())
                 .writer(writer())
@@ -61,16 +61,17 @@ public class BatchConfiguration {
     }
 
     @Bean
-    public ItemReader<Card> reader() {
-        // Import cards from all TCG types
-        return new ItemReader<Card>() {
-            private Iterator<Card> cardIterator;
+    public ItemReader<CardTemplate> reader() {
+        // Import cards from all TCG types or specific type if provided
+        return new ItemReader<CardTemplate>() {
+            private Iterator<CardTemplate> cardIterator;
             private boolean initialized = false;
             private int currentTcgIndex = 0;
             private final TCGType[] tcgTypes = {TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE};
+            private TCGType specificTcgType = null;
 
             @Override
-            public Card read() throws Exception {
+            public CardTemplate read() throws Exception {
                 if (!initialized) {
                     initializeCardIterator();
                     initialized = true;
@@ -102,18 +103,38 @@ public class BatchConfiguration {
                 TCGType currentTcg = tcgTypes[currentTcgIndex];
                 System.out.println("Starting import for " + currentTcg + " cards...");
 
-                List<Card> cards = null;
+                List<CardTemplate> cards = null;
                 try {
+                    // Fetch cards and convert to CardTemplate
+                    List<Card> rawCards = null;
                     switch (currentTcg) {
                         case POKEMON:
-                            cards = tcgApiClient.fetchPokemonCards().collectList().block();
+                            rawCards = tcgApiClient.fetchPokemonCards().collectList().block();
                             break;
                         case MAGIC:
-                            cards = tcgApiClient.fetchMagicCards().collectList().block();
+                            rawCards = tcgApiClient.fetchMagicCards().collectList().block();
                             break;
                         case ONE_PIECE:
-                            cards = tcgApiClient.fetchOnePieceCards().collectList().block();
+                            rawCards = tcgApiClient.fetchOnePieceCards().collectList().block();
                             break;
+                    }
+
+                    // Convert Card to CardTemplate
+                    if (rawCards != null) {
+                        cards = rawCards.stream().map(card -> {
+                            CardTemplate template = new CardTemplate();
+                            template.setName(card.getName());
+                            template.setTcgType(card.getTcgType());
+                            template.setSetCode(card.getSetCode());
+                            template.setExpansion(card.getExpansion());
+                            template.setRarity(card.getRarity());
+                            template.setCardNumber(card.getCardNumber());
+                            template.setDescription(card.getDescription());
+                            template.setImageUrl(card.getImageUrl());
+                            template.setMarketPrice(card.getMarketPrice());
+                            template.setManaCost(card.getManaCost());
+                            return template;
+                        }).toList();
                     }
                 } catch (Exception e) {
                     System.err.println("Error fetching " + currentTcg + " cards: " + e.getMessage());
@@ -127,7 +148,7 @@ public class BatchConfiguration {
     }
 
     @Bean
-    public ItemProcessor<Card, Card> processor() {
+    public ItemProcessor<CardTemplate, CardTemplate> processor() {
         return card -> {
             // Extract expansion name from description if present
             String expansionName = null;
@@ -143,38 +164,38 @@ public class BatchConfiguration {
 
             // Handle expansion
             if (expansionName != null) {
-                Expansion expansion = cardService.getExpansionByName(expansionName);
+                Expansion expansion = cardTemplateService.getExpansionByName(expansionName);
                 if (expansion == null) {
                     expansion = new Expansion();
                     expansion.setTitle(expansionName);
                     expansion.setTcgType(card.getTcgType());
-                    expansion = cardService.saveExpansion(expansion);
+                    expansion = cardTemplateService.saveExpansion(expansion);
                 }
                 card.setExpansion(expansion);
             }
 
-            // Check if card already exists to avoid duplicates (efficient database query)
-            List<Card> existingCards = cardRepository.findByNameAndSetCodeAndCardNumber(
+            // Check if card template already exists to avoid duplicates (efficient database query)
+            List<CardTemplate> existingCards = cardTemplateRepository.findByNameAndSetCodeAndCardNumber(
                     card.getName(), card.getSetCode(), card.getCardNumber());
 
             if (!existingCards.isEmpty()) {
-                // Update existing card
-                Card existingCard = existingCards.get(0);
+                // Update existing card template
+                CardTemplate existingCard = existingCards.get(0);
                 existingCard.setImageUrl(card.getImageUrl());
                 existingCard.setDescription(card.getDescription());
                 return existingCard;
             } else {
-                // New card
+                // New card template
                 return card;
             }
         };
     }
 
     @Bean
-    public ItemWriter<Card> writer() {
+    public ItemWriter<CardTemplate> writer() {
         return cards -> {
-            for (Card card : cards) {
-                cardService.saveCard(card);
+            for (CardTemplate card : cards) {
+                cardTemplateService.saveCardTemplate(card);
             }
         };
     }

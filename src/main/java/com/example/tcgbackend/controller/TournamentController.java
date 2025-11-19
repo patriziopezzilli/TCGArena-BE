@@ -1,17 +1,21 @@
 package com.example.tcgbackend.controller;
 
 import com.example.tcgbackend.model.Tournament;
+import com.example.tcgbackend.model.User;
 import com.example.tcgbackend.service.TournamentService;
+import com.example.tcgbackend.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/tournaments")
@@ -20,6 +24,9 @@ public class TournamentController {
 
     @Autowired
     private TournamentService tournamentService;
+
+    @Autowired
+    private UserService userService;
 
     @GetMapping
     @Operation(summary = "Get all tournaments", description = "Retrieves a list of all tournaments")
@@ -64,13 +71,21 @@ public class TournamentController {
     }
 
     @PostMapping
-    @Operation(summary = "Create a new tournament", description = "Creates a new tournament in the system")
+    @Operation(summary = "Create a new tournament", description = "Creates a new tournament in the system. Only merchants can create tournaments.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Tournament created successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid tournament data provided")
+        @ApiResponse(responseCode = "400", description = "Invalid tournament data provided"),
+        @ApiResponse(responseCode = "403", description = "Only merchants can create tournaments")
     })
-    public Tournament createTournament(@Parameter(description = "Tournament object to be created") @RequestBody Tournament tournament) {
-        return tournamentService.saveTournament(tournament);
+    public ResponseEntity<Tournament> createTournament(@Parameter(description = "Tournament object to be created") @RequestBody Tournament tournament) {
+        // Check if current user is a merchant
+        Optional<User> currentUser = userService.getCurrentUser();
+        if (currentUser.isEmpty() || !Boolean.TRUE.equals(currentUser.get().getIsMerchant())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        Tournament savedTournament = tournamentService.saveTournament(tournament);
+        return ResponseEntity.ok(savedTournament);
     }
 
     @PutMapping("/{id}")

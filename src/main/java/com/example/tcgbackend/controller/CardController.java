@@ -1,7 +1,10 @@
 package com.example.tcgbackend.controller;
 
-import com.example.tcgbackend.model.Card;
-import com.example.tcgbackend.service.CardService;
+import com.example.tcgbackend.model.CardCondition;
+import com.example.tcgbackend.model.CardTemplate;
+import com.example.tcgbackend.model.UserCard;
+import com.example.tcgbackend.service.CardTemplateService;
+import com.example.tcgbackend.service.UserCardService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -19,97 +22,103 @@ import java.util.List;
 public class CardController {
 
     @Autowired
-    private CardService cardService;
+    private CardTemplateService cardTemplateService;
+
+    @Autowired
+    private UserCardService userCardService;
 
     @GetMapping
-    @Operation(summary = "Get all cards", description = "Retrieves a list of all available trading cards in the system")
+    @Operation(summary = "Get all card templates", description = "Retrieves a list of all available card templates in the system")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Successfully retrieved list of cards")
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved list of card templates")
     })
-    public List<Card> getAllCards() {
-        return cardService.getAllCards();
+    public List<CardTemplate> getAllCards() {
+        return cardTemplateService.getAllCardTemplates();
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get card by ID", description = "Retrieves a specific trading card by its unique ID")
+    @Operation(summary = "Get card template by ID", description = "Retrieves a specific card template by its unique ID")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Card found and returned"),
-        @ApiResponse(responseCode = "404", description = "Card not found")
+        @ApiResponse(responseCode = "200", description = "Card template found and returned"),
+        @ApiResponse(responseCode = "404", description = "Card template not found")
     })
-    public ResponseEntity<Card> getCardById(@Parameter(description = "Unique identifier of the card") @PathVariable Long id) {
-        return cardService.getCardById(id)
+    public ResponseEntity<CardTemplate> getCardById(@Parameter(description = "Unique identifier of the card template") @PathVariable Long id) {
+        return cardTemplateService.getCardTemplateById(id)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
-    @Operation(summary = "Create a new card", description = "Creates a new trading card in the system")
+    @Operation(summary = "Create a new card template", description = "Creates a new card template in the system")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Card created successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid card data provided")
+        @ApiResponse(responseCode = "200", description = "Card template created successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid card template data provided")
     })
-    public Card createCard(@Parameter(description = "Card object to be created") @RequestBody Card card) {
-        return cardService.saveCard(card);
+    public CardTemplate createCard(@Parameter(description = "Card template object to be created") @RequestBody CardTemplate cardTemplate) {
+        return cardTemplateService.saveCardTemplate(cardTemplate);
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update an existing card", description = "Updates the details of an existing trading card")
+    @Operation(summary = "Update an existing card template", description = "Updates the details of an existing card template")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Card updated successfully"),
-        @ApiResponse(responseCode = "404", description = "Card not found")
+        @ApiResponse(responseCode = "200", description = "Card template updated successfully"),
+        @ApiResponse(responseCode = "404", description = "Card template not found")
     })
-    public ResponseEntity<Card> updateCard(@Parameter(description = "Unique identifier of the card to update") @PathVariable Long id, @Parameter(description = "Updated card object") @RequestBody Card card) {
-        return cardService.updateCard(id, card)
+    public ResponseEntity<CardTemplate> updateCard(@Parameter(description = "Unique identifier of the card template to update") @PathVariable Long id, @Parameter(description = "Updated card template object") @RequestBody CardTemplate cardTemplate) {
+        return cardTemplateService.updateCardTemplate(id, cardTemplate)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete a card", description = "Deletes a trading card from the system")
+    @Operation(summary = "Delete a card template", description = "Deletes a card template from the system")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "204", description = "Card deleted successfully"),
-        @ApiResponse(responseCode = "404", description = "Card not found")
+        @ApiResponse(responseCode = "204", description = "Card template deleted successfully"),
+        @ApiResponse(responseCode = "404", description = "Card template not found")
     })
-    public ResponseEntity<Void> deleteCard(@Parameter(description = "Unique identifier of the card to delete") @PathVariable Long id) {
-        if (cardService.deleteCard(id)) {
+    public ResponseEntity<Void> deleteCard(@Parameter(description = "Unique identifier of the card template to delete") @PathVariable Long id) {
+        if (cardTemplateService.deleteCardTemplate(id)) {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();
     }
 
     @GetMapping("/collection/{userId}")
-    @Operation(summary = "Get user's card collection", description = "Retrieves all cards owned by a specific user")
+    @Operation(summary = "Get user's card collection", description = "Retrieves all user cards owned by a specific user")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Successfully retrieved user's card collection")
     })
-    public List<Card> getUserCollection(@Parameter(description = "Unique identifier of the user") @PathVariable Long userId) {
-        return cardService.getUserCollection(userId);
+    public List<UserCard> getUserCollection(@Parameter(description = "Unique identifier of the user") @PathVariable Long userId) {
+        return userCardService.getUserCardsByUserId(userId);
     }
 
     @PostMapping("/{id}/add-to-collection")
-    @Operation(summary = "Add card to user's collection", description = "Adds a specific card to a user's collection")
+    @Operation(summary = "Add card template to user's collection", description = "Adds a specific card template to a user's collection as a user card")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Card added to collection successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid request or card not found"),
-        @ApiResponse(responseCode = "404", description = "Card not found")
+        @ApiResponse(responseCode = "400", description = "Invalid request or card template not found"),
+        @ApiResponse(responseCode = "404", description = "Card template not found")
     })
-    public ResponseEntity<Card> addToCollection(@Parameter(description = "Unique identifier of the card") @PathVariable Long id, @Parameter(description = "Unique identifier of the user") @RequestParam Long userId) {
+    public ResponseEntity<UserCard> addToCollection(@Parameter(description = "Unique identifier of the card template") @PathVariable Long cardTemplateId, @Parameter(description = "Unique identifier of the user") @RequestParam Long userId, @Parameter(description = "Condition of the card") @RequestParam(defaultValue = "NEAR_MINT") String condition) {
         try {
-            Card card = cardService.getCardById(id).orElseThrow();
-            return ResponseEntity.ok(cardService.addCardToCollection(card, userId));
+            var cardTemplate = cardTemplateService.getCardTemplateById(cardTemplateId).orElseThrow();
+            var user = userCardService.getUserById(userId).orElseThrow();
+            CardCondition cardCondition = CardCondition.valueOf(condition.toUpperCase());
+            UserCard userCard = userCardService.addCardToUserCollection(cardTemplate, user, cardCondition);
+            return ResponseEntity.ok(userCard);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
     }
 
     @GetMapping("/market-price/{id}")
-    @Operation(summary = "Get market price of a card", description = "Retrieves the current market price of a specific trading card")
+    @Operation(summary = "Get market price of a card template", description = "Retrieves the current market price of a specific card template")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Market price retrieved successfully"),
-        @ApiResponse(responseCode = "404", description = "Card not found")
+        @ApiResponse(responseCode = "404", description = "Card template not found")
     })
-    public ResponseEntity<Double> getMarketPrice(@Parameter(description = "Unique identifier of the card") @PathVariable Long id) {
-        return cardService.getCardById(id)
+    public ResponseEntity<Double> getMarketPrice(@Parameter(description = "Unique identifier of the card template") @PathVariable Long id) {
+        return cardTemplateService.getCardTemplateById(id)
             .map(card -> ResponseEntity.ok(card.getMarketPrice()))
             .orElse(ResponseEntity.notFound().build());
     }

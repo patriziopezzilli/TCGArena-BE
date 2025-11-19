@@ -4,6 +4,8 @@ import com.example.tcgbackend.model.Deck;
 import com.example.tcgbackend.model.User;
 import com.example.tcgbackend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -79,5 +81,14 @@ public class UserService {
             return true;
         }
         return false;
+    }
+
+    public Optional<User> getCurrentUser() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (principal instanceof UserDetails) {
+            String username = ((UserDetails) principal).getUsername();
+            return getUserByUsername(username);
+        }
+        return Optional.empty();
     }
 }
