@@ -104,18 +104,13 @@
           "name": "Get All Users",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/users",
               "host": ["{{baseUrl}}"],
               "path": ["api", "users"]
             },
-            "description": "Retrieve all registered users"
+            "description": "Retrieve all registered users (public endpoint)"
           }
         },
         {
@@ -164,18 +159,13 @@
           "name": "Get User Leaderboard",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/users/leaderboard",
               "host": ["{{baseUrl}}"],
               "path": ["api", "users", "leaderboard"]
             },
-            "description": "Get users leaderboard"
+            "description": "Get users leaderboard (public endpoint)"
           }
         },
         {
