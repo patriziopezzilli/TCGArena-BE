@@ -30,6 +30,11 @@ public class User {
     @Column(nullable = false)
     private Boolean isPremium = false;
 
+    @Column(nullable = false)
+    private Boolean isMerchant = false;
+
+    private Long shopId;
+
     @Enumerated(EnumType.STRING)
     private TCGType favoriteGame;
 
@@ -99,6 +104,22 @@ public class User {
 
     public void setIsPremium(Boolean isPremium) {
         this.isPremium = isPremium;
+    }
+
+    public Boolean getIsMerchant() {
+        return isMerchant;
+    }
+
+    public void setIsMerchant(Boolean isMerchant) {
+        this.isMerchant = isMerchant;
+    }
+
+    public Long getShopId() {
+        return shopId;
+    }
+
+    public void setShopId(Long shopId) {
+        this.shopId = shopId;
     }
 
     public TCGType getFavoriteGame() {

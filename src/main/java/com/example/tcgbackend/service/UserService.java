@@ -1,10 +1,12 @@
 package com.example.tcgbackend.service;
 
+import com.example.tcgbackend.model.Deck;
 import com.example.tcgbackend.model.User;
 import com.example.tcgbackend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,6 +15,9 @@ public class UserService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private DeckService deckService;
 
     public List<User> getAllUsers() {
         return userRepository.findAll();
@@ -31,7 +36,28 @@ public class UserService {
     }
 
     public User saveUser(User user) {
-        return userRepository.save(user);
+        // Set default values
+        if (user.getIsPremium() == null) {
+            user.setIsPremium(false);
+        }
+        if (user.getIsMerchant() == null) {
+            user.setIsMerchant(false);
+        }
+        // Save the user first
+        User savedUser = userRepository.save(user);
+        // Create default "My Collection" deck
+        Deck defaultDeck = new Deck();
+        defaultDeck.setName("My Collection");
+        defaultDeck.setDescription("Default collection deck for " + savedUser.getUsername());
+        defaultDeck.setOwnerId(savedUser.getId());
+        defaultDeck.setIsPublic(true);
+        defaultDeck.setDateCreated(LocalDateTime.now());
+        defaultDeck.setDateModified(LocalDateTime.now());
+        if (savedUser.getFavoriteGame() != null) {
+            defaultDeck.setTcgType(savedUser.getFavoriteGame());
+        }
+        deckService.saveDeck(defaultDeck);
+        return savedUser;
     }
 
     public Optional<User> updateUser(Long id, User userDetails) {
