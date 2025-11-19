@@ -75,17 +75,15 @@ public class BatchConfiguration {
             private TCGType[] tcgTypes;
             private TCGType specificTcgType = null;
 
-            @Value("#{jobParameters['tcgType']}")
-            private String tcgTypeParam;
-
             @BeforeStep
             public void beforeStep(StepExecution stepExecution) {
-                if (tcgTypeParam != null && !tcgTypeParam.isEmpty()) {
+                String param = stepExecution.getJobParameters().getString("tcgType");
+                if (param != null && !param.isEmpty()) {
                     try {
-                        specificTcgType = TCGType.valueOf(tcgTypeParam);
+                        specificTcgType = TCGType.valueOf(param);
                         tcgTypes = new TCGType[]{specificTcgType};
                     } catch (IllegalArgumentException e) {
-                        System.err.println("Invalid TCG type: " + tcgTypeParam + ", importing all types");
+                        System.err.println("Invalid TCG type: " + param + ", importing all types");
                         tcgTypes = new TCGType[]{TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE};
                     }
                 } else {
