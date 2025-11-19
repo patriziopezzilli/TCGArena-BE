@@ -22,6 +22,7 @@ import java.util.Optional;
 public class TCGApiClient {
 
     private final WebClient webClient;
+    private final WebClient onePieceWebClient;
     private final ObjectMapper objectMapper;
     private final CardRepository cardRepository;
     private final ImportProgressRepository importProgressRepository;
@@ -41,6 +42,8 @@ public class TCGApiClient {
         this.webClient = WebClient.builder()
                 .baseUrl("https://api.pokemontcg.io")
                 .defaultHeader("X-Api-Key", System.getenv("POKEMON_TCG_API_KEY"))
+                .build();
+        this.onePieceWebClient = WebClient.builder()
                 .build();
         this.objectMapper = new ObjectMapper();
     }
@@ -488,16 +491,17 @@ public class TCGApiClient {
 
     private Mono<String> fetchOnePieceCardsFromAPI(int page) {
         // One Piece TCG API: Use correct endpoint with limit parameter (max 100 per page)
-        WebClient.RequestHeadersSpec<?> request = webClient.get()
-                .uri("https://apitcg.com/api/one-piece/cards?page=" + page + "&limit=100");
+        String uri = "https://apitcg.com/api/one-piece/cards?page=" + page + "&limit=100";
         
-        // Add API key header if available
+        // Add API key as query parameter if available
         String apiKey = System.getenv("ONE_PIECE_API_KEY");
         if (apiKey != null && !apiKey.isEmpty()) {
-            request = request.header("x-api-key", apiKey);
+            uri += "&api_key=" + apiKey;
         }
         
-        return request.retrieve()
+        return onePieceWebClient.get()
+                .uri(uri)
+                .retrieve()
                 .bodyToMono(String.class)
                 .delayElement(getRateLimitDelay()); // Conservative rate limiting since not documented
     }
