@@ -1,0 +1,124 @@
+package com.example.tcgbackend.model;
+
+import jakarta.persistence.*;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "decks")
+public class Deck {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private String name;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TCGType tcgType;
+
+    @Column(nullable = false)
+    private Long ownerId;
+
+    @Column(nullable = false)
+    private LocalDateTime dateCreated;
+
+    @Column(nullable = false)
+    private LocalDateTime dateModified;
+
+    @Column(nullable = false)
+    private Boolean isPublic = false;
+
+    @Column(length = 1000)
+    private String description;
+
+    @ElementCollection
+    @CollectionTable(name = "deck_tags")
+    private List<String> tags = new ArrayList<>();
+
+    @OneToMany(mappedBy = "deck", cascade = CascadeType.ALL)
+    private List<DeckCard> cards = new ArrayList<>();
+
+    // Getters and Setters
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public TCGType getTcgType() {
+        return tcgType;
+    }
+
+    public void setTcgType(TCGType tcgType) {
+        this.tcgType = tcgType;
+    }
+
+    public Long getOwnerId() {
+        return ownerId;
+    }
+
+    public void setOwnerId(Long ownerId) {
+        this.ownerId = ownerId;
+    }
+
+    public LocalDateTime getDateCreated() {
+        return dateCreated;
+    }
+
+    public void setDateCreated(LocalDateTime dateCreated) {
+        this.dateCreated = dateCreated;
+    }
+
+    public LocalDateTime getDateModified() {
+        return dateModified;
+    }
+
+    public void setDateModified(LocalDateTime dateModified) {
+        this.dateModified = dateModified;
+    }
+
+    public Boolean getIsPublic() {
+        return isPublic;
+    }
+
+    public void setIsPublic(Boolean isPublic) {
+        this.isPublic = isPublic;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public List<String> getTags() {
+        return tags;
+    }
+
+    public void setTags(List<String> tags) {
+        this.tags = tags;
+    }
+
+    public List<DeckCard> getCards() {
+        return cards;
+    }
+
+    public void setCards(List<DeckCard> cards) {
+        this.cards = cards;
+    }
+}

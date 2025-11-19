@@ -1,0 +1,42 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "compile",
+			"type": "shell",
+			"command": "/Users/PATRIZIO.PEZZILLI/Documents/Development/wkp-toolbox/mvnw",
+			"args": [
+				"compile",
+				"-X"
+			],
+			"options": {
+				"env": {
+					"HTTP_PROXY": "http://c333084:Massimiliano2023@proxymil.internal.unicredit.eu:81",
+					"HTTPS_PROXY": "http://c333084:Massimiliano2023@proxymil.internal.unicredit.eu:81"
+				}
+			}
+		},
+		{
+			"label": "run",
+			"type": "shell",
+			"command": "./mvnw",
+			"args": [
+				"-Dspring-boot.run.arguments=--spring.profiles.active=test"
+			],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "run",
+			"type": "shell",
+			"command": "/Users/PATRIZIO.PEZZILLI/Documents/Development/wkp-toolbox/mvnw",
+			"args": [
+				"spring-boot:run"
+			],
+			"isBackground": true,
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}
