@@ -44,7 +44,7 @@ public class SecurityConfig {
         http.csrf().disable()
             .authorizeHttpRequests(authz -> authz
                 // Public endpoints - no authentication required
-                .requestMatchers("/api/auth/**", "/api/public/**", "/health", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .requestMatchers("/api/auth/**", "/api/public/**", "/api/admin/**", "/health", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 // Public GET endpoints for browsing content
                 .requestMatchers("GET", "/api/cards/**").permitAll()
                 .requestMatchers("GET", "/api/tournaments/**").permitAll()
