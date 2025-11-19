@@ -20,11 +20,10 @@ import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
-
-import jakarta.annotation.PostConstruct;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -43,31 +42,54 @@ class TCGCardReader implements ItemReader<CardTemplate> {
     private final ApiService apiService;
     private final TCGApiClient tcgApiClient;
 
-    @Value("#{jobParameters['tcgType']}")
-    private String tcgTypeParam;
-
-    public TCGCardReader(ApiService apiService, TCGApiClient tcgApiClient) {
+    public TCGCardReader(ApiService apiService, TCGApiClient tcgApiClient, String tcgTypeParam) {
+        if (apiService == null) {
+            throw new IllegalArgumentException("ApiService cannot be null");
+        }
+        if (tcgApiClient == null) {
+            throw new IllegalArgumentException("TCGApiClient cannot be null");
+        }
         this.apiService = apiService;
         this.tcgApiClient = tcgApiClient;
+        System.out.println("TCGCardReader initialized with tcgTypeParam: " + tcgTypeParam);
+        initializeTcgTypes(tcgTypeParam);
     }
 
-    @PostConstruct
-    public void initializeTcgTypes() {
-        if (tcgTypeParam != null && !tcgTypeParam.isEmpty()) {
+    private void initializeTcgTypes(String param) {
+        System.out.println("Initializing TCG types with parameter: '" + param + "'");
+        
+        if (param != null && !param.trim().isEmpty()) {
             try {
-                specificTcgType = TCGType.valueOf(tcgTypeParam);
+                specificTcgType = TCGType.valueOf(param.trim());
                 tcgTypes = new TCGType[]{specificTcgType};
+                System.out.println("Initialized with specific TCG type: " + specificTcgType);
             } catch (IllegalArgumentException e) {
-                System.err.println("Invalid TCG type: " + tcgTypeParam + ", importing all types");
+                System.err.println("Invalid TCG type: '" + param + "', falling back to all types. Valid types: " + 
+                    java.util.Arrays.toString(TCGType.values()));
                 tcgTypes = new TCGType[]{TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE};
             }
         } else {
+            System.out.println("No specific TCG type provided, importing all types");
             tcgTypes = new TCGType[]{TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE};
         }
+        
+        // Final safety check
+        if (tcgTypes == null || tcgTypes.length == 0) {
+            System.err.println("CRITICAL: TCG types array is null or empty, forcing default values");
+            tcgTypes = new TCGType[]{TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE};
+        }
+        
+        System.out.println("Final TCG types configuration: " + java.util.Arrays.toString(tcgTypes));
     }
 
     @Override
     public CardTemplate read() throws Exception {
+        // Safety check: ensure tcgTypes is initialized
+        if (tcgTypes == null) {
+            System.err.println("WARNING: tcgTypes was null, initializing with all types");
+            tcgTypes = new TCGType[]{TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE};
+        }
+        
         if (!initialized) {
             initializeCardIterator();
             initialized = true;
@@ -91,6 +113,13 @@ class TCGCardReader implements ItemReader<CardTemplate> {
     }
 
     private void initializeCardIterator() {
+        // Safety check: ensure we have valid TCG types
+        if (tcgTypes == null || tcgTypes.length == 0) {
+            System.err.println("ERROR: No TCG types available, cannot initialize card iterator");
+            cardIterator = Collections.emptyIterator();
+            return;
+        }
+        
         if (currentTcgIndex >= tcgTypes.length) {
             cardIterator = null;
             return;
@@ -133,6 +162,7 @@ class TCGCardReader implements ItemReader<CardTemplate> {
         }
 
         cardIterator = cards != null ? cards.iterator() : Collections.emptyIterator();
+        System.out.println("Loaded " + (cards != null ? cards.size() : 0) + " " + currentTcg + " cards");
     }
 }
 
@@ -159,10 +189,11 @@ public class BatchConfiguration {
     }
 
     @Bean
-    public Step step1(JobRepository jobRepository, PlatformTransactionManager transactionManager) {
+    public Step step1(JobRepository jobRepository, PlatformTransactionManager transactionManager, 
+                      @Qualifier("tcgCardReader") ItemReader<CardTemplate> reader) {
         return new StepBuilder("step1", jobRepository)
                 .<CardTemplate, CardTemplate>chunk(50, transactionManager) // Process 50 cards at a time
-                .reader(reader())
+                .reader(reader)
                 .processor(processor())
                 .writer(writer())
                 .build();
@@ -170,8 +201,9 @@ public class BatchConfiguration {
 
     @Bean
     @StepScope
-    public ItemReader<CardTemplate> reader() {
-        return new TCGCardReader(apiService, tcgApiClient);
+    @Qualifier("tcgCardReader")
+    public ItemReader<CardTemplate> tcgCardReader(@Value("#{jobParameters['tcgType']}") String tcgTypeParam) {
+        return new TCGCardReader(apiService, tcgApiClient, tcgTypeParam);
     }
 
     @Bean
