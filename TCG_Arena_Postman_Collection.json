@@ -1,0 +1,1136 @@
+{
+  "info": {
+    "name": "TCG Arena Backend API",
+    "description": "Complete API collection for TCG Arena Backend deployed on Render",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://tcgarena-be.onrender.com",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Check if the API is running and healthy"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"testuser\",\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\",\n  \"displayName\": \"Test User\",\n  \"favoriteGame\": \"POKEMON\",\n  \"city\": \"Rome\",\n  \"country\": \"Italy\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Register a new user account. This will automatically create a default 'My Collection' deck."
+          }
+        },
+        {
+          "name": "Login User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"testuser\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "Login with existing user credentials. Save the token from response to authToken variable."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('authToken', response.token);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users"]
+            },
+            "description": "Retrieve all registered users"
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "1"]
+            },
+            "description": "Retrieve a specific user by ID"
+          }
+        },
+        {
+          "name": "Search Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/search?query=test",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "search"],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "test"
+                }
+              ]
+            },
+            "description": "Search users by query string"
+          }
+        },
+        {
+          "name": "Get User Leaderboard",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/leaderboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "leaderboard"]
+            },
+            "description": "Get users leaderboard"
+          }
+        },
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"newuser\",\n  \"email\": \"new@example.com\",\n  \"password\": \"password123\",\n  \"displayName\": \"New User\",\n  \"favoriteGame\": \"MAGIC\",\n  \"isPremium\": false,\n  \"isMerchant\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users"]
+            },
+            "description": "Create a new user (admin operation)"
+          }
+        },
+        {
+          "name": "Update User",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"updateduser\",\n  \"email\": \"updated@example.com\",\n  \"displayName\": \"Updated User\",\n  \"favoriteGame\": \"ONE_PIECE\",\n  \"isPremium\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "1"]
+            },
+            "description": "Update an existing user"
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", "1"]
+            },
+            "description": "Delete a user account"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Decks",
+      "item": [
+        {
+          "name": "Get All Decks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/decks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "decks"]
+            },
+            "description": "Retrieve all decks"
+          }
+        },
+        {
+          "name": "Get Deck by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/decks/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "decks", "1"]
+            },
+            "description": "Retrieve a specific deck by ID"
+          }
+        },
+        {
+          "name": "Get Public Decks",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/decks/public",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "decks", "public"]
+            },
+            "description": "Retrieve all public decks"
+          }
+        },
+        {
+          "name": "Create Deck",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My Awesome Deck\",\n  \"description\": \"A powerful deck for tournaments\",\n  \"tcgType\": \"POKEMON\",\n  \"isPublic\": true,\n  \"ownerId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/decks",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "decks"]
+            },
+            "description": "Create a new deck"
+          }
+        },
+        {
+          "name": "Update Deck",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Deck Name\",\n  \"description\": \"Updated description\",\n  \"tcgType\": \"MAGIC\",\n  \"isPublic\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/decks/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "decks", "1"]
+            },
+            "description": "Update an existing deck"
+          }
+        },
+        {
+          "name": "Add Card to Deck",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/decks/1/add-card?cardId=1&quantity=4",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "decks", "1", "add-card"],
+              "query": [
+                {
+                  "key": "cardId",
+                  "value": "1"
+                },
+                {
+                  "key": "quantity",
+                  "value": "4"
+                }
+              ]
+            },
+            "description": "Add cards to a deck"
+          }
+        },
+        {
+          "name": "Remove Card from Deck",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/decks/1/remove-card?cardId=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "decks", "1", "remove-card"],
+              "query": [
+                {
+                  "key": "cardId",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Remove a card from a deck"
+          }
+        },
+        {
+          "name": "Delete Deck",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/decks/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "decks", "1"]
+            },
+            "description": "Delete a deck"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cards",
+      "item": [
+        {
+          "name": "Get All Cards",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cards",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards"]
+            },
+            "description": "Retrieve all trading cards"
+          }
+        },
+        {
+          "name": "Get Card by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cards/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards", "1"]
+            },
+            "description": "Retrieve a specific card by ID"
+          }
+        },
+        {
+          "name": "Get User's Card Collection",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cards/collection/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards", "collection", "1"]
+            },
+            "description": "Get all cards owned by a specific user"
+          }
+        },
+        {
+          "name": "Get Card Market Price",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cards/market-price/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards", "market-price", "1"]
+            },
+            "description": "Get the market price of a specific card"
+          }
+        },
+        {
+          "name": "Create Card",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Charizard\",\n  \"cardNumber\": \"4/102\",\n  \"rarity\": \"RARE\",\n  \"tcgType\": \"POKEMON\",\n  \"setCode\": \"BASE1\",\n  \"ownerId\": 1,\n  \"condition\": \"NEAR_MINT\",\n  \"marketPrice\": 150.00\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/cards",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards"]
+            },
+            "description": "Create a new trading card"
+          }
+        },
+        {
+          "name": "Add Card to Collection",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cards/1/add-to-collection?userId=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards", "1", "add-to-collection"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Add a card to a user's collection"
+          }
+        },
+        {
+          "name": "Update Card",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Charizard\",\n  \"marketPrice\": 200.00,\n  \"condition\": \"MINT\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/cards/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards", "1"]
+            },
+            "description": "Update an existing card"
+          }
+        },
+        {
+          "name": "Delete Card",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cards/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "cards", "1"]
+            },
+            "description": "Delete a trading card"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tournaments",
+      "item": [
+        {
+          "name": "Get All Tournaments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tournaments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tournaments"]
+            },
+            "description": "Retrieve all tournaments"
+          }
+        },
+        {
+          "name": "Get Tournament by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tournaments/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tournaments", "1"]
+            },
+            "description": "Retrieve a specific tournament by ID"
+          }
+        },
+        {
+          "name": "Get Upcoming Tournaments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tournaments/upcoming",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tournaments", "upcoming"]
+            },
+            "description": "Get all upcoming tournaments"
+          }
+        },
+        {
+          "name": "Get Nearby Tournaments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tournaments/nearby?latitude=41.9028&longitude=12.4964&radiusKm=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tournaments", "nearby"],
+              "query": [
+                {
+                  "key": "latitude",
+                  "value": "41.9028"
+                },
+                {
+                  "key": "longitude",
+                  "value": "12.4964"
+                },
+                {
+                  "key": "radiusKm",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "Get tournaments near a specific location (Rome coordinates)"
+          }
+        },
+        {
+          "name": "Create Tournament",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Spring Championship\",\n  \"description\": \"Annual spring tournament\",\n  \"tcgType\": \"POKEMON\",\n  \"type\": \"COMPETITIVE\",\n  \"startDate\": \"2025-04-15T10:00:00\",\n  \"endDate\": \"2025-04-15T18:00:00\",\n  \"entryFee\": 25.00,\n  \"prizePool\": 1000.00,\n  \"maxParticipants\": 64,\n  \"organizerId\": 1,\n  \"address\": \"Convention Center\",\n  \"city\": \"Rome\",\n  \"country\": \"Italy\",\n  \"latitude\": 41.9028,\n  \"longitude\": 12.4964\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tournaments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tournaments"]
+            },
+            "description": "Create a new tournament"
+          }
+        },
+        {
+          "name": "Update Tournament",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Championship\",\n  \"description\": \"Updated tournament description\",\n  \"prizePool\": 1500.00\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/tournaments/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tournaments", "1"]
+            },
+            "description": "Update an existing tournament"
+          }
+        },
+        {
+          "name": "Delete Tournament",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/tournaments/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "tournaments", "1"]
+            },
+            "description": "Delete a tournament"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Shops",
+      "item": [
+        {
+          "name": "Get All Shops",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/shops",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "shops"]
+            },
+            "description": "Retrieve all shops"
+          }
+        },
+        {
+          "name": "Get Shop by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/shops/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "shops", "1"]
+            },
+            "description": "Retrieve a specific shop by ID"
+          }
+        },
+        {
+          "name": "Create Shop",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Card Masters\",\n  \"address\": \"Via Roma 123\",\n  \"type\": \"LOCAL_STORE\",\n  \"phoneNumber\": \"+39 06 1234567\",\n  \"websiteUrl\": \"https://cardmasters.it\",\n  \"ownerId\": 1,\n  \"isVerified\": true,\n  \"latitude\": 41.9028,\n  \"longitude\": 12.4964\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/shops",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "shops"]
+            },
+            "description": "Create a new shop"
+          }
+        },
+        {
+          "name": "Update Shop",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Card Masters\",\n  \"phoneNumber\": \"+39 06 9876543\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/shops/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "shops", "1"]
+            },
+            "description": "Update an existing shop"
+          }
+        },
+        {
+          "name": "Delete Shop",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/shops/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "shops", "1"]
+            },
+            "description": "Delete a shop"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Expansions",
+      "item": [
+        {
+          "name": "Get All Expansions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/expansions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "expansions"]
+            },
+            "description": "Retrieve all expansions"
+          }
+        },
+        {
+          "name": "Get Expansion by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/expansions/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "expansions", "1"]
+            },
+            "description": "Retrieve a specific expansion by ID"
+          }
+        },
+        {
+          "name": "Get Recent Expansions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/expansions/recent",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "expansions", "recent"]
+            },
+            "description": "Get recently released expansions"
+          }
+        },
+        {
+          "name": "Create Expansion",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Scarlet & Violet\",\n  \"tcgType\": \"POKEMON\",\n  \"imageUrl\": \"https://example.com/scarlet-violet.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/expansions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "expansions"]
+            },
+            "description": "Create a new expansion"
+          }
+        },
+        {
+          "name": "Update Expansion",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Scarlet & Violet\",\n  \"imageUrl\": \"https://example.com/updated-image.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/expansions/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "expansions", "1"]
+            },
+            "description": "Update an existing expansion"
+          }
+        },
+        {
+          "name": "Delete Expansion",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/expansions/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "expansions", "1"]
+            },
+            "description": "Delete an expansion"
+          }
+        }
+      ]
+    },
+    {
+      "name": "TCG Sets",
+      "item": [
+        {
+          "name": "Get All Sets",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sets",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sets"]
+            },
+            "description": "Retrieve all TCG sets"
+          }
+        },
+        {
+          "name": "Get Set by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sets/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sets", "1"]
+            },
+            "description": "Retrieve a specific TCG set by ID"
+          }
+        },
+        {
+          "name": "Get Cards by Set Code",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sets/BASE1/cards",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sets", "BASE1", "cards"]
+            },
+            "description": "Get all cards from a specific set"
+          }
+        },
+        {
+          "name": "Create Set",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Base Set\",\n  \"setCode\": \"BASE1\",\n  \"releaseDate\": \"1999-01-09T00:00:00\",\n  \"cardCount\": 102,\n  \"description\": \"The first Pokémon Trading Card Game set\",\n  \"expansionId\": 1\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sets",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sets"]
+            },
+            "description": "Create a new TCG set"
+          }
+        },
+        {
+          "name": "Update Set",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Base Set\",\n  \"description\": \"Updated description for the base set\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sets/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sets", "1"]
+            },
+            "description": "Update an existing TCG set"
+          }
+        },
+        {
+          "name": "Delete Set",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/sets/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sets", "1"]
+            },
+            "description": "Delete a TCG set"
+          }
+        }
+      ]
+    }
+  ]
+}
