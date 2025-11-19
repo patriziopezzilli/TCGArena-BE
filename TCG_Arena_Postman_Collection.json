@@ -293,18 +293,13 @@
           "name": "Get Public Decks",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/decks/public",
               "host": ["{{baseUrl}}"],
               "path": ["api", "decks", "public"]
             },
-            "description": "Retrieve all public decks"
+            "description": "Retrieve all public decks available for viewing (public endpoint)"
           }
         },
         {
@@ -438,36 +433,26 @@
           "name": "Get All Cards",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/cards",
               "host": ["{{baseUrl}}"],
               "path": ["api", "cards"]
             },
-            "description": "Retrieve all trading cards"
+            "description": "Retrieve all trading cards (public endpoint)"
           }
         },
         {
           "name": "Get Card by ID",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/cards/1",
               "host": ["{{baseUrl}}"],
               "path": ["api", "cards", "1"]
             },
-            "description": "Retrieve a specific card by ID"
+            "description": "Retrieve a specific card by ID (public endpoint)"
           }
         },
         {
@@ -485,7 +470,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "cards", "collection", "1"]
             },
-            "description": "Get all cards owned by a specific user"
+            "description": "Get all cards owned by a specific user (requires authentication)"
           }
         },
         {
@@ -609,36 +594,26 @@
           "name": "Get All Tournaments",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/tournaments",
               "host": ["{{baseUrl}}"],
               "path": ["api", "tournaments"]
             },
-            "description": "Retrieve all tournaments"
+            "description": "Retrieve all tournaments (public endpoint)"
           }
         },
         {
           "name": "Get Tournament by ID",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/tournaments/1",
               "host": ["{{baseUrl}}"],
               "path": ["api", "tournaments", "1"]
             },
-            "description": "Retrieve a specific tournament by ID"
+            "description": "Retrieve a specific tournament by ID (public endpoint)"
           }
         },
         {
@@ -770,18 +745,13 @@
           "name": "Get All Shops",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/shops",
               "host": ["{{baseUrl}}"],
               "path": ["api", "shops"]
             },
-            "description": "Retrieve all shops"
+            "description": "Retrieve all shops (public endpoint)"
           }
         },
         {
@@ -881,18 +851,13 @@
           "name": "Get All Expansions",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/expansions",
               "host": ["{{baseUrl}}"],
               "path": ["api", "expansions"]
             },
-            "description": "Retrieve all expansions"
+            "description": "Retrieve all expansions (public endpoint)"
           }
         },
         {
@@ -1010,18 +975,13 @@
           "name": "Get All Sets",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/sets",
               "host": ["{{baseUrl}}"],
               "path": ["api", "sets"]
             },
-            "description": "Retrieve all TCG sets"
+            "description": "Retrieve all TCG sets (public endpoint)"
           }
         },
         {
