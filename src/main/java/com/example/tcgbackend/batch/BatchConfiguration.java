@@ -15,22 +15,126 @@ import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.core.configuration.annotation.StepScope;
-import org.springframework.batch.core.StepExecution;
-import org.springframework.batch.core.annotation.BeforeStep;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.support.ListItemReader;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import jakarta.annotation.PostConstruct;
+
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+
+@StepScope
+class TCGCardReader implements ItemReader<CardTemplate> {
+
+    private Iterator<CardTemplate> cardIterator;
+    private boolean initialized = false;
+    private int currentTcgIndex = 0;
+    private TCGType[] tcgTypes;
+    private TCGType specificTcgType = null;
+
+    private final ApiService apiService;
+    private final TCGApiClient tcgApiClient;
+
+    @Value("#{jobParameters['tcgType']}")
+    private String tcgTypeParam;
+
+    public TCGCardReader(ApiService apiService, TCGApiClient tcgApiClient) {
+        this.apiService = apiService;
+        this.tcgApiClient = tcgApiClient;
+    }
+
+    @PostConstruct
+    public void initializeTcgTypes() {
+        if (tcgTypeParam != null && !tcgTypeParam.isEmpty()) {
+            try {
+                specificTcgType = TCGType.valueOf(tcgTypeParam);
+                tcgTypes = new TCGType[]{specificTcgType};
+            } catch (IllegalArgumentException e) {
+                System.err.println("Invalid TCG type: " + tcgTypeParam + ", importing all types");
+                tcgTypes = new TCGType[]{TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE};
+            }
+        } else {
+            tcgTypes = new TCGType[]{TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE};
+        }
+    }
+
+    @Override
+    public CardTemplate read() throws Exception {
+        if (!initialized) {
+            initializeCardIterator();
+            initialized = true;
+        }
+
+        // If current iterator is exhausted, try next TCG type
+        while (cardIterator == null || !cardIterator.hasNext()) {
+            if (currentTcgIndex >= tcgTypes.length) {
+                return null; // All TCG types processed
+            }
+
+            currentTcgIndex++;
+            if (currentTcgIndex < tcgTypes.length) {
+                initializeCardIterator();
+            } else {
+                return null;
+            }
+        }
+
+        return cardIterator.hasNext() ? cardIterator.next() : null;
+    }
+
+    private void initializeCardIterator() {
+        if (currentTcgIndex >= tcgTypes.length) {
+            cardIterator = null;
+            return;
+        }
+
+        TCGType currentTcg = tcgTypes[currentTcgIndex];
+        System.out.println("Starting import for " + currentTcg + " cards...");
+
+        List<CardTemplate> cards = null;
+        try {
+            // Fetch cards and convert to CardTemplate
+            List<Card> rawCards = null;
+            switch (currentTcg) {
+                case POKEMON:
+                    rawCards = tcgApiClient.fetchPokemonCards().collectList().block();
+                    break;
+                case MAGIC:
+                    rawCards = tcgApiClient.fetchMagicCards().collectList().block();
+                    break;
+                case ONE_PIECE:
+                    rawCards = tcgApiClient.fetchOnePieceCards().collectList().block();
+                    break;
+            }
+
+            // Convert Card to CardTemplate
+            if (rawCards != null) {
+                cards = rawCards.stream().map(card -> {
+                    CardTemplate template = new CardTemplate();
+                    template.setName(card.getName());
+                    template.setTcgType(card.getTcgType());
+                    template.setSetCode(card.getSetCode());
+                    template.setExpansion(card.getExpansion());
+                    template.setRarity(card.getRarity());
+                    return template;
+                }).collect(java.util.stream.Collectors.toList());
+            }
+        } catch (Exception e) {
+            System.err.println("Error fetching cards for " + currentTcg + ": " + e.getMessage());
+            cards = Collections.emptyList();
+        }
+
+        cardIterator = cards != null ? cards.iterator() : Collections.emptyIterator();
+    }
+}
 
 @Configuration
 public class BatchConfiguration {
@@ -67,105 +171,7 @@ public class BatchConfiguration {
     @Bean
     @StepScope
     public ItemReader<CardTemplate> reader() {
-        // Import cards from specific TCG type if provided, otherwise all types
-        return new ItemReader<CardTemplate>() {
-            private Iterator<CardTemplate> cardIterator;
-            private boolean initialized = false;
-            private int currentTcgIndex = 0;
-            private TCGType[] tcgTypes;
-            private TCGType specificTcgType = null;
-
-            @BeforeStep
-            public void beforeStep(StepExecution stepExecution) {
-                String param = stepExecution.getJobParameters().getString("tcgType");
-                if (param != null && !param.isEmpty()) {
-                    try {
-                        specificTcgType = TCGType.valueOf(param);
-                        tcgTypes = new TCGType[]{specificTcgType};
-                    } catch (IllegalArgumentException e) {
-                        System.err.println("Invalid TCG type: " + param + ", importing all types");
-                        tcgTypes = new TCGType[]{TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE};
-                    }
-                } else {
-                    tcgTypes = new TCGType[]{TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE};
-                }
-            }
-
-            @Override
-            public CardTemplate read() throws Exception {
-                if (!initialized) {
-                    initializeCardIterator();
-                    initialized = true;
-                }
-
-                // If current iterator is exhausted, try next TCG type
-                while (cardIterator == null || !cardIterator.hasNext()) {
-                    if (currentTcgIndex >= tcgTypes.length) {
-                        return null; // All TCG types processed
-                    }
-
-                    currentTcgIndex++;
-                    if (currentTcgIndex < tcgTypes.length) {
-                        initializeCardIterator();
-                    } else {
-                        return null;
-                    }
-                }
-
-                return cardIterator.hasNext() ? cardIterator.next() : null;
-            }
-
-            private void initializeCardIterator() {
-                if (currentTcgIndex >= tcgTypes.length) {
-                    cardIterator = null;
-                    return;
-                }
-
-                TCGType currentTcg = tcgTypes[currentTcgIndex];
-                System.out.println("Starting import for " + currentTcg + " cards...");
-
-                List<CardTemplate> cards = null;
-                try {
-                    // Fetch cards and convert to CardTemplate
-                    List<Card> rawCards = null;
-                    switch (currentTcg) {
-                        case POKEMON:
-                            rawCards = tcgApiClient.fetchPokemonCards().collectList().block();
-                            break;
-                        case MAGIC:
-                            rawCards = tcgApiClient.fetchMagicCards().collectList().block();
-                            break;
-                        case ONE_PIECE:
-                            rawCards = tcgApiClient.fetchOnePieceCards().collectList().block();
-                            break;
-                    }
-
-                    // Convert Card to CardTemplate
-                    if (rawCards != null) {
-                        cards = rawCards.stream().map(card -> {
-                            CardTemplate template = new CardTemplate();
-                            template.setName(card.getName());
-                            template.setTcgType(card.getTcgType());
-                            template.setSetCode(card.getSetCode());
-                            template.setExpansion(card.getExpansion());
-                            template.setRarity(card.getRarity());
-                            template.setCardNumber(card.getCardNumber());
-                            template.setDescription(card.getDescription());
-                            template.setImageUrl(card.getImageUrl());
-                            template.setMarketPrice(card.getMarketPrice());
-                            template.setManaCost(card.getManaCost());
-                            return template;
-                        }).toList();
-                    }
-                } catch (Exception e) {
-                    System.err.println("Error fetching " + currentTcg + " cards: " + e.getMessage());
-                    cards = Collections.emptyList();
-                }
-
-                cardIterator = cards != null ? cards.iterator() : Collections.emptyIterator();
-                System.out.println("Loaded " + (cards != null ? cards.size() : 0) + " " + currentTcg + " cards");
-            }
-        };
+        return new TCGCardReader(apiService, tcgApiClient);
     }
 
     @Bean
