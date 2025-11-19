@@ -43,7 +43,7 @@ public class SecurityConfig {
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.csrf().disable()
             .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/api/auth/**", "/api/public/**", "/health").permitAll()
+                .requestMatchers("/api/auth/**", "/api/public/**", "/health", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .anyRequest().authenticated()
             )
             .exceptionHandling().authenticationEntryPoint(jwtAuthenticationEntryPoint)
