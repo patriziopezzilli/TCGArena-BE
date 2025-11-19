@@ -14,6 +14,10 @@ import org.springframework.batch.core.Step;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.core.configuration.annotation.StepScope;
+import org.springframework.batch.core.StepExecution;
+import org.springframework.batch.core.annotation.BeforeStep;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
@@ -61,14 +65,33 @@ public class BatchConfiguration {
     }
 
     @Bean
+    @StepScope
     public ItemReader<CardTemplate> reader() {
-        // Import cards from all TCG types or specific type if provided
+        // Import cards from specific TCG type if provided, otherwise all types
         return new ItemReader<CardTemplate>() {
             private Iterator<CardTemplate> cardIterator;
             private boolean initialized = false;
             private int currentTcgIndex = 0;
-            private final TCGType[] tcgTypes = {TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE};
+            private TCGType[] tcgTypes;
             private TCGType specificTcgType = null;
+
+            @Value("#{jobParameters['tcgType']}")
+            private String tcgTypeParam;
+
+            @BeforeStep
+            public void beforeStep(StepExecution stepExecution) {
+                if (tcgTypeParam != null && !tcgTypeParam.isEmpty()) {
+                    try {
+                        specificTcgType = TCGType.valueOf(tcgTypeParam);
+                        tcgTypes = new TCGType[]{specificTcgType};
+                    } catch (IllegalArgumentException e) {
+                        System.err.println("Invalid TCG type: " + tcgTypeParam + ", importing all types");
+                        tcgTypes = new TCGType[]{TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE};
+                    }
+                } else {
+                    tcgTypes = new TCGType[]{TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE};
+                }
+            }
 
             @Override
             public CardTemplate read() throws Exception {
