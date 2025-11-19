@@ -620,30 +620,20 @@
           "name": "Get Upcoming Tournaments",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/tournaments/upcoming",
               "host": ["{{baseUrl}}"],
               "path": ["api", "tournaments", "upcoming"]
             },
-            "description": "Get all upcoming tournaments"
+            "description": "Get all upcoming tournaments (public endpoint)"
           }
         },
         {
           "name": "Get Nearby Tournaments",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/tournaments/nearby?latitude=41.9028&longitude=12.4964&radiusKm=50",
               "host": ["{{baseUrl}}"],
@@ -663,7 +653,7 @@
                 }
               ]
             },
-            "description": "Get tournaments near a specific location (Rome coordinates)"
+            "description": "Get tournaments near a specific location (Rome coordinates) - public endpoint"
           }
         },
         {
@@ -758,18 +748,13 @@
           "name": "Get Shop by ID",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/shops/1",
               "host": ["{{baseUrl}}"],
               "path": ["api", "shops", "1"]
             },
-            "description": "Retrieve a specific shop by ID"
+            "description": "Retrieve a specific shop by ID (public endpoint)"
           }
         },
         {
@@ -864,36 +849,26 @@
           "name": "Get Expansion by ID",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/expansions/1",
               "host": ["{{baseUrl}}"],
               "path": ["api", "expansions", "1"]
             },
-            "description": "Retrieve a specific expansion by ID"
+            "description": "Retrieve a specific expansion by ID (public endpoint)"
           }
         },
         {
           "name": "Get Recent Expansions",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/expansions/recent",
               "host": ["{{baseUrl}}"],
               "path": ["api", "expansions", "recent"]
             },
-            "description": "Get recently released expansions"
+            "description": "Get recently released expansions (public endpoint)"
           }
         },
         {
@@ -988,36 +963,26 @@
           "name": "Get Set by ID",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/sets/1",
               "host": ["{{baseUrl}}"],
               "path": ["api", "sets", "1"]
             },
-            "description": "Retrieve a specific TCG set by ID"
+            "description": "Retrieve a specific TCG set by ID (public endpoint)"
           }
         },
         {
           "name": "Get Cards by Set Code",
           "request": {
             "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{authToken}}"
-              }
-            ],
+            "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/sets/BASE1/cards",
               "host": ["{{baseUrl}}"],
               "path": ["api", "sets", "BASE1", "cards"]
             },
-            "description": "Get all cards from a specific set"
+            "description": "Get all cards from a specific set (public endpoint)"
           }
         },
         {
