@@ -420,7 +420,7 @@
       "name": "Cards",
       "item": [
         {
-          "name": "Get All Cards",
+          "name": "Get All Card Templates",
           "request": {
             "method": "GET",
             "header": [],
@@ -429,11 +429,11 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "cards"]
             },
-            "description": "Retrieve all trading cards (public endpoint)"
+            "description": "Retrieve all card templates (public endpoint)"
           }
         },
         {
-          "name": "Get Card by ID",
+          "name": "Get Card Template by ID",
           "request": {
             "method": "GET",
             "header": [],
@@ -442,7 +442,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "cards", "1"]
             },
-            "description": "Retrieve a specific card by ID (public endpoint)"
+            "description": "Retrieve a specific card template by ID (public endpoint)"
           }
         },
         {
@@ -478,11 +478,11 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "cards", "market-price", "1"]
             },
-            "description": "Get the market price of a specific card"
+            "description": "Get the market price of a specific card template"
           }
         },
         {
-          "name": "Create Card",
+          "name": "Create Card Template",
           "request": {
             "method": "POST",
             "header": [
@@ -504,7 +504,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "cards"]
             },
-            "description": "Create a new trading card"
+            "description": "Create a new card template"
           }
         },
         {
@@ -518,21 +518,25 @@
               }
             ],
             "url": {
-              "raw": "{{baseUrl}}/api/cards/1/add-to-collection?userId=1",
+              "raw": "{{baseUrl}}/api/cards/1/add-to-collection?userId=1&condition=NEAR_MINT",
               "host": ["{{baseUrl}}"],
               "path": ["api", "cards", "1", "add-to-collection"],
               "query": [
                 {
                   "key": "userId",
                   "value": "1"
+                },
+                {
+                  "key": "condition",
+                  "value": "NEAR_MINT"
                 }
               ]
             },
-            "description": "Add a card to a user's collection"
+            "description": "Add a card template to a user's collection as a user card (requires authentication)"
           }
         },
         {
-          "name": "Update Card",
+          "name": "Update Card Template",
           "request": {
             "method": "PUT",
             "header": [
@@ -558,7 +562,7 @@
           }
         },
         {
-          "name": "Delete Card",
+          "name": "Delete Card Template",
           "request": {
             "method": "DELETE",
             "header": [
@@ -669,7 +673,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "tournaments"]
             },
-            "description": "Create a new tournament"
+            "description": "Create a new tournament (requires merchant privileges)"
           }
         },
         {
@@ -1043,6 +1047,65 @@
               "path": ["api", "sets", "1"]
             },
             "description": "Delete a TCG set"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Trigger Batch Import - Pokemon",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/trigger-batch/POKEMON",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "trigger-batch", "POKEMON"]
+            },
+            "description": "Manually trigger batch import for Pokemon cards (requires merchant privileges)"
+          }
+        },
+        {
+          "name": "Trigger Batch Import - Magic",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/trigger-batch/MAGIC",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "trigger-batch", "MAGIC"]
+            },
+            "description": "Manually trigger batch import for Magic cards (requires merchant privileges)"
+          }
+        },
+        {
+          "name": "Trigger Batch Import - One Piece",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{authToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/admin/trigger-batch/ONE_PIECE",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "admin", "trigger-batch", "ONE_PIECE"]
+            },
+            "description": "Manually trigger batch import for One Piece cards (requires merchant privileges)"
           }
         }
       ]
