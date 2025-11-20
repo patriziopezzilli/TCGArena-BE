@@ -826,6 +826,28 @@ public class TCGApiClient {
         }
     }
 
+    public List<Card> fetchOnePieceCardsSynchronously(int maxPages) {
+        List<Card> allCards = new ArrayList<>();
+        try {
+            for (int page = 1; page <= maxPages; page++) {
+                System.out.println("Fetching One Piece page " + page + "/" + maxPages);
+                String response = fetchOnePieceCardsFromAPI(page).block();
+                if (response != null) {
+                    List<Card> pageCards = parseOnePieceCards(response).collectList().block();
+                    if (pageCards != null) {
+                        allCards.addAll(pageCards);
+                        System.out.println("Page " + page + ": added " + pageCards.size() + " cards (total: " + allCards.size() + ")");
+                    }
+                }
+                // Small delay between pages to be respectful to the API
+                Thread.sleep(200);
+            }
+        } catch (Exception e) {
+            System.err.println("Error fetching One Piece cards synchronously: " + e.getMessage());
+        }
+        return allCards;
+    }
+
     // Legacy method for backward compatibility
     public Double getMarketPrice(String cardName, String setCode) {
         // Stub: return a random price
