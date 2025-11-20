@@ -8,9 +8,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.beans.factory.annotation.Value;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -38,6 +39,9 @@ public class TCGApiClient {
     // One Piece API redirect tracking
     private String onePieceBaseUrl = "https://apitcg.com/api/one-piece/cards";
     private boolean onePieceUrlResolved = false;
+
+    @Value("${app.demo-env:false}")
+    private boolean demoEnv;
 
     @Autowired
     public TCGApiClient(CardRepository cardRepository, ImportProgressRepository importProgressRepository) {
@@ -91,6 +95,12 @@ public class TCGApiClient {
     }
 
     private boolean shouldSkipImport(ImportProgress progress) {
+        // In demo environment, never skip imports to allow repeated testing
+        if (demoEnv) {
+            System.out.println("Demo environment detected - forcing import execution");
+            return false;
+        }
+
         // If not complete, we need to continue importing
         if (!progress.isComplete()) {
             return false;
