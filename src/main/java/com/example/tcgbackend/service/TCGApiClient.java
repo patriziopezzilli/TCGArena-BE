@@ -700,16 +700,27 @@ public class TCGApiClient {
             card.setTcgType(TCGType.ONE_PIECE);
 
             // Map One Piece TCG fields to our Card model
-            card.setName(cardNode.path("name").asText());
+            String cardName = cardNode.path("name").asText();
+            if (cardName == null || cardName.trim().isEmpty()) {
+                cardName = "Unknown Card";
+            }
+            card.setName(cardName);
 
             // Use code as card number (base code without _p1/_p2 suffix)
             String code = cardNode.path("code").asText();
+            String cardNumber;
             if (!code.isEmpty()) {
-                card.setCardNumber(code);
+                cardNumber = code;
             } else {
                 // Fallback to id if code is not available
-                card.setCardNumber(cardNode.path("id").asText());
+                String id = cardNode.path("id").asText();
+                if (!id.isEmpty()) {
+                    cardNumber = id;
+                } else {
+                    cardNumber = "UNKNOWN";
+                }
             }
+            card.setCardNumber(cardNumber);
 
             // Map rarity - One Piece uses various codes
             String rarityStr = cardNode.path("rarity").asText();
@@ -816,6 +827,34 @@ public class TCGApiClient {
                 String setName = setNode.path("name").asText();
                 if (!setName.isEmpty()) {
                     card.setSetCode(setName);
+                } else {
+                    // Fallback: try to extract set code from card code
+                    String cardCode = cardNode.path("code").asText();
+                    if (!cardCode.isEmpty()) {
+                        // Extract set code from card code (e.g., "OP01-001" -> "OP01")
+                        String[] parts = cardCode.split("-");
+                        if (parts.length > 0) {
+                            card.setSetCode(parts[0]);
+                        } else {
+                            card.setSetCode("UNKNOWN");
+                        }
+                    } else {
+                        card.setSetCode("UNKNOWN");
+                    }
+                }
+            } else {
+                // Fallback: try to extract set code from card code
+                String cardCode = cardNode.path("code").asText();
+                if (!cardCode.isEmpty()) {
+                    // Extract set code from card code (e.g., "OP01-001" -> "OP01")
+                    String[] parts = cardCode.split("-");
+                    if (parts.length > 0) {
+                        card.setSetCode(parts[0]);
+                    } else {
+                        card.setSetCode("UNKNOWN");
+                    }
+                } else {
+                    card.setSetCode("UNKNOWN");
                 }
             }
 

@@ -44,8 +44,9 @@ class TCGCardReader implements ItemReader<CardTemplate> {
 
     private final ApiService apiService;
     private final TCGApiClient tcgApiClient;
+    private final CardTemplateService cardTemplateService;
 
-    public TCGCardReader(ApiService apiService, TCGApiClient tcgApiClient, String tcgTypeParam) {
+    public TCGCardReader(ApiService apiService, TCGApiClient tcgApiClient, CardTemplateService cardTemplateService, String tcgTypeParam) {
         if (apiService == null) {
             throw new IllegalArgumentException("ApiService cannot be null");
         }
@@ -54,6 +55,7 @@ class TCGCardReader implements ItemReader<CardTemplate> {
         }
         this.apiService = apiService;
         this.tcgApiClient = tcgApiClient;
+        this.cardTemplateService = cardTemplateService;
         System.out.println("TCGCardReader initialized with tcgTypeParam: " + tcgTypeParam);
         initializeTcgTypes(tcgTypeParam);
     }
@@ -132,6 +134,10 @@ class TCGCardReader implements ItemReader<CardTemplate> {
 
         TCGType currentTcg = tcgTypes[currentTcgIndex];
         System.out.println("Starting import for " + currentTcg + " cards...");
+
+        // Clear existing CardTemplates for this TCG type to avoid duplicates
+        System.out.println("Clearing existing CardTemplates for " + currentTcg);
+        cardTemplateService.deleteByTcgType(currentTcg);
 
         List<CardTemplate> cards = null;
         try {
@@ -222,7 +228,7 @@ public class BatchConfiguration {
     @StepScope
     @Qualifier("tcgCardReader")
     public ItemReader<CardTemplate> tcgCardReader(@Value("#{jobParameters['tcgType']}") String tcgTypeParam) {
-        return new TCGCardReader(apiService, tcgApiClient, tcgTypeParam);
+        return new TCGCardReader(apiService, tcgApiClient, cardTemplateService, tcgTypeParam);
     }
 
     @Bean

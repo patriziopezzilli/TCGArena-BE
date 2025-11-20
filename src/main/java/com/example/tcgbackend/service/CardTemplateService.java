@@ -2,10 +2,12 @@ package com.example.tcgbackend.service;
 
 import com.example.tcgbackend.model.CardTemplate;
 import com.example.tcgbackend.model.Expansion;
+import com.example.tcgbackend.model.TCGType;
 import com.example.tcgbackend.repository.CardTemplateRepository;
 import com.example.tcgbackend.repository.ExpansionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -68,6 +70,11 @@ public class CardTemplateService {
             return true;
         }
         return false;
+    }
+
+    @Transactional
+    public void deleteByTcgType(TCGType tcgType) {
+        cardTemplateRepository.deleteByTcgType(tcgType);
     }
 
     public Expansion getExpansionByName(String name) {
