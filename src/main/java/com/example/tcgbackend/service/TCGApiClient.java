@@ -872,6 +872,14 @@ public class TCGApiClient {
                 System.out.println("Fetching One Piece page " + page + "/" + maxPages);
                 String response = fetchOnePieceCardsFromAPI(page).block();
                 if (response != null) {
+                    // Check if the response contains data
+                    JsonNode jsonResponse = objectMapper.readTree(response);
+                    JsonNode dataArray = jsonResponse.path("data");
+                    if (dataArray.isArray() && dataArray.size() == 0) {
+                        System.out.println("Page " + page + ": data array is empty, stopping import");
+                        break; // No more cards to fetch
+                    }
+                    
                     List<Card> pageCards = parseOnePieceCards(response).collectList().block();
                     if (pageCards != null) {
                         allCards.addAll(pageCards);
