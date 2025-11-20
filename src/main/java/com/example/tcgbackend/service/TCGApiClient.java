@@ -548,22 +548,24 @@ public class TCGApiClient {
             System.out.println("No ONE_PIECE_API_KEY environment variable found");
         }
 
-        // Handle redirects manually but simply
+        // Handle redirects manually but simply - max 1 redirect to prevent loops
         return request.exchangeToMono(response -> {
             if (response.statusCode().is3xxRedirection()) {
                 // Get redirect location
                 String location = response.headers().header("Location").stream().findFirst().orElse(null);
-                if (location != null) {
+                if (location != null && !location.equals(url)) {
                     System.out.println("Following redirect to: " + location);
-                    // Make second request to redirect location
+                    // Make second request to redirect location (only once to prevent loops)
                     WebClient.RequestHeadersSpec<?> redirectRequest = onePieceWebClient.get().uri(location);
                     if (apiKey != null && !apiKey.isEmpty()) {
                         redirectRequest = redirectRequest.header("x-api-key", apiKey);
                     }
                     return redirectRequest.retrieve().bodyToMono(String.class);
+                } else if (location != null && location.equals(url)) {
+                    System.out.println("Redirect location same as original URL, skipping to prevent loop: " + location);
                 }
             }
-            // For direct responses, just return the body
+            // For direct responses or when redirect location is same as original, return the body
             return response.bodyToMono(String.class);
         })
         .delayElement(getRateLimitDelay()) // Conservative rate limiting since not documented
