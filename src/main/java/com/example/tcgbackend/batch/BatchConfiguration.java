@@ -91,8 +91,10 @@ class TCGCardReader implements ItemReader<CardTemplate> {
         }
         
         if (!initialized) {
+            System.out.println("Initializing card iterator for batch processing...");
             initializeCardIterator();
             initialized = true;
+            System.out.println("Card iterator initialized successfully");
         }
 
         // If current iterator is exhausted, try next TCG type
@@ -134,18 +136,25 @@ class TCGCardReader implements ItemReader<CardTemplate> {
             List<Card> rawCards = null;
             switch (currentTcg) {
                 case POKEMON:
+                    System.out.println("Starting Pokemon card fetch...");
                     rawCards = tcgApiClient.fetchPokemonCards().collectList().block();
+                    System.out.println("Pokemon cards fetched: " + (rawCards != null ? rawCards.size() : 0));
                     break;
                 case MAGIC:
+                    System.out.println("Starting Magic card fetch...");
                     rawCards = tcgApiClient.fetchMagicCards().collectList().block();
+                    System.out.println("Magic cards fetched: " + (rawCards != null ? rawCards.size() : 0));
                     break;
                 case ONE_PIECE:
+                    System.out.println("Starting One Piece card fetch...");
                     rawCards = tcgApiClient.fetchOnePieceCards().collectList().block();
+                    System.out.println("One Piece cards fetched: " + (rawCards != null ? rawCards.size() : 0));
                     break;
             }
 
             // Convert Card to CardTemplate
             if (rawCards != null) {
+                System.out.println("Converting " + rawCards.size() + " cards to CardTemplate...");
                 cards = rawCards.stream().map(card -> {
                     CardTemplate template = new CardTemplate();
                     template.setName(card.getName());
@@ -160,6 +169,7 @@ class TCGCardReader implements ItemReader<CardTemplate> {
                     template.setDateCreated(card.getDateAdded() != null ? card.getDateAdded() : java.time.LocalDateTime.now());
                     return template;
                 }).collect(java.util.stream.Collectors.toList());
+                System.out.println("Conversion completed: " + cards.size() + " CardTemplates created");
             }
         } catch (Exception e) {
             System.err.println("Error fetching cards for " + currentTcg + ": " + e.getMessage());
