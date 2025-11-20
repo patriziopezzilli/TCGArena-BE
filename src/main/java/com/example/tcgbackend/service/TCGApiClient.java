@@ -35,6 +35,10 @@ public class TCGApiClient {
     private int scryfallRequestsThisSecond = 0;
     private LocalDateTime lastScryfallRequestTime = LocalDateTime.now();
 
+    // One Piece API redirect tracking
+    private String onePieceBaseUrl = "https://apitcg.com/api/one-piece/cards";
+    private boolean onePieceUrlResolved = false;
+
     @Autowired
     public TCGApiClient(CardRepository cardRepository, ImportProgressRepository importProgressRepository) {
         this.cardRepository = cardRepository;
@@ -490,7 +494,9 @@ public class TCGApiClient {
     }
 
     private Mono<String> fetchOnePieceCardsFromAPI(int page) {
-        String url = "https://apitcg.com/api/one-piece/cards?page=" + page + "&limit=100";
+        // Use resolved URL if we already discovered the correct one, otherwise use default
+        String baseUrl = onePieceUrlResolved ? onePieceBaseUrl : "https://apitcg.com/api/one-piece/cards";
+        String url = baseUrl + "?page=" + page + "&limit=100";
         System.out.println("Making One Piece API request to: " + url);
 
         // One Piece TCG API: Use correct endpoint with limit parameter (max 100 per page)
@@ -513,6 +519,18 @@ public class TCGApiClient {
             if (response.statusCode().is3xxRedirection()) {
                 String location = response.headers().header("Location").stream().findFirst().orElse("No Location header");
                 System.out.println("Redirect detected! Location: " + location);
+
+                // Update base URL for future requests if this is the first redirect
+                if (!onePieceUrlResolved && location.contains("www.apitcg.com")) {
+                    // Extract the base URL from the redirect location
+                    int apiIndex = location.indexOf("/api/one-piece/cards");
+                    if (apiIndex > 0) {
+                        onePieceBaseUrl = location.substring(0, apiIndex + "/api/one-piece/cards".length());
+                        onePieceUrlResolved = true;
+                        System.out.println("Updated One Piece base URL to: " + onePieceBaseUrl);
+                    }
+                }
+
                 // Follow redirect manually
                 return onePieceWebClient.get()
                         .uri(location)
@@ -522,6 +540,12 @@ public class TCGApiClient {
                         .doOnNext(body -> System.out.println("Redirect response body length: " + body.length()))
                         .doOnError(error -> System.out.println("Error following redirect: " + error.getMessage()));
             } else {
+                // If we get a direct response and haven't resolved the URL yet, mark it as resolved
+                if (!onePieceUrlResolved) {
+                    onePieceUrlResolved = true;
+                    System.out.println("One Piece URL resolved to: " + baseUrl);
+                }
+
                 return response.bodyToMono(String.class)
                         .doOnNext(body -> System.out.println("Direct response body length: " + body.length()));
             }
