@@ -39,6 +39,9 @@ class TCGCardReader implements ItemReader<CardTemplate> {
     private TCGType[] tcgTypes;
     private TCGType specificTcgType = null;
 
+    @Value("${app.demo-env:false}")
+    private boolean demoEnv;
+
     private final ApiService apiService;
     private final TCGApiClient tcgApiClient;
 
@@ -147,7 +150,15 @@ class TCGCardReader implements ItemReader<CardTemplate> {
                     break;
                 case ONE_PIECE:
                     System.out.println("Starting One Piece card fetch...");
-                    rawCards = tcgApiClient.fetchOnePieceCards().collectList().block();
+                    // For One Piece, limit to first 3 pages in demo mode to avoid timeout
+                    if (demoEnv) {
+                        System.out.println("Demo mode: Limiting One Piece fetch to 3 pages (300 cards max)");
+                        rawCards = tcgApiClient.fetchOnePieceCardsLimited(3).collectList().block();
+                    } else {
+                        // For production, we need a different approach to avoid loading all 3188 cards at once
+                        System.out.println("Production mode: Using streaming approach for One Piece cards");
+                        rawCards = tcgApiClient.fetchOnePieceCardsLimited(5).collectList().block(); // Start with 5 pages
+                    }
                     System.out.println("One Piece cards fetched: " + (rawCards != null ? rawCards.size() : 0));
                     break;
             }

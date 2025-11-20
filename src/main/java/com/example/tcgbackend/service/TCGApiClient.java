@@ -395,6 +395,14 @@ public class TCGApiClient {
     }
 
     public Flux<Card> fetchOnePieceCards() {
+        return fetchOnePieceCardsInternal(Integer.MAX_VALUE); // No limit
+    }
+
+    public Flux<Card> fetchOnePieceCardsLimited(int maxPages) {
+        return fetchOnePieceCardsInternal(maxPages);
+    }
+
+    private Flux<Card> fetchOnePieceCardsInternal(int maxPages) {
         // Reset progress and clear existing cards in demo environment
         resetProgressForDemo(TCGType.ONE_PIECE);
 
@@ -410,7 +418,7 @@ public class TCGApiClient {
         // Determine starting page based on progress
         int startPage = progress.getLastProcessedPage() + 1;
         System.out.println("Starting One Piece import from page " + startPage +
-                          " (previously processed: " + progress.getLastProcessedPage() + " pages)");
+                          " (previously processed: " + progress.getLastProcessedPage() + " pages, max pages: " + maxPages + ")");
 
         // If we need to check for updates (complete but old), start from page 1 to get current total
         if (progress.isComplete() && needsUpdateCheck(progress)) {
@@ -418,8 +426,8 @@ public class TCGApiClient {
             System.out.println("Checking for One Piece card updates...");
         }
 
-        // Start fetching from the determined page
-        return fetchOnePieceCardsFromPage(startPage, progress);
+        // Start fetching from the determined page with page limit
+        return fetchOnePieceCardsFromPage(startPage, progress, maxPages);
     }
 
     private Flux<Card> fetchMagicCardsFromPage(int startPage, ImportProgress progress) {
@@ -473,7 +481,7 @@ public class TCGApiClient {
                 });
     }
 
-    private Flux<Card> fetchOnePieceCardsFromPage(int startPage, ImportProgress progress) {
+    private Flux<Card> fetchOnePieceCardsFromPage(int startPage, ImportProgress progress, int maxPages) {
         return fetchOnePieceCardsFromAPI(startPage)
                 .flatMapMany(response -> {
                     try {
@@ -518,9 +526,19 @@ public class TCGApiClient {
                             return currentPageCards;
                         }
 
+                        // Check if we've reached the max pages limit
+                        if (currentPage >= maxPages) {
+                            System.out.println("Reached max pages limit (" + maxPages + "), stopping import");
+                            progress.setComplete(true);
+                            progress.setLastCheckDate(LocalDateTime.now());
+                            importProgressRepository.save(progress);
+                            System.out.println("One Piece import completed! Limited to " + (currentPage * limit) + " cards (page limit).");
+                            return currentPageCards;
+                        }
+
                         // Continue with next page
                         return currentPageCards.concatWith(
-                            fetchOnePieceCardsFromPage(currentPage + 1, progress)
+                            fetchOnePieceCardsFromPage(currentPage + 1, progress, maxPages)
                         );
 
                     } catch (Exception e) {
