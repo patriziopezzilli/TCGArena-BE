@@ -153,6 +153,11 @@ class TCGCardReader implements ItemReader<CardTemplate> {
                     template.setSetCode(card.getSetCode());
                     template.setExpansion(card.getExpansion());
                     template.setRarity(card.getRarity());
+                    template.setCardNumber(card.getCardNumber()); // Add cardNumber mapping
+                    template.setImageUrl(card.getImageUrl());
+                    template.setDescription(card.getDescription());
+                    template.setManaCost(card.getManaCost());
+                    template.setDateCreated(card.getDateAdded() != null ? card.getDateAdded() : java.time.LocalDateTime.now());
                     return template;
                 }).collect(java.util.stream.Collectors.toList());
             }

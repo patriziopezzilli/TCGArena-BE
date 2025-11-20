@@ -655,12 +655,23 @@ public class TCGApiClient {
 
             // Map One Piece TCG fields to our Card model
             card.setName(cardNode.path("name").asText());
-            card.setCardNumber(cardNode.path("id").asText()); // Use id as card number (e.g., "OP03-070")
 
-            // Map rarity - One Piece uses single letters like "R", "C", etc.
+            // Use code as card number (base code without _p1/_p2 suffix)
+            String code = cardNode.path("code").asText();
+            if (!code.isEmpty()) {
+                card.setCardNumber(code);
+            } else {
+                // Fallback to id if code is not available
+                card.setCardNumber(cardNode.path("id").asText());
+            }
+
+            // Map rarity - One Piece uses various codes
             String rarityStr = cardNode.path("rarity").asText();
             try {
                 switch (rarityStr.toUpperCase()) {
+                    case "L":
+                        card.setRarity(Rarity.RARE); // Leader cards are rare
+                        break;
                     case "R":
                         card.setRarity(Rarity.RARE);
                         break;
@@ -671,9 +682,17 @@ public class TCGApiClient {
                     case "UR":
                         card.setRarity(Rarity.ULTRA_SECRET);
                         break;
+                    case "UC":
+                        card.setRarity(Rarity.UNCOMMON);
+                        break;
                     case "C":
-                    default:
                         card.setRarity(Rarity.COMMON);
+                        break;
+                    case "P":
+                        card.setRarity(Rarity.RARE); // Promo cards as rare
+                        break;
+                    default:
+                        card.setRarity(Rarity.COMMON); // Default fallback
                         break;
                 }
             } catch (Exception e) {
@@ -689,39 +708,74 @@ public class TCGApiClient {
                 }
             }
 
-            // Description - combine ability and trigger
+            // Description - combine ability and trigger with more details
             StringBuilder description = new StringBuilder();
-            String ability = cardNode.path("ability").asText();
-            String trigger = cardNode.path("trigger").asText();
 
-            if (!ability.isEmpty()) {
-                description.append(ability);
+            // Add type information
+            String type = cardNode.path("type").asText();
+            if (!type.isEmpty()) {
+                description.append("Type: ").append(type).append("\n");
             }
+
+            // Add cost information
+            if (cardNode.has("cost") && !cardNode.path("cost").isNull()) {
+                description.append("Cost: ").append(cardNode.path("cost").asInt()).append("\n");
+            }
+
+            // Add power information
+            if (cardNode.has("power") && !cardNode.path("power").isNull()) {
+                description.append("Power: ").append(cardNode.path("power").asInt()).append("\n");
+            }
+
+            // Add counter information
+            String counter = cardNode.path("counter").asText();
+            if (!counter.isEmpty() && !counter.equals("-")) {
+                description.append("Counter: ").append(counter).append("\n");
+            }
+
+            // Add color information
+            String color = cardNode.path("color").asText();
+            if (!color.isEmpty()) {
+                description.append("Color: ").append(color).append("\n");
+            }
+
+            // Add family information
+            String family = cardNode.path("family").asText();
+            if (!family.isEmpty()) {
+                description.append("Family: ").append(family).append("\n");
+            }
+
+            // Add ability
+            String ability = cardNode.path("ability").asText();
+            if (!ability.isEmpty() && !ability.equals("-")) {
+                description.append("Ability: ").append(ability).append("\n");
+            }
+
+            // Add trigger
+            String trigger = cardNode.path("trigger").asText();
             if (!trigger.isEmpty()) {
-                if (description.length() > 0) description.append(" | ");
-                description.append("Trigger: ").append(trigger);
+                description.append("Trigger: ").append(trigger).append("\n");
             }
-            card.setDescription(description.toString());
+
+            card.setDescription(description.toString().trim());
 
             // Cost as mana cost
             if (cardNode.has("cost") && !cardNode.path("cost").isNull()) {
                 card.setManaCost(cardNode.path("cost").asInt());
             }
 
-            // Set code from set object
+            // Set code from the set information
             JsonNode setNode = cardNode.path("set");
             if (!setNode.isMissingNode()) {
-                card.setSetCode(setNode.path("name").asText());
+                String setName = setNode.path("name").asText();
+                if (!setName.isEmpty()) {
+                    card.setSetCode(setName);
+                }
             }
-
-            // Set default values for required fields
-            card.setCondition(CardCondition.NEAR_MINT);
-            card.setDateAdded(LocalDateTime.now());
-            card.setOwnerId(1L); // Default owner
 
             return card;
         } catch (Exception e) {
-            System.err.println("Error parsing individual One Piece card: " + e.getMessage());
+            System.err.println("Error parsing One Piece card: " + e.getMessage());
             return null;
         }
     }
