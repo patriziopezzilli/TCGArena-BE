@@ -162,6 +162,16 @@ public class TCGApiClient {
                         System.out.println("Pokemon API: Page " + currentPage + "/" + totalPages +
                                           " (Total cards: " + totalCount + ")");
 
+                        // Safety check: if data array is empty, stop importing
+                        JsonNode dataArray = jsonResponse.path("data");
+                        if (dataArray.isArray() && dataArray.size() == 0) {
+                            System.out.println("Pokemon API: Page " + currentPage + " has empty data array, stopping import");
+                            progress.setComplete(true);
+                            progress.setLastCheckDate(LocalDateTime.now());
+                            importProgressRepository.save(progress);
+                            return Flux.empty();
+                        }
+
                         // If this is an update check and we have all cards, mark as checked and stop
                         if (progress.isComplete() && progress.getTotalPagesKnown() != null &&
                             totalPages <= progress.getLastProcessedPage()) {
@@ -452,6 +462,16 @@ public class TCGApiClient {
 
                         System.out.println("Magic API: Page " + currentPage + "/" + totalPages +
                                           " (Total cards: " + totalCards + ", Has more: " + hasMore + ")");
+
+                        // Safety check: if data array is empty, stop importing
+                        JsonNode dataArray = jsonResponse.path("data");
+                        if (dataArray.isArray() && dataArray.size() == 0) {
+                            System.out.println("Magic API: Page " + currentPage + " has empty data array, stopping import");
+                            progress.setComplete(true);
+                            progress.setLastCheckDate(LocalDateTime.now());
+                            importProgressRepository.save(progress);
+                            return Flux.empty();
+                        }
 
                         // Parse cards from current page
                         Flux<Card> currentPageCards = parseMagicCards(response);
