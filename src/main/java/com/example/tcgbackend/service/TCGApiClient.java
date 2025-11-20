@@ -508,7 +508,7 @@ public class TCGApiClient {
                         importProgressRepository.save(progress);
 
                         // In demo mode, limit to first few pages to avoid overwhelming the system
-                        int maxPagesInDemo = 3; // Only import first 3 pages (300 cards) in demo mode
+                        int maxPagesInDemo = 100; // Only import first 100 pages (10,000 cards) in demo mode
                         boolean isLastPage = currentPage >= totalPages;
                         if (demoEnv && currentPage >= maxPagesInDemo) {
                             isLastPage = true;

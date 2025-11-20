@@ -157,7 +157,7 @@ class TCGCardReader implements ItemReader<CardTemplate> {
                 case ONE_PIECE:
                     System.out.println("Starting One Piece card fetch...");
                     // Use synchronous approach to avoid blocking issues
-                    rawCards = tcgApiClient.fetchOnePieceCardsSynchronously(demoEnv ? 3 : 5);
+                    rawCards = tcgApiClient.fetchOnePieceCardsSynchronously(demoEnv ? 100 : 1000);
                     System.out.println("One Piece cards fetched: " + (rawCards != null ? rawCards.size() : 0));
                     break;
             }
