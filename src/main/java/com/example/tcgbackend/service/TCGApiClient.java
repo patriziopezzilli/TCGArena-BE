@@ -569,10 +569,10 @@ public class TCGApiClient {
     }
 
     private Mono<String> fetchMagicCardsFromAPI(int page) {
-        // Scryfall API: Use /cards/search endpoint without query to get all cards
+        // Scryfall API: Use /cards/search endpoint with q=* to get all cards
         // Pagination with page parameter, max 175 cards per page
         return webClient.get()
-                .uri("https://api.scryfall.com/cards/search?page=" + page)
+                .uri("https://api.scryfall.com/cards/search?q=*&page=" + page)
                 .retrieve()
                 .bodyToMono(String.class)
                 .delayElement(getScryfallRateLimitDelay()); // Scryfall: max 10 requests/second
