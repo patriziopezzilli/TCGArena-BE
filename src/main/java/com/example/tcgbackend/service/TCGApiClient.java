@@ -531,7 +531,7 @@ public class TCGApiClient {
     }
 
     private Mono<String> fetchOnePieceCardsFromAPI(int page) {
-        // Use the API endpoint directly - WebClient will automatically follow redirects
+        // Use the API endpoint directly
         String url = "https://apitcg.com/api/one-piece/cards?page=" + page + "&limit=100";
         System.out.println("Making One Piece API request to: " + url);
 
@@ -548,12 +548,27 @@ public class TCGApiClient {
             System.out.println("No ONE_PIECE_API_KEY environment variable found");
         }
 
-        // Use retrieve() which automatically follows redirects and returns the final response
-        return request.retrieve()
-                .bodyToMono(String.class)
-                .delayElement(getRateLimitDelay()) // Conservative rate limiting since not documented
-                .doOnNext(body -> System.out.println("One Piece API response (first 200 chars): " + body.substring(0, Math.min(200, body.length()))))
-                .doOnError(error -> System.out.println("One Piece API request failed: " + error.getMessage()));
+        // Handle redirects manually but simply
+        return request.exchangeToMono(response -> {
+            if (response.statusCode().is3xxRedirection()) {
+                // Get redirect location
+                String location = response.headers().header("Location").stream().findFirst().orElse(null);
+                if (location != null) {
+                    System.out.println("Following redirect to: " + location);
+                    // Make second request to redirect location
+                    WebClient.RequestHeadersSpec<?> redirectRequest = onePieceWebClient.get().uri(location);
+                    if (apiKey != null && !apiKey.isEmpty()) {
+                        redirectRequest = redirectRequest.header("x-api-key", apiKey);
+                    }
+                    return redirectRequest.retrieve().bodyToMono(String.class);
+                }
+            }
+            // For direct responses, just return the body
+            return response.bodyToMono(String.class);
+        })
+        .delayElement(getRateLimitDelay()) // Conservative rate limiting since not documented
+        .doOnNext(body -> System.out.println("One Piece API response (first 200 chars): " + body.substring(0, Math.min(200, body.length()))))
+        .doOnError(error -> System.out.println("One Piece API request failed: " + error.getMessage()));
     }
 
     private Flux<Card> parseMagicCards(String jsonResponse) {
