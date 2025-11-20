@@ -42,6 +42,10 @@ public class CardTemplateService {
         return cardTemplateRepository.save(cardTemplate);
     }
 
+    public List<CardTemplate> saveAllCardTemplates(List<? extends CardTemplate> cardTemplates) {
+        return cardTemplateRepository.saveAll(cardTemplates.stream().map(card -> (CardTemplate) card).toList());
+    }
+
     public Optional<CardTemplate> updateCardTemplate(Long id, CardTemplate cardDetails) {
         return cardTemplateRepository.findById(id).map(card -> {
             card.setName(cardDetails.getName());

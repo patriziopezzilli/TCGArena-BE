@@ -258,9 +258,7 @@ public class BatchConfiguration {
     @Bean
     public ItemWriter<CardTemplate> writer() {
         return cards -> {
-            for (CardTemplate card : cards) {
-                cardTemplateService.saveCardTemplate(card);
-            }
+            cardTemplateService.saveAllCardTemplates(cards.getItems());
         };
     }
 }

@@ -34,6 +34,10 @@ public class CardService {
         return cardRepository.save(card);
     }
 
+    public List<Card> saveAllCards(List<Card> cards) {
+        return cardRepository.saveAll(cards);
+    }
+
     public Optional<Card> updateCard(Long id, Card cardDetails) {
         return cardRepository.findById(id).map(card -> {
             card.setName(cardDetails.getName());
