@@ -57,6 +57,9 @@ public class TCGApiClient {
     }
 
     public Flux<Card> fetchPokemonCards() {
+        // Reset progress and clear existing cards in demo environment
+        resetProgressForDemo(TCGType.POKEMON);
+
         // Get or create import progress for Pokemon
         ImportProgress progress = getOrCreateProgress(TCGType.POKEMON);
 
@@ -113,6 +116,28 @@ public class TCGApiClient {
 
         // Complete and recently checked - skip
         return true;
+    }
+
+    private void resetProgressForDemo(TCGType tcgType) {
+        if (!demoEnv) {
+            return;
+        }
+
+        System.out.println("Demo environment: Resetting progress and clearing existing cards for " + tcgType);
+
+        // Delete all existing cards for this TCG type
+        cardRepository.deleteByTcgType(tcgType);
+
+        // Reset import progress
+        ImportProgress progress = getOrCreateProgress(tcgType);
+        progress.setLastProcessedPage(0);
+        progress.setComplete(false);
+        progress.setTotalPagesKnown(null);
+        progress.setLastCheckDate(null);
+        progress.setLastUpdated(LocalDateTime.now());
+        importProgressRepository.save(progress);
+
+        System.out.println("Demo environment: Progress reset complete for " + tcgType);
     }
 
     private boolean needsUpdateCheck(ImportProgress progress) {
@@ -346,6 +371,9 @@ public class TCGApiClient {
     }
 
     public Flux<Card> fetchMagicCards() {
+        // Reset progress and clear existing cards in demo environment
+        resetProgressForDemo(TCGType.MAGIC);
+
         // Get or create import progress for Magic
         ImportProgress progress = getOrCreateProgress(TCGType.MAGIC);
 
@@ -371,6 +399,9 @@ public class TCGApiClient {
     }
 
     public Flux<Card> fetchOnePieceCards() {
+        // Reset progress and clear existing cards in demo environment
+        resetProgressForDemo(TCGType.ONE_PIECE);
+
         // Get or create import progress for One Piece
         ImportProgress progress = getOrCreateProgress(TCGType.ONE_PIECE);
 
