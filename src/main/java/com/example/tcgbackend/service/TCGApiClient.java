@@ -499,12 +499,22 @@ public class TCGApiClient {
                         progress.setLastProcessedPage(currentPage);
                         importProgressRepository.save(progress);
 
+                        // In demo mode, limit to first few pages to avoid overwhelming the system
+                        int maxPagesInDemo = 3; // Only import first 3 pages (300 cards) in demo mode
+                        boolean isLastPage = currentPage >= totalPages;
+                        if (demoEnv && currentPage >= maxPagesInDemo) {
+                            isLastPage = true;
+                            System.out.println("Demo mode: Limiting import to first " + maxPagesInDemo + " pages (" + (maxPagesInDemo * limit) + " cards max)");
+                        }
+
                         // If this is the last page, mark as complete
-                        if (currentPage >= totalPages) {
+                        if (isLastPage) {
                             progress.setComplete(true);
                             progress.setLastCheckDate(LocalDateTime.now());
                             importProgressRepository.save(progress);
-                            System.out.println("One Piece import completed! All " + totalCards + " cards imported.");
+                            int importedCards = demoEnv ? Math.min(totalCards, maxPagesInDemo * limit) : totalCards;
+                            System.out.println("One Piece import completed! " + importedCards + " cards imported." +
+                                             (demoEnv ? " (Limited by demo mode)" : ""));
                             return currentPageCards;
                         }
 
