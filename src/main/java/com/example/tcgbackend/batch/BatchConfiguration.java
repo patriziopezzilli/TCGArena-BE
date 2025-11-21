@@ -28,6 +28,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.ArrayList;
 import java.util.List;
 
 @StepScope
@@ -151,8 +152,9 @@ class TCGCardReader implements ItemReader<CardTemplate> {
                     break;
                 case MAGIC:
                     System.out.println("Starting Magic card fetch...");
-                    rawCards = tcgApiClient.fetchMagicCards().collectList().block();
-                    System.out.println("Magic cards fetched: " + (rawCards != null ? rawCards.size() : 0));
+                    tcgApiClient.fetchMagicCards().block(); // Saves directly, no need to collect cards
+                    System.out.println("Magic cards imported successfully");
+                    rawCards = new ArrayList<>(); // Empty list since cards are already saved
                     break;
                 case ONE_PIECE:
                     System.out.println("Starting One Piece card fetch...");

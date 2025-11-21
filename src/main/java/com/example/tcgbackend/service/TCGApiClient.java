@@ -380,7 +380,7 @@ public class TCGApiClient {
         };
     }
 
-    public Flux<Card> fetchMagicCards() {
+    public Mono<Void> fetchMagicCards() {
         // Reset progress and clear existing cards in demo environment
         resetProgressForDemo(TCGType.MAGIC);
 
@@ -390,7 +390,7 @@ public class TCGApiClient {
         // Check if we should skip import entirely
         if (shouldSkipImport(progress)) {
             System.out.println("Skipping Magic import - recently completed and no need to check for updates yet");
-            return Flux.empty();
+            return Mono.empty();
         }
 
         // Determine starting page based on progress
@@ -444,9 +444,9 @@ public class TCGApiClient {
         return fetchOnePieceCardsFromPage(startPage, progress, maxPages);
     }
 
-    private Flux<Card> fetchMagicCardsFromPage(int startPage, ImportProgress progress) {
+    private Mono<Void> fetchMagicCardsFromPage(int startPage, ImportProgress progress) {
         return fetchMagicCardsFromAPI(startPage)
-                .flatMapMany(response -> {
+                .flatMap(response -> {
                     try {
                         JsonNode jsonResponse = objectMapper.readTree(response);
 
@@ -474,33 +474,29 @@ public class TCGApiClient {
                             progress.setComplete(true);
                             progress.setLastCheckDate(LocalDateTime.now());
                             importProgressRepository.save(progress);
-                            return Flux.empty();
+                            return Mono.empty();
                         }
 
-                        // Parse cards from current page
-                        Flux<Card> currentPageCards = parseMagicCards(response);
+                        // Parse and save cards from current page
+                        return parseMagicCards(response)
+                                .then(Mono.fromRunnable(() -> {
+                                    // Update progress for this page
+                                    progress.setLastProcessedPage(currentPage);
+                                    importProgressRepository.save(progress);
 
-                        // Update progress for this page
-                        progress.setLastProcessedPage(currentPage);
-                        importProgressRepository.save(progress);
-
-                        // If no more pages, mark as complete
-                        if (!hasMore) {
-                            progress.setComplete(true);
-                            progress.setLastCheckDate(LocalDateTime.now());
-                            importProgressRepository.save(progress);
-                            System.out.println("Magic import completed! All " + totalCards + " cards imported.");
-                            return currentPageCards;
-                        }
-
-                        // Continue with next page
-                        return currentPageCards.concatWith(
-                            fetchMagicCardsFromPage(currentPage + 1, progress)
-                        );
+                                    // If no more pages, mark as complete
+                                    if (!hasMore) {
+                                        progress.setComplete(true);
+                                        progress.setLastCheckDate(LocalDateTime.now());
+                                        importProgressRepository.save(progress);
+                                        System.out.println("Magic import completed! All " + totalCards + " cards imported.");
+                                    }
+                                }))
+                                .then(hasMore ? fetchMagicCardsFromPage(currentPage + 1, progress) : Mono.empty());
 
                     } catch (Exception e) {
                         System.err.println("Error parsing Magic API response: " + e.getMessage());
-                        return Flux.empty();
+                        return Mono.empty();
                     }
                 });
     }
@@ -632,23 +628,32 @@ public class TCGApiClient {
         .doOnError(error -> System.out.println("One Piece API request failed: " + error.getMessage()));
     }
 
-    private Flux<Card> parseMagicCards(String jsonResponse) {
-        List<Card> cards = new ArrayList<>();
+    private Mono<Void> parseMagicCards(String jsonResponse) {
         try {
             JsonNode root = objectMapper.readTree(jsonResponse);
-            JsonNode data = root.path("data"); // Scryfall structure might be different
+            JsonNode data = root.path("data");
 
+            List<Card> cards = new ArrayList<>();
             for (JsonNode cardNode : data) {
                 Card card = parseMagicCard(cardNode);
                 if (card != null) {
                     cards.add(card);
                 }
             }
+
+            System.out.println("Parsed " + cards.size() + " Magic cards from API response");
+
+            if (!cards.isEmpty()) {
+                System.out.println("Saving " + cards.size() + " Magic cards in bulk");
+                cardRepository.saveAll(cards);
+                System.out.println("Successfully saved " + cards.size() + " Magic cards");
+            }
+
+            return Mono.empty();
         } catch (Exception e) {
             System.err.println("Error parsing Magic cards: " + e.getMessage());
+            return Mono.error(e);
         }
-
-        return Flux.fromIterable(cards);
     }
 
     private Flux<Card> parseOnePieceCards(String jsonResponse) {
