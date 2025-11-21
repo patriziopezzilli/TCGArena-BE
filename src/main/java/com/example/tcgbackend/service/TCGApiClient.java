@@ -309,9 +309,9 @@ public class TCGApiClient {
                 currentPage++;
 
                 // Add delay between pages to avoid overwhelming the API
-                System.out.println("Pokemon: Waiting 3 seconds before next page...");
+                System.out.println("Pokemon: Waiting 5 seconds before next page...");
                 try {
-                    Thread.sleep(3000); // 3 second delay between pages
+                    Thread.sleep(5000); // 5 second delay between pages
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     break;
@@ -354,7 +354,8 @@ public class TCGApiClient {
                                      " (type: " + error.getClass().getSimpleName() + ")");
                 })
                 .timeout(Duration.ofSeconds(120))  // Increased to 120 seconds for very slow connections
-                .retryWhen(Retry.backoff(3, Duration.ofSeconds(5))
+                .retryWhen(Retry.backoff(3, Duration.ofSeconds(10))
+                        .maxBackoff(Duration.ofSeconds(30))
                         .doBeforeRetry(retrySignal -> {
                             long duration = System.currentTimeMillis() - startTime;
                             System.out.println("Pokemon: Retrying page " + page +
