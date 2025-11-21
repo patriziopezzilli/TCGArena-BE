@@ -314,7 +314,9 @@ public class TCGApiClient {
     }
 
     private Mono<String> fetchPokemonCardsFromAPI(int page) {
-        System.out.println("Pokemon: fetchPokemonCardsFromAPI called for page " + page);
+        long startTime = System.currentTimeMillis();
+        System.out.println("Pokemon: fetchPokemonCardsFromAPI called for page " + page + " at " + LocalDateTime.now());
+
         return webClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/v2/cards")
@@ -324,10 +326,30 @@ public class TCGApiClient {
                         .build())
                 .retrieve()
                 .bodyToMono(String.class)
+                .doOnSubscribe(subscription -> System.out.println("Pokemon: Starting HTTP request for page " + page))
+                .doOnNext(response -> {
+                    long duration = System.currentTimeMillis() - startTime;
+                    System.out.println("Pokemon: API call successful for page " + page +
+                                     ", response length: " + response.length() +
+                                     ", duration: " + duration + "ms");
+                })
+                .doOnError(error -> {
+                    long duration = System.currentTimeMillis() - startTime;
+                    System.err.println("Pokemon: API call failed for page " + page +
+                                     " after " + duration + "ms: " + error.getMessage() +
+                                     " (type: " + error.getClass().getSimpleName() + ")");
+                })
                 .timeout(Duration.ofSeconds(120))  // Increased to 120 seconds for very slow connections
-                .retryWhen(Retry.backoff(3, Duration.ofSeconds(5)))  // Retry with exponential backoff
-                .doOnNext(response -> System.out.println("Pokemon: API call successful for page " + page + ", response length: " + response.length()))
-                .doOnError(error -> System.err.println("Pokemon: API call failed for page " + page + ": " + error.getMessage() + " (type: " + error.getClass().getSimpleName() + ")"));
+                .retryWhen(Retry.backoff(3, Duration.ofSeconds(5))
+                        .doBeforeRetry(retrySignal -> {
+                            long duration = System.currentTimeMillis() - startTime;
+                            System.out.println("Pokemon: Retrying page " + page +
+                                             " (attempt " + (retrySignal.totalRetries() + 1) + "/3) after " + duration + "ms");
+                        }))
+                .doOnTerminate(() -> {
+                    long duration = System.currentTimeMillis() - startTime;
+                    System.out.println("Pokemon: Request terminated for page " + page + " after " + duration + "ms");
+                });
     }
 
     private Duration getRateLimitDelay() {
