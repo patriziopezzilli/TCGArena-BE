@@ -23,11 +23,13 @@ import net.tcgdex.sdk.TCGdex;
 import net.tcgdex.sdk.models.Card;
 import net.tcgdex.sdk.models.CardResume;
 
-import java.time.Duration;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.Duration;
 import java.util.Optional;
+import java.util.List;
+import java.util.ArrayList;
 
 @Service
 public class TCGApiClient {
@@ -35,7 +37,7 @@ public class TCGApiClient {
     private final WebClient webClient;
     private final WebClient onePieceWebClient;
     private final WebClient scryfallWebClient;
-    private final TCGdex tcgdexClient;
+    private TCGdex tcgdexClient;
     private final ObjectMapper objectMapper;
     private final CardRepository cardRepository;
     private final CardTemplateRepository cardTemplateRepository;
@@ -119,7 +121,7 @@ public class TCGApiClient {
 
         try {
             // Get all Pokemon cards from TCGdex
-            CardResume[] cardResumes = tcgdexClient.fetchCards();
+            CardResume[] cardResumes = getTcgdexClient().fetchCards();
             System.out.println("Pokemon: Retrieved " + cardResumes.length + " card resumes from TCGdex");
 
             // Process each card individually, saving the complete hierarchy
@@ -129,7 +131,8 @@ public class TCGApiClient {
 
                 try {
                     // Fetch full card details for each resume
-                    Card fullCard = tcgdexClient.fetchCard(resume.getId());
+                    String cleanId = cleanCardId(resume.getId());
+                    Card fullCard = getTcgdexClient().fetchCard(cleanId);
 
                     // Save complete hierarchy: expansion -> set -> card
                     saveCardWithHierarchy(fullCard);
@@ -140,8 +143,14 @@ public class TCGApiClient {
                     }
 
                 } catch (Exception e) {
-                    // Log error but continue with next card - don't make it blocking
-                    System.err.println("Error processing card " + resume.getId() + ": " + e.getMessage());
+                    // Handle specific TCGdex initialization errors
+                    if (e.getMessage() != null && e.getMessage().contains("lateinit property tcgdex has not been initialized")) {
+                        System.err.println("TCGdex client not properly initialized, skipping card " + resume.getId());
+                        // Reset client to force re-initialization on next attempt
+                        tcgdexClient = null;
+                    } else {
+                        System.err.println("Error processing card " + resume.getId() + ": " + e.getMessage());
+                    }
                     // Continue to next card instead of failing the entire import
                 }
 
@@ -172,6 +181,35 @@ public class TCGApiClient {
             e.printStackTrace();
             throw new RuntimeException("TCGdex import failed", e);
         }
+    }
+
+    private String cleanCardId(String cardId) {
+        if (cardId == null) return null;
+        try {
+            // Decode URL-encoded characters
+            return URLDecoder.decode(cardId, StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            // If decoding fails, return original
+            return cardId;
+        }
+    }
+
+    private TCGdex getTcgdexClient() {
+        if (tcgdexClient == null) {
+            try {
+                tcgdexClient = new TCGdex("en");
+            } catch (Exception e) {
+                System.err.println("Failed to initialize TCGdex client: " + e.getMessage());
+                // Try with default language
+                try {
+                    tcgdexClient = new TCGdex(null);
+                } catch (Exception e2) {
+                    System.err.println("Failed to initialize TCGdex client with default language: " + e2.getMessage());
+                    throw new RuntimeException("Cannot initialize TCGdex client", e2);
+                }
+            }
+        }
+        return tcgdexClient;
     }
 
     private void saveCardWithHierarchy(net.tcgdex.sdk.models.Card tcgdexCard) {
