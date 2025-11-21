@@ -15,6 +15,7 @@ import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 import reactor.core.scheduler.Schedulers;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import net.tcgdex.sdk.TCGdex;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -28,6 +29,7 @@ public class TCGApiClient {
     private final WebClient webClient;
     private final WebClient onePieceWebClient;
     private final WebClient scryfallWebClient;
+    // private final TCGdex tcgdexClient; // TODO: Uncomment when TCGdex API is working
     private final ObjectMapper objectMapper;
     private final CardRepository cardRepository;
     private final CardTemplateRepository cardTemplateRepository;
@@ -59,6 +61,8 @@ public class TCGApiClient {
         this.scryfallWebClient = WebClient.builder()
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(1024 * 1024)) // Increase buffer limit to 1MB for large Scryfall responses
                 .build();
+        // TODO: Initialize TCGdex client when API is figured out
+        // this.tcgdexClient = TCGdex.create();
         this.objectMapper = new ObjectMapper();
     }
 
@@ -86,11 +90,12 @@ public class TCGApiClient {
             System.out.println("Checking for Pokemon card updates...");
         }
 
-        // Start fetching from the determined page
+        // Start fetching using TCGdex (no pagination, bulk import)
         final ImportProgress importProgress = progress;
         final int startPageFinal = startPage;
         return Mono.fromRunnable(() -> {
             try {
+                // TODO: Switch to TCGdex when API is working
                 fetchPokemonCardsFromPageSync(startPageFinal, importProgress);
             } catch (Exception e) {
                 System.err.println("Error during Pokemon import: " + e.getMessage());
@@ -98,6 +103,100 @@ public class TCGApiClient {
             }
         });
     }
+
+    /*
+    private void fetchPokemonCardsWithTcgdex(ImportProgress progress) {
+        System.out.println("Pokemon: Starting bulk import using TCGdex API");
+
+        try {
+            // Get all Pokemon cards from TCGdex
+            var allCards = tcgdexClient.cards().all();
+            System.out.println("Pokemon: Retrieved " + allCards.size() + " cards from TCGdex");
+
+            // Convert and save cards in batches
+            int batchSize = 100;
+            List<CardTemplate> cardTemplates = new ArrayList<>();
+
+            for (int i = 0; i < allCards.size(); i++) {
+                var tcgdexCard = allCards.get(i);
+
+                // Convert TCGdex card to our CardTemplate
+                CardTemplate cardTemplate = convertTcgdexCardToCardTemplate(tcgdexCard);
+                if (cardTemplate != null) {
+                    cardTemplates.add(cardTemplate);
+                }
+
+                // Save batch when it reaches the size limit or at the end
+                if (cardTemplates.size() >= batchSize || i == allCards.size() - 1) {
+                    if (!cardTemplates.isEmpty()) {
+                        System.out.println("Pokemon: Saving batch of " + cardTemplates.size() + " cards (" + (i + 1) + "/" + allCards.size() + ")");
+                        cardTemplateRepository.saveAll(cardTemplates);
+                        cardTemplateRepository.flush();
+                        cardTemplates.clear();
+                    }
+                }
+            }
+
+            // Mark import as complete
+            progress.setComplete(true);
+            progress.setLastProcessedPage(1); // TCGdex doesn't use pages
+            progress.setTotalPagesKnown(1);
+            progress.setLastCheckDate(LocalDateTime.now());
+            importProgressRepository.save(progress);
+
+            System.out.println("Pokemon: Successfully imported all cards using TCGdex");
+
+        } catch (Exception e) {
+            System.err.println("Error importing Pokemon cards with TCGdex: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException("TCGdex import failed", e);
+        }
+    }
+
+    private CardTemplate convertTcgdexCardToCardTemplate(net.tcgdex.sdk.models.Card tcgdexCard) {
+        try {
+            CardTemplate template = new CardTemplate();
+            template.setTcgType(TCGType.POKEMON);
+            template.setExternalId(tcgdexCard.getId());
+
+            // Basic card information
+            template.setName(tcgdexCard.getName());
+            if (tcgdexCard.getSet() != null) {
+                template.setSetName(tcgdexCard.getSet().getName());
+                template.setSetCode(tcgdexCard.getSet().getId());
+            }
+
+            // Card properties
+            if (tcgdexCard.getRarity() != null) {
+                template.setRarity(tcgdexCard.getRarity().getName());
+            }
+
+            if (tcgdexCard.getCategory() != null) {
+                template.setSupertype(tcgdexCard.getCategory().getName());
+            }
+
+            // Images
+            if (tcgdexCard.getImage() != null && !tcgdexCard.getImage().isEmpty()) {
+                template.setImageUrl(tcgdexCard.getImage().get(0)); // Take first image
+            }
+
+            // Additional metadata
+            template.setHp(tcgdexCard.getHp());
+            template.setEvolvesFrom(tcgdexCard.getEvolveFrom());
+
+            // Convert types
+            if (tcgdexCard.getTypes() != null && !tcgdexCard.getTypes().isEmpty()) {
+                template.setTypes(String.join(",", tcgdexCard.getTypes()));
+            }
+
+            return template;
+
+        } catch (Exception e) {
+            System.err.println("Error converting TCGdex card " + tcgdexCard.getId() + ": " + e.getMessage());
+            return null;
+        }
+    }
+    */
 
     private void fetchOnePieceCardsFromPageSync(int startPage, ImportProgress progress) {
         int currentPage = startPage;
