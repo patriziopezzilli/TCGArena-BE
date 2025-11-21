@@ -237,13 +237,17 @@ public class TCGApiClient {
         boolean continueImport = true;
 
         while (continueImport) {
+            System.out.println("Pokemon: Starting processing of page " + currentPage);
             try {
                 // Fetch current page
+                System.out.println("Pokemon: Fetching data from API for page " + currentPage);
                 String response = fetchPokemonCardsFromAPI(currentPage).block();
                 if (response == null) {
                     System.err.println("Failed to fetch Pokemon cards for page " + currentPage);
                     break;
                 }
+
+                System.out.println("Pokemon: Received response for page " + currentPage + ", parsing JSON...");
 
                 JsonNode jsonResponse = objectMapper.readTree(response);
                 int pageSize = jsonResponse.path("pageSize").asInt();
@@ -277,7 +281,9 @@ public class TCGApiClient {
                 }
 
                 // Parse cards from current page (saves directly to database)
+                System.out.println("Pokemon: Starting to parse page " + currentPage + " response (length: " + response.length() + " chars)");
                 parsePokemonCards(response);
+                System.out.println("Pokemon: Successfully parsed page " + currentPage);
 
                 // Update progress for this page
                 progress.setLastProcessedPage(currentPage);
@@ -297,12 +303,16 @@ public class TCGApiClient {
 
             } catch (Exception e) {
                 System.err.println("Error processing Pokemon page " + currentPage + ": " + e.getMessage());
+                System.err.println("Error type: " + e.getClass().getSimpleName());
+                System.err.println("Stack trace:");
+                e.printStackTrace();
                 break;
             }
         }
     }
 
     private Mono<String> fetchPokemonCardsFromAPI(int page) {
+        System.out.println("Pokemon: fetchPokemonCardsFromAPI called for page " + page);
         return webClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/v2/cards")
@@ -311,8 +321,9 @@ public class TCGApiClient {
                         .queryParam("orderBy", "set.releaseDate")
                         .build())
                 .retrieve()
-                .bodyToMono(String.class);
-    }
+                .bodyToMono(String.class)
+                .doOnNext(response -> System.out.println("Pokemon: API call successful for page " + page + ", response length: " + response.length()))
+                .doOnError(error -> System.err.println("Pokemon: API call failed for page " + page + ": " + error.getMessage()));
 
     private Duration getRateLimitDelay() {
         LocalDateTime now = LocalDateTime.now();
@@ -366,15 +377,24 @@ public class TCGApiClient {
     }
 
     private Flux<Card> parsePokemonCards(String jsonResponse) {
+        System.out.println("Pokemon: parsePokemonCards called with response length: " + jsonResponse.length());
         List<CardTemplate> templates = new ArrayList<>();
         try {
+            System.out.println("Pokemon: Parsing JSON response...");
             JsonNode root = objectMapper.readTree(jsonResponse);
             JsonNode data = root.path("data");
 
-            for (JsonNode cardNode : data) {
+            System.out.println("Pokemon: Found " + data.size() + " cards in data array");
+
+            for (int i = 0; i < data.size(); i++) {
+                JsonNode cardNode = data.get(i);
+                System.out.println("Pokemon: Processing card " + (i + 1) + "/" + data.size() + " - Name: " + cardNode.path("name").asText());
                 CardTemplate template = parsePokemonCardTemplate(cardNode);
                 if (template != null) {
                     templates.add(template);
+                    System.out.println("Pokemon: Successfully parsed card template: " + template.getName());
+                } else {
+                    System.err.println("Pokemon: Failed to parse card template for card " + (i + 1));
                 }
             }
 
@@ -388,16 +408,26 @@ public class TCGApiClient {
                 for (int i = 0; i < templates.size(); i += BATCH_SIZE) {
                     int endIndex = Math.min(i + BATCH_SIZE, templates.size());
                     List<CardTemplate> batch = templates.subList(i, endIndex);
-                    System.out.println("Saving batch " + (i / BATCH_SIZE + 1) + "/" +
+                    System.out.println("Pokemon: Saving batch " + (i / BATCH_SIZE + 1) + "/" +
                                       ((templates.size() + BATCH_SIZE - 1) / BATCH_SIZE) +
                                       " (" + batch.size() + " templates)");
-                    cardTemplateRepository.saveAll(batch);
+                    try {
+                        cardTemplateRepository.saveAll(batch);
+                        System.out.println("Pokemon: Successfully saved batch " + (i / BATCH_SIZE + 1));
+                    } catch (Exception e) {
+                        System.err.println("Pokemon: Error saving batch " + (i / BATCH_SIZE + 1) + ": " + e.getMessage());
+                        throw e;
+                    }
                 }
 
                 System.out.println("Successfully saved all " + templates.size() + " Pokemon card templates");
+            } else {
+                System.out.println("Pokemon: No templates to save");
             }
         } catch (Exception e) {
             System.err.println("Error parsing Pokemon cards: " + e.getMessage());
+            e.printStackTrace();
+            throw e; // Re-throw to propagate the error
         }
 
         return Flux.empty(); // Return empty since we're saving templates, not cards
@@ -405,22 +435,32 @@ public class TCGApiClient {
 
     private CardTemplate parsePokemonCardTemplate(JsonNode cardNode) {
         try {
+            System.out.println("Pokemon: parsePokemonCardTemplate - Processing card: " + cardNode.path("name").asText());
             CardTemplate template = new CardTemplate();
 
             // Basic info
-            template.setName(cardNode.path("name").asText());
+            String name = cardNode.path("name").asText();
+            System.out.println("Pokemon: Setting name: " + name);
+            template.setName(name);
             template.setTcgType(TCGType.POKEMON);
 
             // Set and card number
             JsonNode setNode = cardNode.path("set");
             if (!setNode.isMissingNode()) {
-                template.setSetCode(setNode.path("id").asText());
-                template.setCardNumber(cardNode.path("number").asText());
+                String setCode = setNode.path("id").asText();
+                String cardNumber = cardNode.path("number").asText();
+                System.out.println("Pokemon: Setting setCode: " + setCode + ", cardNumber: " + cardNumber);
+                template.setSetCode(setCode);
+                template.setCardNumber(cardNumber);
+            } else {
+                System.out.println("Pokemon: No set information found for card");
             }
 
             // Rarity
             String rarityStr = cardNode.path("rarity").asText();
-            template.setRarity(mapPokemonRarity(rarityStr));
+            Rarity rarity = mapPokemonRarity(rarityStr);
+            System.out.println("Pokemon: Setting rarity: " + rarityStr + " -> " + rarity);
+            template.setRarity(rarity);
 
             // Images
             JsonNode images = cardNode.path("images");
@@ -440,9 +480,12 @@ public class TCGApiClient {
             // Set creation date
             template.setDateCreated(LocalDateTime.now());
 
+            System.out.println("Pokemon: Successfully created template for: " + template.getName());
             return template;
         } catch (Exception e) {
             System.err.println("Error parsing individual Pokemon card template: " + e.getMessage());
+            System.err.println("Card data: " + cardNode.toString());
+            e.printStackTrace();
             return null;
         }
     }
