@@ -324,6 +324,7 @@ public class TCGApiClient {
                 .bodyToMono(String.class)
                 .doOnNext(response -> System.out.println("Pokemon: API call successful for page " + page + ", response length: " + response.length()))
                 .doOnError(error -> System.err.println("Pokemon: API call failed for page " + page + ": " + error.getMessage()));
+    }
 
     private Duration getRateLimitDelay() {
         LocalDateTime now = LocalDateTime.now();
@@ -376,7 +377,7 @@ public class TCGApiClient {
         return false;
     }
 
-    private Flux<Card> parsePokemonCards(String jsonResponse) {
+    private Flux<Card> parsePokemonCards(String jsonResponse) throws com.fasterxml.jackson.core.JsonProcessingException {
         System.out.println("Pokemon: parsePokemonCards called with response length: " + jsonResponse.length());
         List<CardTemplate> templates = new ArrayList<>();
         try {
