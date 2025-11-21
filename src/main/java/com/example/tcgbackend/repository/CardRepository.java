@@ -27,7 +27,4 @@ public interface CardRepository extends JpaRepository<Card, Long> {
 
     @Query("SELECT c FROM Card c JOIN c.cardTemplate ct WHERE ct.name = :name AND ct.setCode = :setCode AND ct.cardNumber = :cardNumber")
     List<Card> findByNameAndSetCodeAndCardNumber(@Param("name") String name, @Param("setCode") String setCode, @Param("cardNumber") String cardNumber);
-
-    @Query("DELETE FROM Card c WHERE c.cardTemplate.tcgType = :tcgType")
-    void deleteByTcgType(@Param("tcgType") TCGType tcgType);
 }

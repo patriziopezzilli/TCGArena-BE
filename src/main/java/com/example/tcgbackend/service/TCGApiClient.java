@@ -97,6 +97,76 @@ public class TCGApiClient {
         });
     }
 
+    private void fetchOnePieceCardsFromPageSync(int startPage, ImportProgress progress) {
+        int currentPage = startPage;
+        boolean continueImport = true;
+
+        while (continueImport) {
+            try {
+                // Fetch current page
+                String response = fetchOnePieceCardsFromAPI(currentPage).block();
+                if (response == null) {
+                    System.err.println("Failed to fetch One Piece cards for page " + currentPage);
+                    break;
+                }
+
+                JsonNode jsonResponse = objectMapper.readTree(response);
+                int limit = jsonResponse.path("limit").asInt();
+                int totalCards = jsonResponse.path("total").asInt();
+                int totalPages = jsonResponse.path("totalPages").asInt();
+
+                // Update progress with known total pages
+                progress.setTotalPagesKnown(totalPages);
+                importProgressRepository.save(progress);
+
+                System.out.println("One Piece API: Page " + currentPage + "/" + totalPages +
+                                  " (Total cards: " + totalCards + ", Limit: " + limit + ")");
+
+                // Safety check: if data array is empty, stop importing
+                JsonNode dataArray = jsonResponse.path("data");
+                if (dataArray.isArray() && dataArray.size() == 0) {
+                    System.out.println("One Piece API: Page " + currentPage + " has empty data array, stopping import");
+                    progress.setComplete(true);
+                    progress.setLastCheckDate(LocalDateTime.now());
+                    importProgressRepository.save(progress);
+                    break;
+                }
+
+                // If this is an update check and we have all cards, mark as checked and stop
+                if (progress.isComplete() && progress.getTotalPagesKnown() != null &&
+                    totalPages <= progress.getLastProcessedPage()) {
+                    System.out.println("No new One Piece cards available");
+                    progress.setLastCheckDate(LocalDateTime.now());
+                    importProgressRepository.save(progress);
+                    break;
+                }
+
+                // Parse cards from current page (saves directly to database)
+                parseOnePieceCards(response);
+
+                // Update progress for this page
+                progress.setLastProcessedPage(currentPage);
+                importProgressRepository.save(progress);
+
+                // If this is the last page, mark as complete
+                if (currentPage >= totalPages) {
+                    progress.setComplete(true);
+                    progress.setLastCheckDate(LocalDateTime.now());
+                    importProgressRepository.save(progress);
+                    System.out.println("One Piece import completed! All " + totalCards + " cards imported.");
+                    break;
+                }
+
+                // Move to next page
+                currentPage++;
+
+            } catch (Exception e) {
+                System.err.println("Error processing One Piece page " + currentPage + ": " + e.getMessage());
+                break;
+            }
+        }
+    }
+
     private ImportProgress getOrCreateProgress(TCGType tcgType) {
         Optional<ImportProgress> existingProgress = importProgressRepository.findByTcgType(tcgType);
         if (existingProgress.isPresent()) {
@@ -532,8 +602,41 @@ public class TCGApiClient {
         }
     }
 
-    public Flux<Card> fetchOnePieceCards() {
-        return fetchOnePieceCardsInternal(Integer.MAX_VALUE); // No limit
+    public Mono<Void> fetchOnePieceCards() {
+        // Reset progress and clear existing cards in demo environment
+        resetProgressForDemo(TCGType.ONE_PIECE);
+
+        // Get or create import progress for One Piece
+        ImportProgress progress = getOrCreateProgress(TCGType.ONE_PIECE);
+
+        // Check if we should skip import entirely
+        if (shouldSkipImport(progress)) {
+            System.out.println("Skipping One Piece import - recently completed and no need to check for updates yet");
+            return Mono.empty();
+        }
+
+        // Determine starting page based on progress
+        int startPage = progress.getLastProcessedPage() + 1;
+        System.out.println("Starting One Piece import from page " + startPage +
+                          " (previously processed: " + progress.getLastProcessedPage() + " pages)");
+
+        // If we need to check for updates (complete but old), start from page 1 to get current total
+        if (progress.isComplete() && needsUpdateCheck(progress)) {
+            startPage = 1;
+            System.out.println("Checking for One Piece card updates...");
+        }
+
+        // Start fetching from the determined page
+        final ImportProgress importProgress = progress;
+        final int startPageFinal = startPage;
+        return Mono.fromRunnable(() -> {
+            try {
+                fetchOnePieceCardsFromPageSync(startPageFinal, importProgress);
+            } catch (Exception e) {
+                System.err.println("Error during One Piece import: " + e.getMessage());
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     public Flux<Card> fetchOnePieceCardsLimited(int maxPages) {
@@ -1038,36 +1141,6 @@ public class TCGApiClient {
             System.err.println("Error parsing One Piece card template: " + e.getMessage());
             return null;
         }
-    }
-
-    public List<Card> fetchOnePieceCardsSynchronously(int maxPages) {
-        List<Card> allCards = new ArrayList<>();
-        try {
-            for (int page = 1; page <= maxPages; page++) {
-                System.out.println("Fetching One Piece page " + page + "/" + maxPages);
-                String response = fetchOnePieceCardsFromAPI(page).block();
-                if (response != null) {
-                    // Check if the response contains data
-                    JsonNode jsonResponse = objectMapper.readTree(response);
-                    JsonNode dataArray = jsonResponse.path("data");
-                    if (dataArray.isArray() && dataArray.size() == 0) {
-                        System.out.println("Page " + page + ": data array is empty, stopping import");
-                        break; // No more cards to fetch
-                    }
-                    
-                    List<Card> pageCards = parseOnePieceCards(response).collectList().block();
-                    if (pageCards != null) {
-                        allCards.addAll(pageCards);
-                        System.out.println("Page " + page + ": added " + pageCards.size() + " cards (total: " + allCards.size() + ")");
-                    }
-                }
-                // Small delay between pages to be respectful to the API
-                Thread.sleep(200);
-            }
-        } catch (Exception e) {
-            System.err.println("Error fetching One Piece cards synchronously: " + e.getMessage());
-        }
-        return allCards;
     }
 
     // Legacy method for backward compatibility

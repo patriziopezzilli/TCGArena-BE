@@ -147,8 +147,9 @@ class TCGCardReader implements ItemReader<CardTemplate> {
             switch (currentTcg) {
                 case POKEMON:
                     System.out.println("Starting Pokemon card fetch...");
-                    rawCards = tcgApiClient.fetchPokemonCards().collectList().block();
-                    System.out.println("Pokemon cards fetched: " + (rawCards != null ? rawCards.size() : 0));
+                    tcgApiClient.fetchPokemonCards().block(); // Saves directly, no need to collect cards
+                    System.out.println("Pokemon cards imported successfully");
+                    rawCards = new ArrayList<>(); // Empty list since cards are already saved
                     break;
                 case MAGIC:
                     System.out.println("Starting Magic card fetch...");
@@ -158,9 +159,9 @@ class TCGCardReader implements ItemReader<CardTemplate> {
                     break;
                 case ONE_PIECE:
                     System.out.println("Starting One Piece card fetch...");
-                    // Use synchronous approach to avoid blocking issues
-                    rawCards = tcgApiClient.fetchOnePieceCardsSynchronously(demoEnv ? 100 : 1000);
-                    System.out.println("One Piece cards fetched: " + (rawCards != null ? rawCards.size() : 0));
+                    tcgApiClient.fetchOnePieceCards().block(); // Saves directly, no need to collect cards
+                    System.out.println("One Piece cards imported successfully");
+                    rawCards = new ArrayList<>(); // Empty list since cards are already saved
                     break;
             }
 
