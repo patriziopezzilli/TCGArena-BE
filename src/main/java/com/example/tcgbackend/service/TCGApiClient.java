@@ -287,6 +287,11 @@ public class TCGApiClient {
                 parsePokemonCards(response);
                 System.out.println("Pokemon: Successfully parsed page " + currentPage);
 
+                // Force database commit after each page to ensure data persistence
+                System.out.println("Pokemon: Committing database transaction for page " + currentPage);
+                // Note: In Spring Boot with JPA, transactions are auto-committed, but we can force flush
+                cardTemplateRepository.flush();
+
                 // Update progress for this page
                 progress.setLastProcessedPage(currentPage);
                 importProgressRepository.save(progress);
@@ -302,6 +307,15 @@ public class TCGApiClient {
 
                 // Move to next page
                 currentPage++;
+
+                // Add delay between pages to avoid overwhelming the API
+                System.out.println("Pokemon: Waiting 3 seconds before next page...");
+                try {
+                    Thread.sleep(3000); // 3 second delay between pages
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
 
             } catch (Exception e) {
                 System.err.println("Error processing Pokemon page " + currentPage + ": " + e.getMessage());
@@ -321,7 +335,7 @@ public class TCGApiClient {
                 .uri(uriBuilder -> uriBuilder
                         .path("/v2/cards")
                         .queryParam("page", page)
-                        .queryParam("pageSize", 50)  // Further reduced to 50 for faster downloads
+                        .queryParam("pageSize", 25)  // Reduced to 25 to minimize load on API
                         .queryParam("orderBy", "set.releaseDate")
                         .build())
                 .retrieve()
