@@ -3,6 +3,8 @@ package com.example.tcgbackend.service;
 import com.example.tcgbackend.model.*;
 import com.example.tcgbackend.repository.CardRepository;
 import com.example.tcgbackend.repository.CardTemplateRepository;
+import com.example.tcgbackend.repository.ExpansionRepository;
+import com.example.tcgbackend.repository.TCGSetRepository;
 import com.example.tcgbackend.repository.ImportProgressRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -38,6 +40,8 @@ public class TCGApiClient {
     private final CardRepository cardRepository;
     private final CardTemplateRepository cardTemplateRepository;
     private final ImportProgressRepository importProgressRepository;
+    private final TCGSetRepository tcgSetRepository;
+    private final ExpansionRepository expansionRepository;
 
     // Rate limiting tracking
     private int requestsThisMinute = 0;
@@ -51,10 +55,12 @@ public class TCGApiClient {
     private boolean demoEnv;
 
     @Autowired
-    public TCGApiClient(CardRepository cardRepository, CardTemplateRepository cardTemplateRepository, ImportProgressRepository importProgressRepository) {
+    public TCGApiClient(CardRepository cardRepository, CardTemplateRepository cardTemplateRepository, ImportProgressRepository importProgressRepository, TCGSetRepository tcgSetRepository, ExpansionRepository expansionRepository) {
         this.cardRepository = cardRepository;
         this.cardTemplateRepository = cardTemplateRepository;
         this.importProgressRepository = importProgressRepository;
+        this.tcgSetRepository = tcgSetRepository;
+        this.expansionRepository = expansionRepository;
         this.webClient = WebClient.builder()
                 .baseUrl("https://api.pokemontcg.io")
                 .defaultHeader("X-Api-Key", System.getenv("POKEMON_TCG_API_KEY"))
@@ -116,9 +122,7 @@ public class TCGApiClient {
             CardResume[] cardResumes = tcgdexClient.fetchCards();
             System.out.println("Pokemon: Retrieved " + cardResumes.length + " card resumes from TCGdex");
 
-            // Convert and save cards in batches
-            int batchSize = 100;
-            List<CardTemplate> cardTemplates = new ArrayList<>();
+            // Process each card individually, saving the complete hierarchy
 
             for (int i = 0; i < cardResumes.length; i++) {
                 CardResume resume = cardResumes[i];
@@ -126,18 +130,13 @@ public class TCGApiClient {
                 try {
                     // Fetch full card details for each resume
                     Card fullCard = tcgdexClient.fetchCard(resume.getId());
-                    CardTemplate cardTemplate = convertTcgdexCardToCardTemplate(fullCard);
 
-                    if (cardTemplate != null) {
-                        cardTemplates.add(cardTemplate);
-                    }
+                    // Save complete hierarchy: expansion -> set -> card
+                    saveCardWithHierarchy(fullCard);
 
-                    // Save batch when it reaches the size limit or at the end
-                    if (cardTemplates.size() >= batchSize || i == cardResumes.length - 1) {
-                        if (!cardTemplates.isEmpty()) {
-                            saveCardBatch(cardTemplates, i + 1, cardResumes.length);
-                            cardTemplates.clear();
-                        }
+                    // Log progress every 100 cards
+                    if ((i + 1) % 100 == 0) {
+                        System.out.println("Pokemon: Processed " + (i + 1) + "/" + cardResumes.length + " cards");
                     }
 
                 } catch (Exception e) {
@@ -175,11 +174,182 @@ public class TCGApiClient {
         }
     }
 
-    private void saveCardBatch(List<CardTemplate> cardTemplates, int currentCount, int totalCount) {
-        System.out.println("Pokemon: Saving batch of " + cardTemplates.size() + " cards (" + currentCount + "/" + totalCount + ")");
-        cardTemplateRepository.saveAll(cardTemplates);
-        cardTemplateRepository.flush();
-        // Data is committed when the main transaction commits
+    private void saveCardWithHierarchy(net.tcgdex.sdk.models.Card tcgdexCard) {
+        try {
+            // 1. Get or create expansion (serie)
+            Expansion expansion = getOrCreateExpansion(tcgdexCard);
+
+            // 2. Get or create TCG set
+            TCGSet tcgSet = getOrCreateTCGSet(tcgdexCard, expansion);
+
+            // 3. Create and save card template
+            CardTemplate cardTemplate = createCardTemplateFromTcgdexCard(tcgdexCard, tcgSet);
+            if (cardTemplate != null) {
+                cardTemplateRepository.save(cardTemplate);
+            }
+
+        } catch (Exception e) {
+            System.err.println("Error saving card hierarchy for " + tcgdexCard.getId() + ": " + e.getMessage());
+            throw e; // Re-throw to be caught by the calling method
+        }
+    }
+
+    private Expansion getOrCreateExpansion(net.tcgdex.sdk.models.Card tcgdexCard) {
+        try {
+            // Get the full set to access serie information
+            net.tcgdex.sdk.models.SetResume setResume = tcgdexCard.getSet();
+            if (setResume == null) {
+                throw new RuntimeException("Card has no set information");
+            }
+
+            net.tcgdex.sdk.models.Set fullSet = setResume.getFullSet();
+            if (fullSet == null) {
+                throw new RuntimeException("Could not get full set information");
+            }
+
+            net.tcgdex.sdk.models.SerieResume serieResume = fullSet.getSerie();
+            if (serieResume == null) {
+                throw new RuntimeException("Set has no serie information");
+            }
+
+            String serieName = serieResume.getName();
+            if (serieName == null || serieName.trim().isEmpty()) {
+                throw new RuntimeException("Serie has no name");
+            }
+
+            // Check if expansion already exists
+            Expansion existingExpansion = expansionRepository.findByTitle(serieName);
+            if (existingExpansion != null) {
+                return existingExpansion;
+            }
+
+            // Create new expansion
+            Expansion expansion = new Expansion();
+            expansion.setTitle(serieName);
+            expansion.setTcgType(TCGType.POKEMON);
+
+            return expansionRepository.save(expansion);
+
+        } catch (Exception e) {
+            System.err.println("Error getting/creating expansion: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    private TCGSet getOrCreateTCGSet(net.tcgdex.sdk.models.Card tcgdexCard, Expansion expansion) {
+        try {
+            net.tcgdex.sdk.models.SetResume setResume = tcgdexCard.getSet();
+            if (setResume == null) {
+                throw new RuntimeException("Card has no set information");
+            }
+
+            String setCode = setResume.getId();
+            if (setCode == null || setCode.trim().isEmpty()) {
+                throw new RuntimeException("Set has no code");
+            }
+
+            // Check if TCG set already exists
+            Optional<TCGSet> existingSet = tcgSetRepository.findBySetCode(setCode);
+            if (existingSet.isPresent()) {
+                return existingSet.get();
+            }
+
+            // Get full set information
+            net.tcgdex.sdk.models.Set fullSet = setResume.getFullSet();
+            if (fullSet == null) {
+                throw new RuntimeException("Could not get full set information");
+            }
+
+            // Create new TCG set
+            TCGSet tcgSet = new TCGSet();
+            tcgSet.setSetCode(setCode);
+            tcgSet.setName(setResume.getName() != null ? setResume.getName() : setCode);
+
+            // Set release date (parse from string if available)
+            if (fullSet.getReleaseDate() != null) {
+                try {
+                    // Assuming format is YYYY/MM/DD or similar
+                    String[] dateParts = fullSet.getReleaseDate().split("/");
+                    if (dateParts.length == 3) {
+                        int year = Integer.parseInt(dateParts[0]);
+                        int month = Integer.parseInt(dateParts[1]);
+                        int day = Integer.parseInt(dateParts[2]);
+                        tcgSet.setReleaseDate(LocalDateTime.of(year, month, day, 0, 0));
+                    } else {
+                        tcgSet.setReleaseDate(LocalDateTime.now());
+                    }
+                } catch (Exception e) {
+                    tcgSet.setReleaseDate(LocalDateTime.now());
+                }
+            } else {
+                tcgSet.setReleaseDate(LocalDateTime.now());
+            }
+
+            // Set card count
+            if (fullSet.getCardCount() != null) {
+                tcgSet.setCardCount(fullSet.getCardCount().getTotal());
+            } else {
+                tcgSet.setCardCount(0);
+            }
+
+            // Set image URL
+            if (setResume.getLogo() != null && !setResume.getLogo().trim().isEmpty()) {
+                tcgSet.setImageUrl(setResume.getLogo());
+            }
+
+            // Link to expansion
+            tcgSet.setExpansion(expansion);
+
+            return tcgSetRepository.save(tcgSet);
+
+        } catch (Exception e) {
+            System.err.println("Error getting/creating TCG set: " + e.getMessage());
+            throw e;
+        }
+    }
+
+    private CardTemplate createCardTemplateFromTcgdexCard(net.tcgdex.sdk.models.Card tcgdexCard, TCGSet tcgSet) {
+        try {
+            CardTemplate template = new CardTemplate();
+            template.setTcgType(TCGType.POKEMON);
+            template.setName(tcgdexCard.getName());
+            template.setDateCreated(LocalDateTime.now());
+
+            // Set references
+            template.setSetCode(tcgSet.getSetCode());
+            template.setExpansion(tcgSet.getExpansion());
+
+            // Card properties
+            template.setRarity(convertRarityStringToEnum(tcgdexCard.getRarity()));
+            template.setCardNumber(tcgdexCard.getLocalId() != null ? tcgdexCard.getLocalId() : "0");
+
+            // Images
+            if (tcgdexCard.getImage() != null && !tcgdexCard.getImage().isEmpty()) {
+                template.setImageUrl(tcgdexCard.getImage());
+            }
+
+            // Build description with additional info
+            StringBuilder description = new StringBuilder();
+            if (tcgdexCard.getCategory() != null) {
+                description.append("Category: ").append(tcgdexCard.getCategory()).append("\n");
+            }
+            if (tcgdexCard.getHp() != null) {
+                description.append("HP: ").append(tcgdexCard.getHp()).append("\n");
+            }
+            if (tcgdexCard.getEvolveFrom() != null) {
+                description.append("Evolves from: ").append(tcgdexCard.getEvolveFrom()).append("\n");
+            }
+            if (tcgdexCard.getTypes() != null && !tcgdexCard.getTypes().isEmpty()) {
+                description.append("Types: ").append(String.join(", ", tcgdexCard.getTypes()));
+            }
+            template.setDescription(description.toString().trim());
+
+            return template;
+
+        } catch (Exception e) {
+            System.err.println("Error creating card template for " + tcgdexCard.getId() + ": " + e.getMessage());
+            return null;
+        }
     }
 
     private CardTemplate convertTcgdexCardToCardTemplate(net.tcgdex.sdk.models.Card tcgdexCard) {
