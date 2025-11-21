@@ -60,7 +60,7 @@ public class TCGApiClient {
         this.objectMapper = new ObjectMapper();
     }
 
-    public Flux<Card> fetchPokemonCards() {
+    public Mono<Void> fetchPokemonCards() {
         // Reset progress and clear existing cards in demo environment
         resetProgressForDemo(TCGType.POKEMON);
 
@@ -70,7 +70,7 @@ public class TCGApiClient {
         // Check if we should skip import entirely
         if (shouldSkipImport(progress)) {
             System.out.println("Skipping Pokemon import - recently completed and no need to check for updates yet");
-            return Flux.empty();
+            return Mono.empty();
         }
 
         // Determine starting page based on progress
@@ -85,7 +85,16 @@ public class TCGApiClient {
         }
 
         // Start fetching from the determined page
-        return fetchPokemonCardsFromPage(startPage, progress);
+        final ImportProgress importProgress = progress;
+        final int startPageFinal = startPage;
+        return Mono.fromRunnable(() -> {
+            try {
+                fetchPokemonCardsFromPageSync(startPageFinal, importProgress);
+            } catch (Exception e) {
+                System.err.println("Error during Pokemon import: " + e.getMessage());
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     private ImportProgress getOrCreateProgress(TCGType tcgType) {
@@ -129,8 +138,8 @@ public class TCGApiClient {
 
         System.out.println("Demo environment: Resetting progress and clearing existing cards for " + tcgType);
 
-        // Delete all existing cards for this TCG type
-        cardRepository.deleteByTcgType(tcgType);
+        // Delete all existing card templates for this TCG type
+        cardTemplateRepository.deleteByTcgType(tcgType);
 
         // Reset import progress
         ImportProgress progress = getOrCreateProgress(tcgType);
@@ -153,84 +162,74 @@ public class TCGApiClient {
         return progress.getLastCheckDate().isBefore(LocalDateTime.now().minusHours(6));
     }
 
-    private Flux<Card> fetchPokemonCardsFromPage(int startPage, ImportProgress progress) {
-        return fetchPokemonCardsFromAPI(startPage)
-                .flatMapMany(response -> {
-                    try {
-                        JsonNode jsonResponse = objectMapper.readTree(response);
-                        int currentPage = jsonResponse.path("page").asInt();
-                        int pageSize = jsonResponse.path("pageSize").asInt();
-                        int totalCount = jsonResponse.path("totalCount").asInt();
-                        int totalPages = (int) Math.ceil((double) totalCount / pageSize);
+    private void fetchPokemonCardsFromPageSync(int startPage, ImportProgress progress) {
+        int currentPage = startPage;
+        boolean continueImport = true;
 
-                        // Update progress with known total pages
-                        progress.setTotalPagesKnown(totalPages);
-                        importProgressRepository.save(progress);
+        while (continueImport) {
+            try {
+                // Fetch current page
+                String response = fetchPokemonCardsFromAPI(currentPage).block();
+                if (response == null) {
+                    System.err.println("Failed to fetch Pokemon cards for page " + currentPage);
+                    break;
+                }
 
-                        System.out.println("Pokemon API: Page " + currentPage + "/" + totalPages +
-                                          " (Total cards: " + totalCount + ")");
+                JsonNode jsonResponse = objectMapper.readTree(response);
+                int pageSize = jsonResponse.path("pageSize").asInt();
+                int totalCount = jsonResponse.path("totalCount").asInt();
+                int totalPages = (int) Math.ceil((double) totalCount / pageSize);
 
-                        // Safety check: if data array is empty, stop importing
-                        JsonNode dataArray = jsonResponse.path("data");
-                        if (dataArray.isArray() && dataArray.size() == 0) {
-                            System.out.println("Pokemon API: Page " + currentPage + " has empty data array, stopping import");
-                            progress.setComplete(true);
-                            progress.setLastCheckDate(LocalDateTime.now());
-                            importProgressRepository.save(progress);
-                            return Flux.empty();
-                        }
+                // Update progress with known total pages
+                progress.setTotalPagesKnown(totalPages);
+                importProgressRepository.save(progress);
 
-                        // If this is an update check and we have all cards, mark as checked and stop
-                        if (progress.isComplete() && progress.getTotalPagesKnown() != null &&
-                            totalPages <= progress.getLastProcessedPage()) {
-                            System.out.println("No new Pokemon cards available");
-                            progress.setLastCheckDate(LocalDateTime.now());
-                            importProgressRepository.save(progress);
-                            return Flux.empty();
-                        }
+                System.out.println("Pokemon API: Page " + currentPage + "/" + totalPages +
+                                  " (Total cards: " + totalCount + ")");
 
-                        // Parse cards from current page
-                        Flux<Card> currentPageCards = parsePokemonCards(response);
+                // Safety check: if data array is empty, stop importing
+                JsonNode dataArray = jsonResponse.path("data");
+                if (dataArray.isArray() && dataArray.size() == 0) {
+                    System.out.println("Pokemon API: Page " + currentPage + " has empty data array, stopping import");
+                    progress.setComplete(true);
+                    progress.setLastCheckDate(LocalDateTime.now());
+                    importProgressRepository.save(progress);
+                    break;
+                }
 
-                        // Update progress for this page
-                        progress.setLastProcessedPage(currentPage);
-                        importProgressRepository.save(progress);
+                // If this is an update check and we have all cards, mark as checked and stop
+                if (progress.isComplete() && progress.getTotalPagesKnown() != null &&
+                    totalPages <= progress.getLastProcessedPage()) {
+                    System.out.println("No new Pokemon cards available");
+                    progress.setLastCheckDate(LocalDateTime.now());
+                    importProgressRepository.save(progress);
+                    break;
+                }
 
-                        // If this is the last page, mark as complete
-                        if (currentPage >= totalPages) {
-                            progress.setComplete(true);
-                            progress.setLastCheckDate(LocalDateTime.now());
-                            importProgressRepository.save(progress);
-                            System.out.println("Pokemon import completed! All " + totalCount + " cards imported.");
-                            return currentPageCards;
-                        }
+                // Parse cards from current page (saves directly to database)
+                parsePokemonCards(response);
 
-                        // Continue with next page
-                        return currentPageCards.concatWith(
-                            fetchPokemonCardsFromPage(currentPage + 1, progress)
-                        );
+                // Update progress for this page
+                progress.setLastProcessedPage(currentPage);
+                importProgressRepository.save(progress);
 
-                    } catch (Exception e) {
-                        System.err.println("Error parsing Pokemon API response: " + e.getMessage());
-                        return Flux.empty();
-                    }
-                });
-    }
+                // If this is the last page, mark as complete
+                if (currentPage >= totalPages) {
+                    progress.setComplete(true);
+                    progress.setLastCheckDate(LocalDateTime.now());
+                    importProgressRepository.save(progress);
+                    System.out.println("Pokemon import completed! All " + totalCount + " cards imported.");
+                    break;
+                }
 
-    private Flux<Card> fetchPokemonCardsFromPage(int startPage, int totalPages) {
-        return Flux.range(startPage, totalPages - startPage + 1)
-                .flatMap(page -> fetchPokemonCardsFromAPI(page)
-                        .delayElement(getRateLimitDelay()) // Smart rate limiting
-                        .onErrorResume(e -> {
-                            System.err.println("Error fetching page " + page + ": " + e.getMessage());
-                            if (isRateLimitError(e)) {
-                                System.out.println("Rate limit hit, waiting longer before retry...");
-                                return Mono.delay(Duration.ofSeconds(60))
-                                        .then(fetchPokemonCardsFromAPI(page));
-                            }
-                            return Mono.empty();
-                        }))
-                .flatMap(this::parsePokemonCards);
+                // Move to next page
+                currentPage++;
+
+            } catch (Exception e) {
+                System.err.println("Error processing Pokemon page " + currentPage + ": " + e.getMessage());
+                break;
+            }
+        }
     }
 
     private Mono<String> fetchPokemonCardsFromAPI(int page) {
