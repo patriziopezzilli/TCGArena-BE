@@ -11,6 +11,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.beans.factory.annotation.Value;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.time.Duration;
@@ -393,19 +394,124 @@ public class TCGApiClient {
             return Mono.empty();
         }
 
-        // Determine starting page based on progress
-        int startPage = progress.getLastProcessedPage() + 1;
-        System.out.println("Starting Magic import from page " + startPage +
-                          " (previously processed: " + progress.getLastProcessedPage() + " pages)");
+        // Define categories to import in smaller batches (~50-100 cards per category)
+        List<String> categories = List.of(
+            "color:red",      // Red cards
+            "color:blue",     // Blue cards
+            "color:black",    // Black cards
+            "color:white",    // White cards
+            "color:green",    // Green cards
+            "colorless",      // Colorless cards
+            "type:land",      // Lands
+            "type:artifact",  // Artifacts
+            "type:instant",   // Instants
+            "type:sorcery",   // Sorceries
+            "type:creature",  // Creatures
+            "type:planeswalker" // Planeswalkers
+        );
 
-        // If we need to check for updates (complete but old), start from page 1 to get current total
-        if (progress.isComplete() && needsUpdateCheck(progress)) {
-            startPage = 1;
-            System.out.println("Checking for Magic card updates...");
+        System.out.println("Starting Magic import with " + categories.size() + " categories (~50-100 cards per category)");
+
+        // Use synchronous sequential processing
+        return Mono.fromRunnable(() -> {
+            try {
+                for (String category : categories) {
+                    System.out.println("Processing Magic category: " + category);
+                    fetchMagicCardsByCategorySync(category, progress);
+                    System.out.println("Completed category: " + category);
+                }
+
+                // Mark as complete
+                progress.setComplete(true);
+                progress.setLastCheckDate(LocalDateTime.now());
+                importProgressRepository.save(progress);
+                System.out.println("Magic import completed! All categories processed.");
+
+            } catch (Exception e) {
+                System.err.println("Error during Magic import: " + e.getMessage());
+                throw new RuntimeException(e);
+            }
+        });
+    }
+
+    private void fetchMagicCardsByCategorySync(String category, ImportProgress progress) {
+        int page = 1;
+        boolean hasMore = true;
+
+        while (hasMore) {
+            try {
+                // Fetch page synchronously
+                String response = fetchMagicCardsFromAPIByCategory(category, page).block();
+
+                if (response == null) {
+                    System.out.println("No response received for category " + category + ", page " + page);
+                    break;
+                }
+
+                // Parse JSON response
+                JsonNode jsonResponse;
+                try {
+                    jsonResponse = objectMapper.readTree(response);
+                } catch (Exception e) {
+                    System.err.println("Error parsing JSON response for category " + category + ", page " + page + ": " + e.getMessage());
+                    break;
+                }
+
+                hasMore = jsonResponse.path("has_more").asBoolean();
+                int totalCards = jsonResponse.path("total_cards").asInt();
+
+                System.out.println("Magic API [" + category + "]: Page " + page +
+                                  " (Total cards in category: " + totalCards + ", Has more: " + hasMore + ")");
+
+                // Check for empty data
+                JsonNode dataArray = jsonResponse.path("data");
+                if (dataArray.isArray() && dataArray.size() == 0) {
+                    System.out.println("Magic API [" + category + "]: Page " + page + " has empty data array, moving to next category");
+                    break;
+                }
+
+                // Parse and save cards synchronously
+                parseMagicCardsSync(response);
+
+                page++;
+
+            } catch (Exception e) {
+                System.err.println("Error processing category " + category + ", page " + page + ": " + e.getMessage());
+                break;
+            }
+        }
+    }
+
+    private void parseMagicCardsSync(String jsonResponse) throws Exception {
+        JsonNode root = objectMapper.readTree(jsonResponse);
+        JsonNode data = root.path("data");
+
+        List<Card> cards = new ArrayList<>();
+        for (JsonNode cardNode : data) {
+            Card card = parseMagicCard(cardNode);
+            if (card != null) {
+                cards.add(card);
+            }
         }
 
-        // Start fetching from the determined page
-        return fetchMagicCardsFromPage(startPage, progress);
+        System.out.println("Parsed " + cards.size() + " Magic cards from API response");
+
+        if (!cards.isEmpty()) {
+            // Save cards in smaller batches to reduce memory usage and database load
+            final int BATCH_SIZE = 50;
+            System.out.println("Saving " + cards.size() + " Magic cards in batches of " + BATCH_SIZE);
+
+            for (int i = 0; i < cards.size(); i += BATCH_SIZE) {
+                int endIndex = Math.min(i + BATCH_SIZE, cards.size());
+                List<Card> batch = cards.subList(i, endIndex);
+                System.out.println("Saving batch " + (i / BATCH_SIZE + 1) + "/" +
+                                  ((cards.size() + BATCH_SIZE - 1) / BATCH_SIZE) +
+                                  " (" + batch.size() + " cards)");
+                cardRepository.saveAll(batch);
+            }
+
+            System.out.println("Successfully saved all " + cards.size() + " Magic cards");
+        }
     }
 
     public Flux<Card> fetchOnePieceCards() {
@@ -444,8 +550,8 @@ public class TCGApiClient {
         return fetchOnePieceCardsFromPage(startPage, progress, maxPages);
     }
 
-    private Mono<Void> fetchMagicCardsFromPage(int startPage, ImportProgress progress) {
-        return fetchMagicCardsFromAPI(startPage)
+    private Mono<Void> fetchMagicCardsFromPageByCategory(String category, int page, ImportProgress progress) {
+        return fetchMagicCardsFromAPIByCategory(category, page)
                 .flatMap(response -> {
                     try {
                         JsonNode jsonResponse = objectMapper.readTree(response);
@@ -453,49 +559,23 @@ public class TCGApiClient {
                         // Scryfall pagination structure
                         boolean hasMore = jsonResponse.path("has_more").asBoolean();
                         int totalCards = jsonResponse.path("total_cards").asInt();
-                        String nextPageUrl = hasMore ? jsonResponse.path("next_page").asText() : null;
 
-                        // Calculate current page and total pages
-                        int currentPage = startPage;
-                        int pageSize = 175; // Scryfall default page size
-                        int totalPages = (int) Math.ceil((double) totalCards / pageSize);
+                        System.out.println("Magic API [" + category + "]: Page " + page +
+                                          " (Total cards in category: " + totalCards + ", Has more: " + hasMore + ")");
 
-                        // Update progress
-                        progress.setTotalPagesKnown(totalPages);
-                        importProgressRepository.save(progress);
-
-                        System.out.println("Magic API: Page " + currentPage + "/" + totalPages +
-                                          " (Total cards: " + totalCards + ", Has more: " + hasMore + ")");
-
-                        // Safety check: if data array is empty, stop importing
+                        // Safety check: if data array is empty, stop this category
                         JsonNode dataArray = jsonResponse.path("data");
                         if (dataArray.isArray() && dataArray.size() == 0) {
-                            System.out.println("Magic API: Page " + currentPage + " has empty data array, stopping import");
-                            progress.setComplete(true);
-                            progress.setLastCheckDate(LocalDateTime.now());
-                            importProgressRepository.save(progress);
+                            System.out.println("Magic API [" + category + "]: Page " + page + " has empty data array, moving to next category");
                             return Mono.empty();
                         }
 
                         // Parse and save cards from current page
                         return parseMagicCards(response)
-                                .then(Mono.fromRunnable(() -> {
-                                    // Update progress for this page
-                                    progress.setLastProcessedPage(currentPage);
-                                    importProgressRepository.save(progress);
-
-                                    // If no more pages, mark as complete
-                                    if (!hasMore) {
-                                        progress.setComplete(true);
-                                        progress.setLastCheckDate(LocalDateTime.now());
-                                        importProgressRepository.save(progress);
-                                        System.out.println("Magic import completed! All " + totalCards + " cards imported.");
-                                    }
-                                }))
-                                .then(hasMore ? fetchMagicCardsFromPage(currentPage + 1, progress) : Mono.empty());
+                                .then(hasMore ? fetchMagicCardsFromPageByCategory(category, page + 1, progress) : Mono.empty());
 
                     } catch (Exception e) {
-                        System.err.println("Error parsing Magic API response: " + e.getMessage());
+                        System.err.println("Error parsing Magic API response for category " + category + ": " + e.getMessage());
                         return Mono.empty();
                     }
                 });
@@ -568,11 +648,11 @@ public class TCGApiClient {
                 });
     }
 
-    private Mono<String> fetchMagicCardsFromAPI(int page) {
-        // Scryfall API: Use /cards/search endpoint with q=* to get all cards
-        // Pagination with page parameter, max 175 cards per page
+    private Mono<String> fetchMagicCardsFromAPIByCategory(String category, int page) {
+        // Scryfall API: Use /cards/search endpoint with specific category query
+        // This reduces the number of cards per request (typically ~50-100 instead of 175)
         return scryfallWebClient.get()
-                .uri("https://api.scryfall.com/cards/search?q=*&page=" + page)
+                .uri("https://api.scryfall.com/cards/search?q=" + category + "&page=" + page)
                 .exchangeToMono(response -> {
                     if (response.statusCode().isError()) {
                         return response.bodyToMono(String.class)
@@ -580,8 +660,8 @@ public class TCGApiClient {
                     }
                     return response.bodyToMono(String.class);
                 })
-                .doOnNext(response -> System.out.println("Scryfall response received, length: " + response.length() + ", starts with: " + response.substring(0, Math.min(100, response.length()))))
-                .doOnError(e -> System.out.println("Error in fetchMagicCardsFromAPI: " + e.getMessage() + ", type: " + e.getClass().getSimpleName()))
+                .doOnNext(response -> System.out.println("Scryfall response received for [" + category + "], length: " + response.length() + ", starts with: " + response.substring(0, Math.min(100, response.length()))))
+                .doOnError(e -> System.out.println("Error in fetchMagicCardsFromAPIByCategory [" + category + "]: " + e.getMessage() + ", type: " + e.getClass().getSimpleName()))
                 .delayElement(getScryfallRateLimitDelay()); // Scryfall: max 10 requests/second
     }
 
@@ -629,31 +709,48 @@ public class TCGApiClient {
     }
 
     private Mono<Void> parseMagicCards(String jsonResponse) {
-        try {
-            JsonNode root = objectMapper.readTree(jsonResponse);
-            JsonNode data = root.path("data");
+        return Mono.fromCallable(() -> {
+            try {
+                JsonNode root = objectMapper.readTree(jsonResponse);
+                JsonNode data = root.path("data");
 
-            List<Card> cards = new ArrayList<>();
-            for (JsonNode cardNode : data) {
-                Card card = parseMagicCard(cardNode);
-                if (card != null) {
-                    cards.add(card);
+                List<Card> cards = new ArrayList<>();
+                for (JsonNode cardNode : data) {
+                    Card card = parseMagicCard(cardNode);
+                    if (card != null) {
+                        cards.add(card);
+                    }
                 }
+
+                System.out.println("Parsed " + cards.size() + " Magic cards from API response");
+
+                if (!cards.isEmpty()) {
+                    // Save cards in smaller batches to reduce memory usage and database load
+                    final int BATCH_SIZE = 50;
+                    System.out.println("Saving " + cards.size() + " Magic cards in batches of " + BATCH_SIZE);
+
+                    for (int i = 0; i < cards.size(); i += BATCH_SIZE) {
+                        int endIndex = Math.min(i + BATCH_SIZE, cards.size());
+                        List<Card> batch = cards.subList(i, endIndex);
+                        System.out.println("Saving batch " + (i / BATCH_SIZE + 1) + "/" +
+                                          ((cards.size() + BATCH_SIZE - 1) / BATCH_SIZE) +
+                                          " (" + batch.size() + " cards)");
+                        cardRepository.saveAll(batch);
+                    }
+
+                    System.out.println("Successfully saved all " + cards.size() + " Magic cards");
+                }
+
+                return null;
+            } catch (Exception e) {
+                System.err.println("Error parsing Magic cards: " + e.getMessage());
+                throw e;
             }
-
-            System.out.println("Parsed " + cards.size() + " Magic cards from API response");
-
-            if (!cards.isEmpty()) {
-                System.out.println("Saving " + cards.size() + " Magic cards in bulk");
-                cardRepository.saveAll(cards);
-                System.out.println("Successfully saved " + cards.size() + " Magic cards");
-            }
-
-            return Mono.empty();
-        } catch (Exception e) {
-            System.err.println("Error parsing Magic cards: " + e.getMessage());
-            return Mono.error(e);
-        }
+        })
+        .subscribeOn(Schedulers.boundedElastic())
+        .doOnSuccess(v -> System.out.println("Magic card processing completed"))
+        .doOnError(e -> System.err.println("Error in Magic card processing: " + e.getMessage()))
+        .then();
     }
 
     private Flux<Card> parseOnePieceCards(String jsonResponse) {
