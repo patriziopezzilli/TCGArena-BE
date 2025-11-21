@@ -579,6 +579,7 @@ public class TCGApiClient {
                 .retrieve()
                 .bodyToMono(String.class)
                 .doOnNext(response -> System.out.println("Scryfall response received, length: " + response.length() + ", starts with: " + response.substring(0, Math.min(100, response.length()))))
+                .doOnError(e -> System.out.println("Error in fetchMagicCardsFromAPI: " + e.getMessage() + ", type: " + e.getClass().getSimpleName()))
                 .delayElement(getScryfallRateLimitDelay()); // Scryfall: max 10 requests/second
     }
 
