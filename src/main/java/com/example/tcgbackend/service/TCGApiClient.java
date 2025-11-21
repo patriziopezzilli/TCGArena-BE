@@ -16,6 +16,8 @@ import reactor.util.retry.Retry;
 import reactor.core.scheduler.Schedulers;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import net.tcgdex.sdk.TCGdex;
+import net.tcgdex.sdk.models.Card;
+import net.tcgdex.sdk.models.CardResume;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -29,7 +31,7 @@ public class TCGApiClient {
     private final WebClient webClient;
     private final WebClient onePieceWebClient;
     private final WebClient scryfallWebClient;
-    // private final TCGdex tcgdexClient; // TODO: Uncomment when TCGdex API is working
+    private final TCGdex tcgdexClient;
     private final ObjectMapper objectMapper;
     private final CardRepository cardRepository;
     private final CardTemplateRepository cardTemplateRepository;
@@ -61,8 +63,7 @@ public class TCGApiClient {
         this.scryfallWebClient = WebClient.builder()
                 .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(1024 * 1024)) // Increase buffer limit to 1MB for large Scryfall responses
                 .build();
-        // TODO: Initialize TCGdex client when API is figured out
-        // this.tcgdexClient = TCGdex.create();
+        this.tcgdexClient = new TCGdex("en"); // Initialize TCGdex client for Pokemon cards
         this.objectMapper = new ObjectMapper();
     }
 
@@ -95,8 +96,8 @@ public class TCGApiClient {
         final int startPageFinal = startPage;
         return Mono.fromRunnable(() -> {
             try {
-                // TODO: Switch to TCGdex when API is working
-                fetchPokemonCardsFromPageSync(startPageFinal, importProgress);
+                // Switch to TCGdex for Pokemon cards
+                fetchPokemonCardsWithTcgdex(importProgress);
             } catch (Exception e) {
                 System.err.println("Error during Pokemon import: " + e.getMessage());
                 throw new RuntimeException(e);
@@ -104,36 +105,47 @@ public class TCGApiClient {
         });
     }
 
-    /*
     private void fetchPokemonCardsWithTcgdex(ImportProgress progress) {
         System.out.println("Pokemon: Starting bulk import using TCGdex API");
 
         try {
             // Get all Pokemon cards from TCGdex
-            var allCards = tcgdexClient.cards().all();
-            System.out.println("Pokemon: Retrieved " + allCards.size() + " cards from TCGdex");
+            CardResume[] cardResumes = tcgdexClient.fetchCards();
+            System.out.println("Pokemon: Retrieved " + cardResumes.length + " card resumes from TCGdex");
 
             // Convert and save cards in batches
             int batchSize = 100;
             List<CardTemplate> cardTemplates = new ArrayList<>();
 
-            for (int i = 0; i < allCards.size(); i++) {
-                var tcgdexCard = allCards.get(i);
+            for (int i = 0; i < cardResumes.length; i++) {
+                CardResume resume = cardResumes[i];
 
-                // Convert TCGdex card to our CardTemplate
-                CardTemplate cardTemplate = convertTcgdexCardToCardTemplate(tcgdexCard);
-                if (cardTemplate != null) {
-                    cardTemplates.add(cardTemplate);
-                }
+                try {
+                    // Fetch full card details for each resume
+                    Card fullCard = tcgdexClient.fetchCard(resume.getId());
+                    CardTemplate cardTemplate = convertTcgdexCardToCardTemplate(fullCard);
 
-                // Save batch when it reaches the size limit or at the end
-                if (cardTemplates.size() >= batchSize || i == allCards.size() - 1) {
-                    if (!cardTemplates.isEmpty()) {
-                        System.out.println("Pokemon: Saving batch of " + cardTemplates.size() + " cards (" + (i + 1) + "/" + allCards.size() + ")");
-                        cardTemplateRepository.saveAll(cardTemplates);
-                        cardTemplateRepository.flush();
-                        cardTemplates.clear();
+                    if (cardTemplate != null) {
+                        cardTemplates.add(cardTemplate);
                     }
+
+                    // Save batch when it reaches the size limit or at the end
+                    if (cardTemplates.size() >= batchSize || i == cardResumes.length - 1) {
+                        if (!cardTemplates.isEmpty()) {
+                            System.out.println("Pokemon: Saving batch of " + cardTemplates.size() + " cards (" + (i + 1) + "/" + cardResumes.length + ")");
+                            cardTemplateRepository.saveAll(cardTemplates);
+                            cardTemplateRepository.flush();
+                            cardTemplates.clear();
+                        }
+                    }
+
+                    // Add delay to avoid overwhelming the API
+                    if (i % 10 == 0) {
+                        Thread.sleep(100); // 100ms delay every 10 cards
+                    }
+
+                } catch (Exception e) {
+                    System.err.println("Error processing card " + resume.getId() + ": " + e.getMessage());
                 }
             }
 
@@ -157,37 +169,42 @@ public class TCGApiClient {
         try {
             CardTemplate template = new CardTemplate();
             template.setTcgType(TCGType.POKEMON);
-            template.setExternalId(tcgdexCard.getId());
-
-            // Basic card information
             template.setName(tcgdexCard.getName());
+            template.setDateCreated(LocalDateTime.now());
+
+            // Set code from set
             if (tcgdexCard.getSet() != null) {
-                template.setSetName(tcgdexCard.getSet().getName());
                 template.setSetCode(tcgdexCard.getSet().getId());
             }
 
-            // Card properties
+            // Convert rarity string to enum
             if (tcgdexCard.getRarity() != null) {
-                template.setRarity(tcgdexCard.getRarity().getName());
+                template.setRarity(convertRarityStringToEnum(tcgdexCard.getRarity()));
             }
 
-            if (tcgdexCard.getCategory() != null) {
-                template.setSupertype(tcgdexCard.getCategory().getName());
-            }
+            // Use localId as card number
+            template.setCardNumber(tcgdexCard.getLocalId());
 
             // Images
             if (tcgdexCard.getImage() != null && !tcgdexCard.getImage().isEmpty()) {
-                template.setImageUrl(tcgdexCard.getImage().get(0)); // Take first image
+                template.setImageUrl(tcgdexCard.getImage());
             }
 
-            // Additional metadata
-            template.setHp(tcgdexCard.getHp());
-            template.setEvolvesFrom(tcgdexCard.getEvolveFrom());
-
-            // Convert types
+            // Build description with additional info
+            StringBuilder description = new StringBuilder();
+            if (tcgdexCard.getCategory() != null) {
+                description.append("Category: ").append(tcgdexCard.getCategory()).append("\n");
+            }
+            if (tcgdexCard.getHp() != null) {
+                description.append("HP: ").append(tcgdexCard.getHp()).append("\n");
+            }
+            if (tcgdexCard.getEvolveFrom() != null) {
+                description.append("Evolves from: ").append(tcgdexCard.getEvolveFrom()).append("\n");
+            }
             if (tcgdexCard.getTypes() != null && !tcgdexCard.getTypes().isEmpty()) {
-                template.setTypes(String.join(",", tcgdexCard.getTypes()));
+                description.append("Types: ").append(String.join(", ", tcgdexCard.getTypes()));
             }
+            template.setDescription(description.toString().trim());
 
             return template;
 
@@ -196,7 +213,29 @@ public class TCGApiClient {
             return null;
         }
     }
-    */
+
+    private Rarity convertRarityStringToEnum(String rarityString) {
+        if (rarityString == null) return Rarity.COMMON;
+
+        String upperRarity = rarityString.toUpperCase();
+        switch (upperRarity) {
+            case "COMMON":
+                return Rarity.COMMON;
+            case "UNCOMMON":
+                return Rarity.UNCOMMON;
+            case "RARE":
+            case "RARE HOLO":
+                return Rarity.RARE;
+            case "ULTRA RARE":
+            case "SECRET RARE":
+                return Rarity.SECRET;
+            case "HOLOGRAPHIC":
+            case "HOLOGRAPHIC RARE":
+                return Rarity.HOLOGRAPHIC;
+            default:
+                return Rarity.COMMON;
+        }
+    }
 
     private void fetchOnePieceCardsFromPageSync(int startPage, ImportProgress progress) {
         int currentPage = startPage;
