@@ -1,0 +1,33 @@
+meta {
+  name: Update Deck
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/api/decks/1
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Updated Deck Name",
+    "description": "Updated description",
+    "tcgType": "MAGIC",
+    "isPublic": false
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Update an existing deck
+}

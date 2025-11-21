@@ -1,0 +1,37 @@
+meta {
+  name: Login User
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/auth/login
+  body: json
+  auth: inherit
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "username": "testuser",
+    "password": "password123"
+  }
+}
+
+script:post-response {
+  if (res.getStatus() === 200) {
+      const response = res.getBody();
+      bru.setVar('authToken', response.token);
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Login with existing user credentials. Save the token from response to authToken variable.
+}

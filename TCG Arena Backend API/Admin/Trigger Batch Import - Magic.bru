@@ -1,0 +1,23 @@
+meta {
+  name: Trigger Batch Import - Magic
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/admin/trigger-batch/MAGIC
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Manually trigger batch import for Magic cards (requires merchant privileges)
+}

@@ -1,0 +1,23 @@
+meta {
+  name: Get All Decks
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/decks
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Retrieve all decks
+}

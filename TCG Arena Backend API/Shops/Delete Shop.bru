@@ -1,0 +1,23 @@
+meta {
+  name: Delete Shop
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/api/shops/1
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Delete a shop
+}

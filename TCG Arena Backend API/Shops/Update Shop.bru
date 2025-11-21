@@ -1,0 +1,31 @@
+meta {
+  name: Update Shop
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/api/shops/1
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Updated Card Masters",
+    "phoneNumber": "+39 06 9876543"
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Update an existing shop
+}

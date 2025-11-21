@@ -1,0 +1,19 @@
+meta {
+  name: Get All Sets
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/sets
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Retrieve all TCG sets (public endpoint)
+}

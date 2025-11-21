@@ -1,0 +1,38 @@
+meta {
+  name: Create Shop
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/shops
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Card Masters",
+    "address": "Via Roma 123",
+    "type": "LOCAL_STORE",
+    "phoneNumber": "+39 06 1234567",
+    "websiteUrl": "https://cardmasters.it",
+    "ownerId": 1,
+    "isVerified": true,
+    "latitude": 41.9028,
+    "longitude": 12.4964
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Create a new shop
+}

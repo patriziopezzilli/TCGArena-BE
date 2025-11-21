@@ -1,0 +1,31 @@
+meta {
+  name: Update Set
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/api/sets/1
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Updated Base Set",
+    "description": "Updated description for the base set"
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Update an existing TCG set
+}

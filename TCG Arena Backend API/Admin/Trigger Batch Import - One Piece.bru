@@ -1,0 +1,23 @@
+meta {
+  name: Trigger Batch Import - One Piece
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/api/admin/trigger-batch/ONE_PIECE
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Manually trigger batch import for One Piece cards (requires merchant privileges)
+}

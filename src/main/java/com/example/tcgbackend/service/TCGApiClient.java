@@ -781,6 +781,10 @@ public class TCGApiClient {
             card.setName(cardNode.path("name").asText());
             card.setSetCode(cardNode.path("set").asText()); // set code
 
+            // Card number - use collector number from Scryfall
+            String collectorNumber = cardNode.path("collector_number").asText();
+            card.setCardNumber(collectorNumber);
+
             // Map rarity to our enum
             String rarityStr = cardNode.path("rarity").asText();
             try {

@@ -1,0 +1,19 @@
+meta {
+  name: Get Shop by ID
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/shops/1
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Retrieve a specific shop by ID (public endpoint)
+}

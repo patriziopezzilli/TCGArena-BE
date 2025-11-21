@@ -1,0 +1,28 @@
+meta {
+  name: Add Card to Collection
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/cards/1/add-to-collection?userId=1&condition=NEAR_MINT
+  body: none
+  auth: inherit
+}
+
+params:query {
+  userId: 1
+  condition: NEAR_MINT
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Add a card template to a user's collection as a user card (requires authentication)
+}

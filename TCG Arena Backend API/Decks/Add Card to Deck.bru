@@ -1,0 +1,28 @@
+meta {
+  name: Add Card to Deck
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/decks/1/add-card?cardId=1&quantity=4
+  body: none
+  auth: inherit
+}
+
+params:query {
+  cardId: 1
+  quantity: 4
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Add cards to a deck
+}

@@ -1,0 +1,19 @@
+meta {
+  name: Get All Card Templates
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/cards
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Retrieve all card templates (public endpoint)
+}

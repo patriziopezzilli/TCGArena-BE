@@ -1,0 +1,25 @@
+meta {
+  name: Get Nearby Tournaments
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/tournaments/nearby?latitude=41.9028&longitude=12.4964&radiusKm=50
+  body: none
+  auth: inherit
+}
+
+params:query {
+  latitude: 41.9028
+  longitude: 12.4964
+  radiusKm: 50
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Get tournaments near a specific location (Rome coordinates) - public endpoint
+}

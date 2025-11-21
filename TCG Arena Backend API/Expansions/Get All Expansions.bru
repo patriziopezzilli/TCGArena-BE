@@ -1,0 +1,19 @@
+meta {
+  name: Get All Expansions
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/api/expansions
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Retrieve all expansions (public endpoint)
+}

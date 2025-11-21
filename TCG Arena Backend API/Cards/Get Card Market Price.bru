@@ -1,0 +1,23 @@
+meta {
+  name: Get Card Market Price
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/cards/market-price/1
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Get the market price of a specific card template
+}

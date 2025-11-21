@@ -1,0 +1,35 @@
+meta {
+  name: Create Set
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/sets
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Base Set",
+    "setCode": "BASE1",
+    "releaseDate": "1999-01-09T00:00:00",
+    "cardCount": 102,
+    "description": "The first Pokémon Trading Card Game set",
+    "expansionId": 1
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Create a new TCG set
+}

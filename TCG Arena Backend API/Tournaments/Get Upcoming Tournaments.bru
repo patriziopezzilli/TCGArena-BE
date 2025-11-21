@@ -1,0 +1,19 @@
+meta {
+  name: Get Upcoming Tournaments
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/tournaments/upcoming
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Get all upcoming tournaments (public endpoint)
+}

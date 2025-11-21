@@ -1,0 +1,23 @@
+meta {
+  name: Delete Tournament
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{baseUrl}}/api/tournaments/1
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Delete a tournament
+}

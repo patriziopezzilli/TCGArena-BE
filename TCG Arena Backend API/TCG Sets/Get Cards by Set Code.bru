@@ -1,0 +1,19 @@
+meta {
+  name: Get Cards by Set Code
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/sets/BASE1/cards
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Get all cards from a specific set (public endpoint)
+}

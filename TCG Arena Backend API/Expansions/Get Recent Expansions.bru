@@ -1,0 +1,19 @@
+meta {
+  name: Get Recent Expansions
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/expansions/recent
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Get recently released expansions (public endpoint)
+}

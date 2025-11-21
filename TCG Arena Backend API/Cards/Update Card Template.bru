@@ -1,0 +1,32 @@
+meta {
+  name: Update Card Template
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{baseUrl}}/api/cards/1
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "name": "Updated Charizard",
+    "marketPrice": 200.00,
+    "condition": "MINT"
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Update an existing card
+}

@@ -1,0 +1,31 @@
+meta {
+  name: Update Expansion
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/api/expansions/1
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "title": "Updated Scarlet & Violet",
+    "imageUrl": "https://example.com/updated-image.jpg"
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Update an existing expansion
+}

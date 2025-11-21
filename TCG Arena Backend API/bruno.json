@@ -1,0 +1,21 @@
+{
+  "version": "1",
+  "name": "TCG Arena Backend API",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ],
+  "proxy": {
+    "bypassProxy": "",
+    "enabled": false,
+    "auth": {
+      "enabled": false,
+      "username": "",
+      "password": ""
+    },
+    "port": null,
+    "hostname": "",
+    "protocol": "http"
+  }
+}

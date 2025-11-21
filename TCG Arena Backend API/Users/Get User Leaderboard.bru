@@ -1,0 +1,19 @@
+meta {
+  name: Get User Leaderboard
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/users/leaderboard
+  body: none
+  auth: inherit
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Get users leaderboard (public endpoint)
+}

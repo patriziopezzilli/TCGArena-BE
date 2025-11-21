@@ -1,0 +1,27 @@
+meta {
+  name: Search Users
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/users/search?query=test
+  body: none
+  auth: inherit
+}
+
+params:query {
+  query: test
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Search users by query string
+}

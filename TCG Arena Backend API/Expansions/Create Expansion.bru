@@ -1,0 +1,32 @@
+meta {
+  name: Create Expansion
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/expansions
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "title": "Scarlet & Violet",
+    "tcgType": "POKEMON",
+    "imageUrl": "https://example.com/scarlet-violet.jpg"
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Create a new expansion
+}

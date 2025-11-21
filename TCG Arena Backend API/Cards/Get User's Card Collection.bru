@@ -1,0 +1,23 @@
+meta {
+  name: Get User's Card Collection
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/cards/collection/1
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Get all cards owned by a specific user (requires authentication)
+}

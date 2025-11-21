@@ -1,0 +1,23 @@
+meta {
+  name: Trigger Batch Import - Pokemon
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/admin/trigger-batch/POKEMON
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Manually trigger batch import for Pokemon cards (requires merchant privileges)
+}

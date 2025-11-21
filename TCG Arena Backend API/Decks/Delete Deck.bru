@@ -1,0 +1,23 @@
+meta {
+  name: Delete Deck
+  type: http
+  seq: 8
+}
+
+delete {
+  url: {{baseUrl}}/api/decks/1
+  body: none
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Delete a deck
+}

@@ -1,0 +1,27 @@
+meta {
+  name: Remove Card from Deck
+  type: http
+  seq: 7
+}
+
+delete {
+  url: {{baseUrl}}/api/decks/1/remove-card?cardId=1
+  body: none
+  auth: inherit
+}
+
+params:query {
+  cardId: 1
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Remove a card from a deck
+}

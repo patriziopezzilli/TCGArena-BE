@@ -1,0 +1,32 @@
+meta {
+  name: Update Tournament
+  type: http
+  seq: 6
+}
+
+put {
+  url: {{baseUrl}}/api/tournaments/1
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "title": "Updated Championship",
+    "description": "Updated tournament description",
+    "prizePool": 1500.00
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Update an existing tournament
+}

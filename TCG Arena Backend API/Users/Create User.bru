@@ -1,0 +1,36 @@
+meta {
+  name: Create User
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/users
+  body: json
+  auth: inherit
+}
+
+headers {
+  Authorization: Bearer {{authToken}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "username": "newuser",
+    "email": "new@example.com",
+    "password": "password123",
+    "displayName": "New User",
+    "favoriteGame": "MAGIC",
+    "isPremium": false,
+    "isMerchant": false
+  }
+}
+
+settings {
+  encodeUrl: true
+}
+
+docs {
+  Create a new user (admin operation)
+}
