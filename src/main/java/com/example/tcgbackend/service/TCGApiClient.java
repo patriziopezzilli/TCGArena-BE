@@ -14,7 +14,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 import reactor.core.scheduler.Schedulers;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 import net.tcgdex.sdk.TCGdex;
 import net.tcgdex.sdk.models.Card;
 import net.tcgdex.sdk.models.CardResume;
@@ -105,6 +106,7 @@ public class TCGApiClient {
         });
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     private void fetchPokemonCardsWithTcgdex(ImportProgress progress) {
         System.out.println("Pokemon: Starting bulk import using TCGdex API");
 
@@ -132,9 +134,7 @@ public class TCGApiClient {
                     // Save batch when it reaches the size limit or at the end
                     if (cardTemplates.size() >= batchSize || i == cardResumes.length - 1) {
                         if (!cardTemplates.isEmpty()) {
-                            System.out.println("Pokemon: Saving batch of " + cardTemplates.size() + " cards (" + (i + 1) + "/" + cardResumes.length + ")");
-                            cardTemplateRepository.saveAll(cardTemplates);
-                            cardTemplateRepository.flush();
+                            saveCardBatch(cardTemplates, i + 1, cardResumes.length);
                             cardTemplates.clear();
                         }
                     }
@@ -172,6 +172,14 @@ public class TCGApiClient {
             e.printStackTrace();
             throw new RuntimeException("TCGdex import failed", e);
         }
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    private void saveCardBatch(List<CardTemplate> cardTemplates, int currentCount, int totalCount) {
+        System.out.println("Pokemon: Saving batch of " + cardTemplates.size() + " cards (" + currentCount + "/" + totalCount + ")");
+        cardTemplateRepository.saveAll(cardTemplates);
+        cardTemplateRepository.flush();
+        // Transaction will auto-commit when method exits
     }
 
     private CardTemplate convertTcgdexCardToCardTemplate(net.tcgdex.sdk.models.Card tcgdexCard) {
