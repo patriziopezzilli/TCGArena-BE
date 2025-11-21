@@ -1,8 +1,10 @@
 package com.example.tcgbackend.service;
 
 import com.example.tcgbackend.model.Card;
+import com.example.tcgbackend.model.CardTemplate;
 import com.example.tcgbackend.model.Expansion;
 import com.example.tcgbackend.repository.CardRepository;
+import com.example.tcgbackend.repository.CardTemplateRepository;
 import com.example.tcgbackend.repository.ExpansionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -15,6 +17,9 @@ import java.util.Optional;
 public class CardService {
     @Autowired
     private CardRepository cardRepository;
+
+    @Autowired
+    private CardTemplateRepository cardTemplateRepository;
 
     @Autowired
     private ExpansionRepository expansionRepository;
@@ -40,20 +45,13 @@ public class CardService {
 
     public Optional<Card> updateCard(Long id, Card cardDetails) {
         return cardRepository.findById(id).map(card -> {
-            card.setName(cardDetails.getName());
-            card.setTcgType(cardDetails.getTcgType());
-            card.setSetCode(cardDetails.getSetCode());
-            card.setExpansion(cardDetails.getExpansion());
-            card.setRarity(cardDetails.getRarity());
-            card.setCardNumber(cardDetails.getCardNumber());
-            card.setDescription(cardDetails.getDescription());
-            card.setImageUrl(cardDetails.getImageUrl());
-            card.setMarketPrice(cardDetails.getMarketPrice());
-            card.setManaCost(cardDetails.getManaCost());
+            // Only update instance-specific fields, not template fields
             card.setCondition(cardDetails.getCondition());
             card.setIsGraded(cardDetails.getIsGraded());
             card.setGradeService(cardDetails.getGradeService());
             card.setGradeScore(cardDetails.getGradeScore());
+            card.setOwnerId(cardDetails.getOwnerId());
+            card.setDeckId(cardDetails.getDeckId());
             return cardRepository.save(card);
         });
     }
@@ -77,13 +75,13 @@ public class CardService {
     }
 
     public void updateMarketPrices() {
-        // Update market prices from external APIs
-        List<Card> cards = cardRepository.findAll();
-        for (Card card : cards) {
-            Double marketPrice = tcgApiClient.getMarketPrice(card.getName(), card.getSetCode());
-            card.setMarketPrice(marketPrice);
+        // Update market prices from external APIs for card templates
+        List<CardTemplate> templates = cardTemplateRepository.findAll();
+        for (CardTemplate template : templates) {
+            Double marketPrice = tcgApiClient.getMarketPrice(template.getName(), template.getSetCode());
+            template.setMarketPrice(marketPrice);
         }
-        cardRepository.saveAll(cards);
+        cardTemplateRepository.saveAll(templates);
     }
 
     // Expansion management methods

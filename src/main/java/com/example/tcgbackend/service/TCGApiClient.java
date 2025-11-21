@@ -2,6 +2,7 @@ package com.example.tcgbackend.service;
 
 import com.example.tcgbackend.model.*;
 import com.example.tcgbackend.repository.CardRepository;
+import com.example.tcgbackend.repository.CardTemplateRepository;
 import com.example.tcgbackend.repository.ImportProgressRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,6 +29,7 @@ public class TCGApiClient {
     private final WebClient scryfallWebClient;
     private final ObjectMapper objectMapper;
     private final CardRepository cardRepository;
+    private final CardTemplateRepository cardTemplateRepository;
     private final ImportProgressRepository importProgressRepository;
 
     // Rate limiting tracking
@@ -42,8 +44,9 @@ public class TCGApiClient {
     private boolean demoEnv;
 
     @Autowired
-    public TCGApiClient(CardRepository cardRepository, ImportProgressRepository importProgressRepository) {
+    public TCGApiClient(CardRepository cardRepository, CardTemplateRepository cardTemplateRepository, ImportProgressRepository importProgressRepository) {
         this.cardRepository = cardRepository;
+        this.cardTemplateRepository = cardTemplateRepository;
         this.importProgressRepository = importProgressRepository;
         this.webClient = WebClient.builder()
                 .baseUrl("https://api.pokemontcg.io")
@@ -294,67 +297,83 @@ public class TCGApiClient {
     }
 
     private Flux<Card> parsePokemonCards(String jsonResponse) {
-        List<Card> cards = new ArrayList<>();
+        List<CardTemplate> templates = new ArrayList<>();
         try {
             JsonNode root = objectMapper.readTree(jsonResponse);
             JsonNode data = root.path("data");
 
             for (JsonNode cardNode : data) {
-                Card card = parsePokemonCard(cardNode);
-                if (card != null) {
-                    cards.add(card);
+                CardTemplate template = parsePokemonCardTemplate(cardNode);
+                if (template != null) {
+                    templates.add(template);
                 }
+            }
+
+            System.out.println("Parsed " + templates.size() + " Pokemon card templates from API response");
+
+            if (!templates.isEmpty()) {
+                // Save templates in smaller batches to reduce memory usage and database load
+                final int BATCH_SIZE = 50;
+                System.out.println("Saving " + templates.size() + " Pokemon card templates in batches of " + BATCH_SIZE);
+
+                for (int i = 0; i < templates.size(); i += BATCH_SIZE) {
+                    int endIndex = Math.min(i + BATCH_SIZE, templates.size());
+                    List<CardTemplate> batch = templates.subList(i, endIndex);
+                    System.out.println("Saving batch " + (i / BATCH_SIZE + 1) + "/" +
+                                      ((templates.size() + BATCH_SIZE - 1) / BATCH_SIZE) +
+                                      " (" + batch.size() + " templates)");
+                    cardTemplateRepository.saveAll(batch);
+                }
+
+                System.out.println("Successfully saved all " + templates.size() + " Pokemon card templates");
             }
         } catch (Exception e) {
             System.err.println("Error parsing Pokemon cards: " + e.getMessage());
         }
 
-        return Flux.fromIterable(cards);
+        return Flux.empty(); // Return empty since we're saving templates, not cards
     }
 
-    private Card parsePokemonCard(JsonNode cardNode) {
+    private CardTemplate parsePokemonCardTemplate(JsonNode cardNode) {
         try {
-            Card card = new Card();
+            CardTemplate template = new CardTemplate();
 
             // Basic info
-            card.setName(cardNode.path("name").asText());
-            card.setTcgType(TCGType.POKEMON);
+            template.setName(cardNode.path("name").asText());
+            template.setTcgType(TCGType.POKEMON);
 
             // Set and card number
             JsonNode setNode = cardNode.path("set");
             if (!setNode.isMissingNode()) {
-                card.setSetCode(setNode.path("id").asText());
-                card.setCardNumber(cardNode.path("number").asText());
-
-                // Store expansion name for later processing
-                card.setDescription(card.getDescription() + " [Expansion: " + setNode.path("name").asText() + "]");
+                template.setSetCode(setNode.path("id").asText());
+                template.setCardNumber(cardNode.path("number").asText());
             }
 
             // Rarity
             String rarityStr = cardNode.path("rarity").asText();
-            card.setRarity(mapPokemonRarity(rarityStr));
+            template.setRarity(mapPokemonRarity(rarityStr));
 
             // Images
             JsonNode images = cardNode.path("images");
             if (!images.isMissingNode()) {
-                card.setImageUrl(images.path("large").asText());
+                template.setImageUrl(images.path("large").asText());
             }
 
             // Description/flavor text
-            card.setDescription(cardNode.path("flavorText").asText());
+            template.setDescription(cardNode.path("flavorText").asText());
 
             // Market price (simplified - would need additional API call)
-            card.setMarketPrice(1.0); // Default price
-
-            // Condition
-            card.setCondition(CardCondition.NEAR_MINT);
+            template.setMarketPrice(1.0); // Default price
 
             // Other fields
-            card.setManaCost(cardNode.path("convertedEnergyCost").asInt());
+            template.setManaCost(cardNode.path("convertedEnergyCost").asInt());
 
-            return card;
+            // Set creation date
+            template.setDateCreated(LocalDateTime.now());
+
+            return template;
         } catch (Exception e) {
-            System.err.println("Error parsing individual Pokemon card: " + e.getMessage());
+            System.err.println("Error parsing individual Pokemon card template: " + e.getMessage());
             return null;
         }
     }
@@ -486,31 +505,31 @@ public class TCGApiClient {
         JsonNode root = objectMapper.readTree(jsonResponse);
         JsonNode data = root.path("data");
 
-        List<Card> cards = new ArrayList<>();
+        List<CardTemplate> templates = new ArrayList<>();
         for (JsonNode cardNode : data) {
-            Card card = parseMagicCard(cardNode);
-            if (card != null) {
-                cards.add(card);
+            CardTemplate template = parseMagicCardTemplate(cardNode);
+            if (template != null) {
+                templates.add(template);
             }
         }
 
-        System.out.println("Parsed " + cards.size() + " Magic cards from API response");
+        System.out.println("Parsed " + templates.size() + " Magic card templates from API response");
 
-        if (!cards.isEmpty()) {
-            // Save cards in smaller batches to reduce memory usage and database load
+        if (!templates.isEmpty()) {
+            // Save templates in smaller batches to reduce memory usage and database load
             final int BATCH_SIZE = 50;
-            System.out.println("Saving " + cards.size() + " Magic cards in batches of " + BATCH_SIZE);
+            System.out.println("Saving " + templates.size() + " Magic card templates in batches of " + BATCH_SIZE);
 
-            for (int i = 0; i < cards.size(); i += BATCH_SIZE) {
-                int endIndex = Math.min(i + BATCH_SIZE, cards.size());
-                List<Card> batch = cards.subList(i, endIndex);
+            for (int i = 0; i < templates.size(); i += BATCH_SIZE) {
+                int endIndex = Math.min(i + BATCH_SIZE, templates.size());
+                List<CardTemplate> batch = templates.subList(i, endIndex);
                 System.out.println("Saving batch " + (i / BATCH_SIZE + 1) + "/" +
-                                  ((cards.size() + BATCH_SIZE - 1) / BATCH_SIZE) +
-                                  " (" + batch.size() + " cards)");
-                cardRepository.saveAll(batch);
+                                  ((templates.size() + BATCH_SIZE - 1) / BATCH_SIZE) +
+                                  " (" + batch.size() + " templates)");
+                cardTemplateRepository.saveAll(batch);
             }
 
-            System.out.println("Successfully saved all " + cards.size() + " Magic cards");
+            System.out.println("Successfully saved all " + templates.size() + " Magic card templates");
         }
     }
 
@@ -714,31 +733,31 @@ public class TCGApiClient {
                 JsonNode root = objectMapper.readTree(jsonResponse);
                 JsonNode data = root.path("data");
 
-                List<Card> cards = new ArrayList<>();
+                List<CardTemplate> templates = new ArrayList<>();
                 for (JsonNode cardNode : data) {
-                    Card card = parseMagicCard(cardNode);
-                    if (card != null) {
-                        cards.add(card);
+                    CardTemplate template = parseMagicCardTemplate(cardNode);
+                    if (template != null) {
+                        templates.add(template);
                     }
                 }
 
-                System.out.println("Parsed " + cards.size() + " Magic cards from API response");
+                System.out.println("Parsed " + templates.size() + " Magic card templates from API response");
 
-                if (!cards.isEmpty()) {
-                    // Save cards in smaller batches to reduce memory usage and database load
+                if (!templates.isEmpty()) {
+                    // Save templates in smaller batches to reduce memory usage and database load
                     final int BATCH_SIZE = 50;
-                    System.out.println("Saving " + cards.size() + " Magic cards in batches of " + BATCH_SIZE);
+                    System.out.println("Saving " + templates.size() + " Magic card templates in batches of " + BATCH_SIZE);
 
-                    for (int i = 0; i < cards.size(); i += BATCH_SIZE) {
-                        int endIndex = Math.min(i + BATCH_SIZE, cards.size());
-                        List<Card> batch = cards.subList(i, endIndex);
+                    for (int i = 0; i < templates.size(); i += BATCH_SIZE) {
+                        int endIndex = Math.min(i + BATCH_SIZE, templates.size());
+                        List<CardTemplate> batch = templates.subList(i, endIndex);
                         System.out.println("Saving batch " + (i / BATCH_SIZE + 1) + "/" +
-                                          ((cards.size() + BATCH_SIZE - 1) / BATCH_SIZE) +
-                                          " (" + batch.size() + " cards)");
-                        cardRepository.saveAll(batch);
+                                          ((templates.size() + BATCH_SIZE - 1) / BATCH_SIZE) +
+                                          " (" + batch.size() + " templates)");
+                        cardTemplateRepository.saveAll(batch);
                     }
 
-                    System.out.println("Successfully saved all " + cards.size() + " Magic cards");
+                    System.out.println("Successfully saved all " + templates.size() + " Magic card templates");
                 }
 
                 return null;
@@ -748,63 +767,82 @@ public class TCGApiClient {
             }
         })
         .subscribeOn(Schedulers.boundedElastic())
-        .doOnSuccess(v -> System.out.println("Magic card processing completed"))
-        .doOnError(e -> System.err.println("Error in Magic card processing: " + e.getMessage()))
+        .doOnSuccess(v -> System.out.println("Magic card template processing completed"))
+        .doOnError(e -> System.err.println("Error in Magic card template processing: " + e.getMessage()))
         .then();
     }
 
     private Flux<Card> parseOnePieceCards(String jsonResponse) {
-        List<Card> cards = new ArrayList<>();
+        List<CardTemplate> templates = new ArrayList<>();
         try {
             JsonNode root = objectMapper.readTree(jsonResponse);
             JsonNode data = root.path("data");
 
             for (JsonNode cardNode : data) {
-                Card card = parseOnePieceCard(cardNode);
-                if (card != null) {
-                    cards.add(card);
+                CardTemplate template = parseOnePieceCardTemplate(cardNode);
+                if (template != null) {
+                    templates.add(template);
                 }
+            }
+
+            System.out.println("Parsed " + templates.size() + " One Piece card templates from API response");
+
+            if (!templates.isEmpty()) {
+                // Save templates in smaller batches to reduce memory usage and database load
+                final int BATCH_SIZE = 50;
+                System.out.println("Saving " + templates.size() + " One Piece card templates in batches of " + BATCH_SIZE);
+
+                for (int i = 0; i < templates.size(); i += BATCH_SIZE) {
+                    int endIndex = Math.min(i + BATCH_SIZE, templates.size());
+                    List<CardTemplate> batch = templates.subList(i, endIndex);
+                    System.out.println("Saving batch " + (i / BATCH_SIZE + 1) + "/" +
+                                      ((templates.size() + BATCH_SIZE - 1) / BATCH_SIZE) +
+                                      " (" + batch.size() + " templates)");
+                    cardTemplateRepository.saveAll(batch);
+                }
+
+                System.out.println("Successfully saved all " + templates.size() + " One Piece card templates");
             }
         } catch (Exception e) {
             System.err.println("Error parsing One Piece cards: " + e.getMessage());
         }
 
-        return Flux.fromIterable(cards);
+        return Flux.empty(); // Return empty since we're saving templates, not cards
     }
 
-    private Card parseMagicCard(JsonNode cardNode) {
+    private CardTemplate parseMagicCardTemplate(JsonNode cardNode) {
         try {
-            Card card = new Card();
-            card.setTcgType(TCGType.MAGIC);
+            CardTemplate template = new CardTemplate();
+            template.setTcgType(TCGType.MAGIC);
 
-            // Map Scryfall fields to our Card model
-            card.setName(cardNode.path("name").asText());
-            card.setSetCode(cardNode.path("set").asText()); // set code
+            // Map Scryfall fields to our CardTemplate model
+            template.setName(cardNode.path("name").asText());
+            template.setSetCode(cardNode.path("set").asText()); // set code
 
             // Card number - use collector number from Scryfall
             String collectorNumber = cardNode.path("collector_number").asText();
-            card.setCardNumber(collectorNumber);
+            template.setCardNumber(collectorNumber);
 
             // Map rarity to our enum
             String rarityStr = cardNode.path("rarity").asText();
             try {
-                card.setRarity(Rarity.valueOf(rarityStr.toUpperCase()));
+                template.setRarity(Rarity.valueOf(rarityStr.toUpperCase()));
             } catch (IllegalArgumentException e) {
-                card.setRarity(Rarity.COMMON); // Default fallback
+                template.setRarity(Rarity.COMMON); // Default fallback
             }
 
             // Image URLs - use normal size as default
             JsonNode imageUris = cardNode.path("image_uris");
             if (!imageUris.isMissingNode()) {
-                card.setImageUrl(imageUris.path("normal").asText());
+                template.setImageUrl(imageUris.path("normal").asText());
             }
 
             // Description - use oracle text
-            card.setDescription(cardNode.path("oracle_text").asText());
+            template.setDescription(cardNode.path("oracle_text").asText());
 
             // Mana cost - convert CMC to Integer
             double cmc = cardNode.path("cmc").asDouble();
-            card.setManaCost((int) Math.round(cmc));
+            template.setManaCost((int) Math.round(cmc));
 
             // Prices - use USD price
             JsonNode prices = cardNode.path("prices");
@@ -812,36 +850,34 @@ public class TCGApiClient {
                 String usdPrice = prices.path("usd").asText();
                 if (!usdPrice.isEmpty() && !"null".equals(usdPrice)) {
                     try {
-                        card.setMarketPrice(Double.parseDouble(usdPrice));
+                        template.setMarketPrice(Double.parseDouble(usdPrice));
                     } catch (NumberFormatException e) {
                         // Ignore invalid price
                     }
                 }
             }
 
-            // Set default values for required fields
-            card.setCondition(CardCondition.NEAR_MINT);
-            card.setDateAdded(LocalDateTime.now());
-            card.setOwnerId(1L); // Default owner
+            // Set creation date
+            template.setDateCreated(LocalDateTime.now());
 
-            return card;
+            return template;
         } catch (Exception e) {
-            System.err.println("Error parsing individual Magic card: " + e.getMessage());
+            System.err.println("Error parsing individual Magic card template: " + e.getMessage());
             return null;
         }
     }
 
-    private Card parseOnePieceCard(JsonNode cardNode) {
+    private CardTemplate parseOnePieceCardTemplate(JsonNode cardNode) {
         try {
-            Card card = new Card();
-            card.setTcgType(TCGType.ONE_PIECE);
+            CardTemplate template = new CardTemplate();
+            template.setTcgType(TCGType.ONE_PIECE);
 
-            // Map One Piece TCG fields to our Card model
+            // Map One Piece TCG fields to our CardTemplate model
             String cardName = cardNode.path("name").asText();
             if (cardName == null || cardName.trim().isEmpty()) {
                 cardName = "Unknown Card";
             }
-            card.setName(cardName);
+            template.setName(cardName);
 
             // Use code as card number (base code without _p1/_p2 suffix)
             String code = cardNode.path("code").asText();
@@ -857,48 +893,48 @@ public class TCGApiClient {
                     cardNumber = "UNKNOWN";
                 }
             }
-            card.setCardNumber(cardNumber);
+            template.setCardNumber(cardNumber);
 
             // Map rarity - One Piece uses various codes
             String rarityStr = cardNode.path("rarity").asText();
             try {
                 switch (rarityStr.toUpperCase()) {
                     case "L":
-                        card.setRarity(Rarity.RARE); // Leader cards are rare
+                        template.setRarity(Rarity.RARE); // Leader cards are rare
                         break;
                     case "R":
-                        card.setRarity(Rarity.RARE);
+                        template.setRarity(Rarity.RARE);
                         break;
                     case "SR":
                     case "SEC":
-                        card.setRarity(Rarity.SECRET);
+                        template.setRarity(Rarity.SECRET);
                         break;
                     case "UR":
-                        card.setRarity(Rarity.ULTRA_SECRET);
+                        template.setRarity(Rarity.ULTRA_SECRET);
                         break;
                     case "UC":
-                        card.setRarity(Rarity.UNCOMMON);
+                        template.setRarity(Rarity.UNCOMMON);
                         break;
                     case "C":
-                        card.setRarity(Rarity.COMMON);
+                        template.setRarity(Rarity.COMMON);
                         break;
                     case "P":
-                        card.setRarity(Rarity.RARE); // Promo cards as rare
+                        template.setRarity(Rarity.RARE); // Promo cards as rare
                         break;
                     default:
-                        card.setRarity(Rarity.COMMON); // Default fallback
+                        template.setRarity(Rarity.COMMON); // Default fallback
                         break;
                 }
             } catch (Exception e) {
-                card.setRarity(Rarity.COMMON); // Default fallback
+                template.setRarity(Rarity.COMMON); // Default fallback
             }
 
             // Images - use large as default, small as alternative
             JsonNode images = cardNode.path("images");
             if (!images.isMissingNode()) {
-                card.setImageUrl(images.path("large").asText());
-                if (card.getImageUrl() == null || card.getImageUrl().isEmpty()) {
-                    card.setImageUrl(images.path("small").asText());
+                template.setImageUrl(images.path("large").asText());
+                if (template.getImageUrl() == null || template.getImageUrl().isEmpty()) {
+                    template.setImageUrl(images.path("small").asText());
                 }
             }
 
@@ -951,11 +987,11 @@ public class TCGApiClient {
                 description.append("Trigger: ").append(trigger).append("\n");
             }
 
-            card.setDescription(description.toString().trim());
+            template.setDescription(description.toString().trim());
 
             // Cost as mana cost
             if (cardNode.has("cost") && !cardNode.path("cost").isNull()) {
-                card.setManaCost(cardNode.path("cost").asInt());
+                template.setManaCost(cardNode.path("cost").asInt());
             }
 
             // Set code from the set information
@@ -963,7 +999,7 @@ public class TCGApiClient {
             if (!setNode.isMissingNode()) {
                 String setName = setNode.path("name").asText();
                 if (!setName.isEmpty()) {
-                    card.setSetCode(setName);
+                    template.setSetCode(setName);
                 } else {
                     // Fallback: try to extract set code from card code
                     String cardCode = cardNode.path("code").asText();
@@ -971,12 +1007,12 @@ public class TCGApiClient {
                         // Extract set code from card code (e.g., "OP01-001" -> "OP01")
                         String[] parts = cardCode.split("-");
                         if (parts.length > 0) {
-                            card.setSetCode(parts[0]);
+                            template.setSetCode(parts[0]);
                         } else {
-                            card.setSetCode("UNKNOWN");
+                            template.setSetCode("UNKNOWN");
                         }
                     } else {
-                        card.setSetCode("UNKNOWN");
+                        template.setSetCode("UNKNOWN");
                     }
                 }
             } else {
@@ -986,18 +1022,21 @@ public class TCGApiClient {
                     // Extract set code from card code (e.g., "OP01-001" -> "OP01")
                     String[] parts = cardCode.split("-");
                     if (parts.length > 0) {
-                        card.setSetCode(parts[0]);
+                        template.setSetCode(parts[0]);
                     } else {
-                        card.setSetCode("UNKNOWN");
+                        template.setSetCode("UNKNOWN");
                     }
                 } else {
-                    card.setSetCode("UNKNOWN");
+                    template.setSetCode("UNKNOWN");
                 }
             }
 
-            return card;
+            // Set creation date
+            template.setDateCreated(LocalDateTime.now());
+
+            return template;
         } catch (Exception e) {
-            System.err.println("Error parsing One Piece card: " + e.getMessage());
+            System.err.println("Error parsing One Piece card template: " + e.getMessage());
             return null;
         }
     }

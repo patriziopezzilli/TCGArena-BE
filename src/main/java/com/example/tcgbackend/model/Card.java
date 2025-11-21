@@ -10,33 +10,9 @@ public class Card {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private String name;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private TCGType tcgType;
-
-    @Column(nullable = false)
-    private String setCode;
-
-    @ManyToOne
-    @JoinColumn(name = "expansion_id")
-    private Expansion expansion;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Rarity rarity;
-
-    @Column(nullable = false)
-    private String cardNumber;
-
-    @Column(length = 2000)
-    private String description;
-
-    private String imageUrl;
-    private Double marketPrice;
-    private Integer manaCost;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "card_template_id", nullable = false)
+    private CardTemplate cardTemplate;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -67,86 +43,56 @@ public class Card {
         this.id = id;
     }
 
-    public String getName() {
-        return name;
+    public CardTemplate getCardTemplate() {
+        return cardTemplate;
     }
 
-    public void setName(String name) {
-        this.name = name;
+    public void setCardTemplate(CardTemplate cardTemplate) {
+        this.cardTemplate = cardTemplate;
+    }
+
+    // Delegated getters to CardTemplate
+    public String getName() {
+        return cardTemplate != null ? cardTemplate.getName() : null;
     }
 
     public TCGType getTcgType() {
-        return tcgType;
-    }
-
-    public void setTcgType(TCGType tcgType) {
-        this.tcgType = tcgType;
+        return cardTemplate != null ? cardTemplate.getTcgType() : null;
     }
 
     public String getSetCode() {
-        return setCode;
-    }
-
-    public void setSetCode(String setCode) {
-        this.setCode = setCode;
+        return cardTemplate != null ? cardTemplate.getSetCode() : null;
     }
 
     public Expansion getExpansion() {
-        return expansion;
-    }
-
-    public void setExpansion(Expansion expansion) {
-        this.expansion = expansion;
+        return cardTemplate != null ? cardTemplate.getExpansion() : null;
     }
 
     public Rarity getRarity() {
-        return rarity;
-    }
-
-    public void setRarity(Rarity rarity) {
-        this.rarity = rarity;
+        return cardTemplate != null ? cardTemplate.getRarity() : null;
     }
 
     public String getCardNumber() {
-        return cardNumber;
-    }
-
-    public void setCardNumber(String cardNumber) {
-        this.cardNumber = cardNumber;
+        return cardTemplate != null ? cardTemplate.getCardNumber() : null;
     }
 
     public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
+        return cardTemplate != null ? cardTemplate.getDescription() : null;
     }
 
     public String getImageUrl() {
-        return imageUrl;
-    }
-
-    public void setImageUrl(String imageUrl) {
-        this.imageUrl = imageUrl;
+        return cardTemplate != null ? cardTemplate.getImageUrl() : null;
     }
 
     public Double getMarketPrice() {
-        return marketPrice;
-    }
-
-    public void setMarketPrice(Double marketPrice) {
-        this.marketPrice = marketPrice;
+        return cardTemplate != null ? cardTemplate.getMarketPrice() : null;
     }
 
     public Integer getManaCost() {
-        return manaCost;
+        return cardTemplate != null ? cardTemplate.getManaCost() : null;
     }
 
-    public void setManaCost(Integer manaCost) {
-        this.manaCost = manaCost;
-    }
-
+    // Instance-specific getters and setters
     public CardCondition getCondition() {
         return condition;
     }
