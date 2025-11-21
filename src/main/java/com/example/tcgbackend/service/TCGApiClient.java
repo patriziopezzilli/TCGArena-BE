@@ -318,12 +318,12 @@ public class TCGApiClient {
                 .uri(uriBuilder -> uriBuilder
                         .path("/v2/cards")
                         .queryParam("page", page)
-                        .queryParam("pageSize", 250)  // Restored to 250 now that buffer limit is increased
+                        .queryParam("pageSize", 100)  // Reduced to 100 to balance response size and speed
                         .queryParam("orderBy", "set.releaseDate")
                         .build())
                 .retrieve()
                 .bodyToMono(String.class)
-                .timeout(Duration.ofSeconds(30))  // Add 30 second timeout
+                .timeout(Duration.ofSeconds(60))  // Increased to 60 seconds for large responses
                 .doOnNext(response -> System.out.println("Pokemon: API call successful for page " + page + ", response length: " + response.length()))
                 .doOnError(error -> System.err.println("Pokemon: API call failed for page " + page + ": " + error.getMessage() + " (type: " + error.getClass().getSimpleName() + ")"));
     }
