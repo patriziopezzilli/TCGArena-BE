@@ -24,6 +24,7 @@ public class TCGApiClient {
 
     private final WebClient webClient;
     private final WebClient onePieceWebClient;
+    private final WebClient scryfallWebClient;
     private final ObjectMapper objectMapper;
     private final CardRepository cardRepository;
     private final ImportProgressRepository importProgressRepository;
@@ -48,6 +49,8 @@ public class TCGApiClient {
                 .defaultHeader("X-Api-Key", System.getenv("POKEMON_TCG_API_KEY"))
                 .build();
         this.onePieceWebClient = WebClient.builder()
+                .build();
+        this.scryfallWebClient = WebClient.builder()
                 .build();
         this.objectMapper = new ObjectMapper();
     }
@@ -571,7 +574,7 @@ public class TCGApiClient {
     private Mono<String> fetchMagicCardsFromAPI(int page) {
         // Scryfall API: Use /cards/search endpoint with q=* to get all cards
         // Pagination with page parameter, max 175 cards per page
-        return webClient.get()
+        return scryfallWebClient.get()
                 .uri("https://api.scryfall.com/cards/search?q=*&page=" + page)
                 .retrieve()
                 .bodyToMono(String.class)
