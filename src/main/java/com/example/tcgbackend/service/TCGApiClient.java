@@ -139,13 +139,22 @@ public class TCGApiClient {
                         }
                     }
 
-                    // Add delay to avoid overwhelming the API
-                    if (i % 10 == 0) {
-                        Thread.sleep(100); // 100ms delay every 10 cards
-                    }
-
                 } catch (Exception e) {
+                    // Log error but continue with next card - don't make it blocking
                     System.err.println("Error processing card " + resume.getId() + ": " + e.getMessage());
+                    // Continue to next card instead of failing the entire import
+                }
+
+                // Add delay to avoid overwhelming the API (outside try-catch to avoid sleep interruption errors)
+                if (i % 10 == 0) {
+                    try {
+                        Thread.sleep(50); // Reduced delay to 50ms every 10 cards
+                    } catch (InterruptedException ie) {
+                        // Restore interrupted status
+                        Thread.currentThread().interrupt();
+                        System.out.println("Import interrupted, stopping gracefully...");
+                        break; // Exit the loop if interrupted
+                    }
                 }
             }
 
