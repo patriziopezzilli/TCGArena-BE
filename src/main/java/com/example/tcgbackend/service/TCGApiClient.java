@@ -51,6 +51,7 @@ public class TCGApiClient {
         this.webClient = WebClient.builder()
                 .baseUrl("https://api.pokemontcg.io")
                 .defaultHeader("X-Api-Key", System.getenv("POKEMON_TCG_API_KEY"))
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(2 * 1024 * 1024)) // Increase buffer limit to 2MB for large Pokemon API responses
                 .build();
         this.onePieceWebClient = WebClient.builder()
                 .build();
@@ -317,13 +318,14 @@ public class TCGApiClient {
                 .uri(uriBuilder -> uriBuilder
                         .path("/v2/cards")
                         .queryParam("page", page)
-                        .queryParam("pageSize", 250)
+                        .queryParam("pageSize", 250)  // Restored to 250 now that buffer limit is increased
                         .queryParam("orderBy", "set.releaseDate")
                         .build())
                 .retrieve()
                 .bodyToMono(String.class)
+                .timeout(Duration.ofSeconds(30))  // Add 30 second timeout
                 .doOnNext(response -> System.out.println("Pokemon: API call successful for page " + page + ", response length: " + response.length()))
-                .doOnError(error -> System.err.println("Pokemon: API call failed for page " + page + ": " + error.getMessage()));
+                .doOnError(error -> System.err.println("Pokemon: API call failed for page " + page + ": " + error.getMessage() + " (type: " + error.getClass().getSimpleName() + ")"));
     }
 
     private Duration getRateLimitDelay() {
