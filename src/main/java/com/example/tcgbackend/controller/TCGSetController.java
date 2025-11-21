@@ -35,7 +35,7 @@ public class TCGSetController {
     @GetMapping("/{setCode}/cards")
     public List<Card> getCardsBySetCode(@PathVariable String setCode) {
         return cardService.getAllCards().stream()
-            .filter(card -> setCode.equals(card.getSetCode()))
+            .filter(card -> setCode.equals(card.getCardTemplate().getSetCode()))
             .toList();
     }
 

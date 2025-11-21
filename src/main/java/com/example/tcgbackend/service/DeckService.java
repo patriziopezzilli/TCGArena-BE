@@ -75,8 +75,8 @@ public class DeckService {
         deckCard.setDeck(deck);
         deckCard.setCardId(cardId);
         deckCard.setQuantity(quantity);
-        deckCard.setCardName(card.getName());
-        deckCard.setCardImageUrl(card.getImageUrl());
+        deckCard.setCardName(card.getCardTemplate().getName());
+        deckCard.setCardImageUrl(card.getCardTemplate().getImageUrl());
 
         deckCardRepository.save(deckCard);
         deck.getCards().add(deckCard);
