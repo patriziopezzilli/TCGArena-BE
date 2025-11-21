@@ -576,8 +576,13 @@ public class TCGApiClient {
         // Pagination with page parameter, max 175 cards per page
         return scryfallWebClient.get()
                 .uri("https://api.scryfall.com/cards/search?q=*&page=" + page)
-                .retrieve()
-                .bodyToMono(String.class)
+                .exchangeToMono(response -> {
+                    if (response.statusCode().isError()) {
+                        return response.bodyToMono(String.class)
+                                .flatMap(body -> Mono.error(new RuntimeException("HTTP error " + response.statusCode() + ": " + body)));
+                    }
+                    return response.bodyToMono(String.class);
+                })
                 .doOnNext(response -> System.out.println("Scryfall response received, length: " + response.length() + ", starts with: " + response.substring(0, Math.min(100, response.length()))))
                 .doOnError(e -> System.out.println("Error in fetchMagicCardsFromAPI: " + e.getMessage() + ", type: " + e.getClass().getSimpleName()))
                 .delayElement(getScryfallRateLimitDelay()); // Scryfall: max 10 requests/second
