@@ -12,6 +12,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.beans.factory.annotation.Value;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
 import reactor.core.scheduler.Schedulers;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
@@ -318,12 +319,13 @@ public class TCGApiClient {
                 .uri(uriBuilder -> uriBuilder
                         .path("/v2/cards")
                         .queryParam("page", page)
-                        .queryParam("pageSize", 100)  // Reduced to 100 to balance response size and speed
+                        .queryParam("pageSize", 50)  // Further reduced to 50 for faster downloads
                         .queryParam("orderBy", "set.releaseDate")
                         .build())
                 .retrieve()
                 .bodyToMono(String.class)
-                .timeout(Duration.ofSeconds(60))  // Increased to 60 seconds for large responses
+                .timeout(Duration.ofSeconds(120))  // Increased to 120 seconds for very slow connections
+                .retryWhen(Retry.backoff(3, Duration.ofSeconds(5)))  // Retry with exponential backoff
                 .doOnNext(response -> System.out.println("Pokemon: API call successful for page " + page + ", response length: " + response.length()))
                 .doOnError(error -> System.err.println("Pokemon: API call failed for page " + page + ": " + error.getMessage() + " (type: " + error.getClass().getSimpleName() + ")"));
     }
