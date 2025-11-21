@@ -51,6 +51,7 @@ public class TCGApiClient {
         this.onePieceWebClient = WebClient.builder()
                 .build();
         this.scryfallWebClient = WebClient.builder()
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(1024 * 1024)) // Increase buffer limit to 1MB for large Scryfall responses
                 .build();
         this.objectMapper = new ObjectMapper();
     }
