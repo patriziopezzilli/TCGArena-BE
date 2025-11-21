@@ -578,6 +578,7 @@ public class TCGApiClient {
                 .uri("https://api.scryfall.com/cards/search?q=*&page=" + page)
                 .retrieve()
                 .bodyToMono(String.class)
+                .doOnNext(response -> System.out.println("Scryfall response received, length: " + response.length() + ", starts with: " + response.substring(0, Math.min(100, response.length()))))
                 .delayElement(getScryfallRateLimitDelay()); // Scryfall: max 10 requests/second
     }
 
