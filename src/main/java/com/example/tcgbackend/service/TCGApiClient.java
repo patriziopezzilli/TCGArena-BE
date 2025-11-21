@@ -106,7 +106,7 @@ public class TCGApiClient {
         });
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional
     private void fetchPokemonCardsWithTcgdex(ImportProgress progress) {
         System.out.println("Pokemon: Starting bulk import using TCGdex API");
 
@@ -174,12 +174,11 @@ public class TCGApiClient {
         }
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
     private void saveCardBatch(List<CardTemplate> cardTemplates, int currentCount, int totalCount) {
         System.out.println("Pokemon: Saving batch of " + cardTemplates.size() + " cards (" + currentCount + "/" + totalCount + ")");
         cardTemplateRepository.saveAll(cardTemplates);
         cardTemplateRepository.flush();
-        // Transaction will auto-commit when method exits
+        // Data is committed when the main transaction commits
     }
 
     private CardTemplate convertTcgdexCardToCardTemplate(net.tcgdex.sdk.models.Card tcgdexCard) {
