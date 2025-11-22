@@ -220,7 +220,7 @@ public class BatchConfiguration {
     public Step step1(JobRepository jobRepository, PlatformTransactionManager transactionManager, 
                       @Qualifier("tcgCardReader") ItemReader<CardTemplate> reader) {
         return new StepBuilder("step1", jobRepository)
-                .<CardTemplate, CardTemplate>chunk(50, transactionManager) // Process 50 cards at a time
+                .<CardTemplate, CardTemplate>chunk(10, transactionManager) // Process 10 cards at a time
                 .reader(reader)
                 .processor(processor())
                 .writer(writer())
