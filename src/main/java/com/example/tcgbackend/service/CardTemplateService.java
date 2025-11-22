@@ -7,10 +7,8 @@ import com.example.tcgbackend.repository.CardTemplateRepository;
 import com.example.tcgbackend.repository.ExpansionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
-import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @Service
 public class CardTemplateService {
@@ -20,6 +18,11 @@ public class CardTemplateService {
     @Autowired
     private ExpansionRepository expansionRepository;
 
+    public Page<CardTemplate> getAllCardTemplates(Pageable pageable) {
+        return cardTemplateRepository.findAll(pageable);
+    }
+
+    @Deprecated
     public List<CardTemplate> getAllCardTemplates() {
         return cardTemplateRepository.findAll();
     }
