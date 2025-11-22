@@ -234,15 +234,16 @@ public class TCGApiClient {
 
     private Expansion getOrCreateExpansion(net.tcgdex.sdk.models.Card tcgdexCard) {
         try {
-            // Get the full set to access serie information
+            // Get the set resume first
             net.tcgdex.sdk.models.SetResume setResume = tcgdexCard.getSet();
             if (setResume == null) {
                 throw new RuntimeException("Card has no set information");
             }
 
-            net.tcgdex.sdk.models.Set fullSet = setResume.getFullSet();
+            // Fetch the full set through TCGdex client to ensure proper initialization
+            net.tcgdex.sdk.models.Set fullSet = getTcgdexClient().fetchSet(setResume.getId());
             if (fullSet == null) {
-                throw new RuntimeException("Could not get full set information");
+                throw new RuntimeException("Could not fetch full set information for " + setResume.getId());
             }
 
             net.tcgdex.sdk.models.SerieResume serieResume = fullSet.getSerie();
@@ -292,10 +293,10 @@ public class TCGApiClient {
                 return existingSet.get();
             }
 
-            // Get full set information
-            net.tcgdex.sdk.models.Set fullSet = setResume.getFullSet();
+            // Get full set information through TCGdex client
+            net.tcgdex.sdk.models.Set fullSet = getTcgdexClient().fetchSet(setCode);
             if (fullSet == null) {
-                throw new RuntimeException("Could not get full set information");
+                throw new RuntimeException("Could not fetch full set information for " + setCode);
             }
 
             // Create new TCG set
