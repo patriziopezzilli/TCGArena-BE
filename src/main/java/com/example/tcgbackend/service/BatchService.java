@@ -21,8 +21,8 @@ public class BatchService {
         JobParameters jobParameters = new JobParametersBuilder()
                 .addLong("time", System.currentTimeMillis())
                 .addString("tcgType", tcgType.name())
-                .addLong("startIndex", startIndex)
-                .addLong("endIndex", endIndex)
+                .addLong("startIndex", (long) startIndex)
+                .addLong("endIndex", (long) endIndex)
                 .toJobParameters();
 
         jobLauncher.run(importCardsJob, jobParameters);
