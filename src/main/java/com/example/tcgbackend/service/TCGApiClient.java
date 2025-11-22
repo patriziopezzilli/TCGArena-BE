@@ -30,6 +30,8 @@ import java.time.Duration;
 import java.util.Optional;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Map;
+import java.util.HashMap;
 
 @Service
 public class TCGApiClient {
@@ -44,6 +46,10 @@ public class TCGApiClient {
     private final ImportProgressRepository importProgressRepository;
     private final TCGSetRepository tcgSetRepository;
     private final ExpansionRepository expansionRepository;
+
+    // Cache for TCGdex data to avoid repeated API calls
+    private final Map<String, net.tcgdex.sdk.models.Set> setCache = new HashMap<>();
+    private final Map<String, net.tcgdex.sdk.models.Serie> serieCache = new HashMap<>();
 
     // Rate limiting tracking
     private int requestsThisMinute = 0;
@@ -120,6 +126,10 @@ public class TCGApiClient {
         System.out.println("Pokemon: Starting bulk import using TCGdex API");
 
         try {
+            // Clear caches at the start of import
+            setCache.clear();
+            serieCache.clear();
+
             // Get all Pokemon cards from TCGdex
             CardResume[] cardResumes = getTcgdexClient().fetchCards();
             System.out.println("Pokemon: Retrieved " + cardResumes.length + " card resumes from TCGdex");
@@ -146,8 +156,10 @@ public class TCGApiClient {
                     // Handle specific TCGdex initialization errors
                     if (e.getMessage() != null && e.getMessage().contains("lateinit property tcgdex has not been initialized")) {
                         System.err.println("TCGdex client not properly initialized, skipping card " + resume.getId());
-                        // Reset client to force re-initialization on next attempt
+                        // Reset client and clear caches to force re-initialization on next attempt
                         tcgdexClient = null;
+                        setCache.clear();
+                        serieCache.clear();
                     } else {
                         System.err.println("Error processing card " + resume.getId() + ": " + e.getMessage());
                     }
@@ -240,15 +252,29 @@ public class TCGApiClient {
                 throw new RuntimeException("Card has no set information");
             }
 
-            // Fetch the full set through TCGdex client to ensure proper initialization
-            net.tcgdex.sdk.models.Set fullSet = getTcgdexClient().fetchSet(setResume.getId());
+            String setId = setResume.getId();
+            if (setId == null || setId.trim().isEmpty()) {
+                throw new RuntimeException("Set has no ID");
+            }
+
+            // Check cache first, then fetch if not available
+            net.tcgdex.sdk.models.Set fullSet = setCache.get(setId);
             if (fullSet == null) {
-                throw new RuntimeException("Could not fetch full set information for " + setResume.getId());
+                fullSet = getTcgdexClient().fetchSet(setId);
+                if (fullSet == null) {
+                    throw new RuntimeException("Could not fetch full set information for " + setId);
+                }
+                setCache.put(setId, fullSet);
             }
 
             net.tcgdex.sdk.models.SerieResume serieResume = fullSet.getSerie();
             if (serieResume == null) {
                 throw new RuntimeException("Set has no serie information");
+            }
+
+            String serieId = serieResume.getId();
+            if (serieId == null || serieId.trim().isEmpty()) {
+                throw new RuntimeException("Serie has no ID");
             }
 
             String serieName = serieResume.getName();
@@ -293,16 +319,21 @@ public class TCGApiClient {
                 return existingSet.get();
             }
 
-            // Get full set information through TCGdex client
-            net.tcgdex.sdk.models.Set fullSet = getTcgdexClient().fetchSet(setCode);
+            // Check cache first, then fetch if not available
+            net.tcgdex.sdk.models.Set fullSet = setCache.get(setCode);
             if (fullSet == null) {
-                throw new RuntimeException("Could not fetch full set information for " + setCode);
+                fullSet = getTcgdexClient().fetchSet(setCode);
+                if (fullSet == null) {
+                    throw new RuntimeException("Could not fetch full set information for " + setCode);
+                }
+                setCache.put(setCode, fullSet);
             }
 
             // Create new TCG set
             TCGSet tcgSet = new TCGSet();
             tcgSet.setSetCode(setCode);
             tcgSet.setName(setResume.getName() != null ? setResume.getName() : setCode);
+            tcgSet.setExpansion(expansion); // Link to expansion
 
             // Set release date (parse from string if available)
             if (fullSet.getReleaseDate() != null) {
