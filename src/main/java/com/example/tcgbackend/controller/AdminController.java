@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -21,6 +22,7 @@ public class AdminController {
     private BatchService batchService;
 
     @PostMapping("/import/{tcgType}")
+    @PreAuthorize("permitAll()")
     @Operation(summary = "Trigger batch import for specific TCG type", description = "Starts a batch job to import cards for the specified TCG type")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Batch import triggered successfully"),
