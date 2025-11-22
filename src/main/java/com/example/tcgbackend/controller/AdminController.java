@@ -20,16 +20,27 @@ public class AdminController {
     @Autowired
     private BatchService batchService;
 
-    @PostMapping("/trigger-batch/{tcgType}")
-    @Operation(summary = "Trigger manual batch import", description = "Manually triggers the batch import process for a specific TCG type.")
+    @PostMapping("/import/{tcgType}")
+    @Operation(summary = "Trigger batch import for specific TCG type", description = "Starts a batch job to import cards for the specified TCG type")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Batch import triggered successfully"),
         @ApiResponse(responseCode = "400", description = "Invalid TCG type provided")
     })
-    public ResponseEntity<String> triggerBatchImport(@Parameter(description = "TCG type to import (POKEMON, MAGIC, YUGIOH, etc.)") @PathVariable TCGType tcgType) {
+    public ResponseEntity<String> triggerBatchImport(
+            @Parameter(description = "TCG type to import (POKEMON, MAGIC, YUGIOH, etc.)") @PathVariable TCGType tcgType,
+            @Parameter(description = "Starting index for import (-99 to import all)") @RequestParam(defaultValue = "-99") int startIndex,
+            @Parameter(description = "Ending index for import (-99 to import until end)") @RequestParam(defaultValue = "-99") int endIndex) {
         try {
-            batchService.triggerBatchImport(tcgType);
-            return ResponseEntity.ok("Batch import triggered successfully for " + tcgType);
+            batchService.triggerBatchImport(tcgType, startIndex, endIndex);
+            String message;
+            if (startIndex == -99 && endIndex == -99) {
+                message = "Batch import triggered successfully for " + tcgType;
+            } else if (endIndex == -99) {
+                message = "Batch import triggered successfully for " + tcgType + " starting from index " + startIndex;
+            } else {
+                message = "Batch import triggered successfully for " + tcgType + " from index " + startIndex + " to " + endIndex;
+            }
+            return ResponseEntity.ok(message);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to trigger batch import: " + e.getMessage());
         }

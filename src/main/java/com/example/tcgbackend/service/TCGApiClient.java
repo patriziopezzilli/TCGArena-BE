@@ -83,7 +83,7 @@ public class TCGApiClient {
         this.objectMapper = new ObjectMapper();
     }
 
-    public Mono<Void> fetchPokemonCards() {
+    public Mono<Void> fetchPokemonCards(int startIndex, int endIndex) {
         // Reset progress and clear existing cards in demo environment
         resetProgressForDemo(TCGType.POKEMON);
 
@@ -110,10 +110,12 @@ public class TCGApiClient {
         // Start fetching using TCGdex (no pagination, bulk import)
         final ImportProgress importProgress = progress;
         final int startPageFinal = startPage;
+        final int startIndexFinal = startIndex;
+        final int endIndexFinal = endIndex;
         return Mono.fromRunnable(() -> {
             try {
                 // Switch to TCGdex for Pokemon cards
-                fetchPokemonCardsWithTcgdex(importProgress);
+                fetchPokemonCardsWithTcgdex(importProgress, startIndexFinal, endIndexFinal);
             } catch (Exception e) {
                 System.err.println("Error during Pokemon import: " + e.getMessage());
                 throw new RuntimeException(e);
@@ -122,7 +124,7 @@ public class TCGApiClient {
     }
 
     @Transactional
-    private void fetchPokemonCardsWithTcgdex(ImportProgress progress) {
+    private void fetchPokemonCardsWithTcgdex(ImportProgress progress, int startIndex, int endIndex) {
         System.out.println("Pokemon: Starting bulk import using TCGdex API");
 
         try {
@@ -135,8 +137,11 @@ public class TCGApiClient {
             System.out.println("Pokemon: Retrieved " + cardResumes.length + " card resumes from TCGdex");
 
             // Process each card individually, saving the complete hierarchy
+            int startFrom = (startIndex != -99) ? Math.max(0, startIndex) : 0;
+            int endAt = (endIndex != -99) ? Math.min(cardResumes.length, Math.max(startFrom, endIndex + 1)) : cardResumes.length;
+            System.out.println("Pokemon: Starting import from index " + startFrom + " to " + (endAt - 1) + " (total cards: " + cardResumes.length + ")");
 
-            for (int i = 0; i < cardResumes.length; i++) {
+            for (int i = startFrom; i < endAt; i++) {
                 CardResume resume = cardResumes[i];
 
                 try {

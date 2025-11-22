@@ -17,12 +17,24 @@ public class BatchService {
     @Autowired
     private Job importCardsJob;
 
-    public void triggerBatchImport(TCGType tcgType) throws Exception {
+    public void triggerBatchImport(TCGType tcgType, int startIndex, int endIndex) throws Exception {
         JobParameters jobParameters = new JobParametersBuilder()
                 .addLong("time", System.currentTimeMillis())
                 .addString("tcgType", tcgType.name())
+                .addLong("startIndex", startIndex)
+                .addLong("endIndex", endIndex)
                 .toJobParameters();
 
         jobLauncher.run(importCardsJob, jobParameters);
+    }
+
+    // Backward compatibility
+    public void triggerBatchImport(TCGType tcgType, int startIndex) throws Exception {
+        triggerBatchImport(tcgType, startIndex, -99);
+    }
+
+    // Backward compatibility
+    public void triggerBatchImport(TCGType tcgType) throws Exception {
+        triggerBatchImport(tcgType, -99, -99);
     }
 }

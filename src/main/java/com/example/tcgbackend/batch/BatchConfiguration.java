@@ -46,8 +46,10 @@ class TCGCardReader implements ItemReader<CardTemplate> {
     private final ApiService apiService;
     private final TCGApiClient tcgApiClient;
     private final CardTemplateService cardTemplateService;
+    private final int startIndex;
+    private final int endIndex;
 
-    public TCGCardReader(ApiService apiService, TCGApiClient tcgApiClient, CardTemplateService cardTemplateService, String tcgTypeParam) {
+    public TCGCardReader(ApiService apiService, TCGApiClient tcgApiClient, CardTemplateService cardTemplateService, String tcgTypeParam, int startIndex, int endIndex) {
         if (apiService == null) {
             throw new IllegalArgumentException("ApiService cannot be null");
         }
@@ -57,7 +59,9 @@ class TCGCardReader implements ItemReader<CardTemplate> {
         this.apiService = apiService;
         this.tcgApiClient = tcgApiClient;
         this.cardTemplateService = cardTemplateService;
-        System.out.println("TCGCardReader initialized with tcgTypeParam: " + tcgTypeParam);
+        this.startIndex = startIndex;
+        this.endIndex = endIndex;
+        System.out.println("TCGCardReader initialized with tcgTypeParam: " + tcgTypeParam + ", startIndex: " + startIndex + ", endIndex: " + endIndex);
         initializeTcgTypes(tcgTypeParam);
     }
 
@@ -147,7 +151,7 @@ class TCGCardReader implements ItemReader<CardTemplate> {
             switch (currentTcg) {
                 case POKEMON:
                     System.out.println("Starting Pokemon card fetch...");
-                    tcgApiClient.fetchPokemonCards().block(); // Saves directly, no need to collect cards
+                    tcgApiClient.fetchPokemonCards(startIndex, endIndex).block(); // Saves directly, no need to collect cards
                     System.out.println("Pokemon cards imported successfully");
                     rawCards = new ArrayList<>(); // Empty list since cards are already saved
                     break;
@@ -230,8 +234,13 @@ public class BatchConfiguration {
     @Bean
     @StepScope
     @Qualifier("tcgCardReader")
-    public ItemReader<CardTemplate> tcgCardReader(@Value("#{jobParameters['tcgType']}") String tcgTypeParam) {
-        return new TCGCardReader(apiService, tcgApiClient, cardTemplateService, tcgTypeParam);
+    public ItemReader<CardTemplate> tcgCardReader(
+            @Value("#{jobParameters['tcgType']}") String tcgTypeParam,
+            @Value("#{jobParameters['startIndex']}") Long startIndexParam,
+            @Value("#{jobParameters['endIndex']}") Long endIndexParam) {
+        int startIndex = startIndexParam != null ? startIndexParam.intValue() : -99;
+        int endIndex = endIndexParam != null ? endIndexParam.intValue() : -99;
+        return new TCGCardReader(apiService, tcgApiClient, cardTemplateService, tcgTypeParam, startIndex, endIndex);
     }
 
     @Bean
