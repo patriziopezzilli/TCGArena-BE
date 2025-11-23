@@ -2,6 +2,7 @@ package com.example.tcgbackend.controller;
 
 import com.example.tcgbackend.model.Tournament;
 import com.example.tcgbackend.model.User;
+import com.example.tcgbackend.model.TournamentParticipant;
 import com.example.tcgbackend.service.TournamentService;
 import com.example.tcgbackend.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -111,5 +112,72 @@ public class TournamentController {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();
+    }
+
+    @PostMapping("/{tournamentId}/register")
+    @Operation(summary = "Register for a tournament", description = "Registers the current user for a tournament. If the tournament is full, adds to waiting list.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully registered for tournament"),
+        @ApiResponse(responseCode = "400", description = "User already registered or tournament not found"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated")
+    })
+    public ResponseEntity<TournamentParticipant> registerForTournament(@Parameter(description = "Unique identifier of the tournament") @PathVariable Long tournamentId) {
+        Optional<User> currentUser = userService.getCurrentUser();
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        try {
+            TournamentParticipant participant = tournamentService.registerForTournament(tournamentId, currentUser.get().getId());
+            return ResponseEntity.ok(participant);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @DeleteMapping("/{tournamentId}/register")
+    @Operation(summary = "Unregister from a tournament", description = "Unregisters the current user from a tournament")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "204", description = "Successfully unregistered from tournament"),
+        @ApiResponse(responseCode = "404", description = "User not registered for this tournament"),
+        @ApiResponse(responseCode = "401", description = "User not authenticated")
+    })
+    public ResponseEntity<Void> unregisterFromTournament(@Parameter(description = "Unique identifier of the tournament") @PathVariable Long tournamentId) {
+        Optional<User> currentUser = userService.getCurrentUser();
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        if (tournamentService.unregisterFromTournament(tournamentId, currentUser.get().getId())) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/{tournamentId}/participants")
+    @Operation(summary = "Get tournament participants", description = "Retrieves all participants for a specific tournament")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved participants")
+    })
+    public List<TournamentParticipant> getTournamentParticipants(@Parameter(description = "Unique identifier of the tournament") @PathVariable Long tournamentId) {
+        return tournamentService.getTournamentParticipants(tournamentId);
+    }
+
+    @GetMapping("/{tournamentId}/participants/registered")
+    @Operation(summary = "Get registered participants", description = "Retrieves only registered participants (not waiting list) for a specific tournament")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved registered participants")
+    })
+    public List<TournamentParticipant> getRegisteredParticipants(@Parameter(description = "Unique identifier of the tournament") @PathVariable Long tournamentId) {
+        return tournamentService.getRegisteredParticipants(tournamentId);
+    }
+
+    @GetMapping("/{tournamentId}/participants/waiting")
+    @Operation(summary = "Get waiting list", description = "Retrieves participants on the waiting list for a specific tournament")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved waiting list")
+    })
+    public List<TournamentParticipant> getWaitingList(@Parameter(description = "Unique identifier of the tournament") @PathVariable Long tournamentId) {
+        return tournamentService.getWaitingList(tournamentId);
     }
 }

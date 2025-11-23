@@ -49,6 +49,81 @@ public class TournamentService {
         return tournamentRepository.save(tournament);
     }
 
+    public TournamentParticipant registerForTournament(Long tournamentId, Long userId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+            .orElseThrow(() -> new RuntimeException("Tournament not found"));
+
+        // Check if user is already registered
+        Optional<TournamentParticipant> existingParticipant = participantRepository
+            .findByTournamentIdAndUserId(tournamentId, userId);
+
+        if (existingParticipant.isPresent()) {
+            throw new RuntimeException("User is already registered for this tournament");
+        }
+
+        // Count current registered participants
+        long registeredCount = participantRepository.countByTournamentIdAndStatus(
+            tournamentId, ParticipantStatus.REGISTERED);
+
+        TournamentParticipant participant = new TournamentParticipant();
+        participant.setTournamentId(tournamentId);
+        participant.setUserId(userId);
+        participant.setRegistrationDate(LocalDateTime.now());
+
+        // Determine status based on available slots
+        if (registeredCount < tournament.getMaxParticipants()) {
+            participant.setStatus(ParticipantStatus.REGISTERED);
+        } else {
+            participant.setStatus(ParticipantStatus.WAITING_LIST);
+        }
+
+        return participantRepository.save(participant);
+    }
+
+    public boolean unregisterFromTournament(Long tournamentId, Long userId) {
+        Optional<TournamentParticipant> participant = participantRepository
+            .findByTournamentIdAndUserId(tournamentId, userId);
+
+        if (participant.isPresent()) {
+            participantRepository.delete(participant.get());
+
+            // If the participant was registered and there are people on waiting list,
+            // promote the first person from waiting list
+            if (participant.get().getStatus() == ParticipantStatus.REGISTERED) {
+                promoteFromWaitingList(tournamentId);
+            }
+
+            return true;
+        }
+        return false;
+    }
+
+    private void promoteFromWaitingList(Long tournamentId) {
+        List<TournamentParticipant> waitingList = participantRepository
+            .findByTournamentIdAndStatusOrderByRegistrationDateAsc(
+                tournamentId, ParticipantStatus.WAITING_LIST);
+
+        if (!waitingList.isEmpty()) {
+            TournamentParticipant promoted = waitingList.get(0);
+            promoted.setStatus(ParticipantStatus.REGISTERED);
+            participantRepository.save(promoted);
+        }
+    }
+
+    public List<TournamentParticipant> getTournamentParticipants(Long tournamentId) {
+        return participantRepository.findByTournamentId(tournamentId);
+    }
+
+    public List<TournamentParticipant> getRegisteredParticipants(Long tournamentId) {
+        return participantRepository.findByTournamentIdAndStatus(
+            tournamentId, ParticipantStatus.REGISTERED);
+    }
+
+    public List<TournamentParticipant> getWaitingList(Long tournamentId) {
+        return participantRepository.findByTournamentIdAndStatus(
+            tournamentId, ParticipantStatus.WAITING_LIST);
+    }
+
     public Optional<Tournament> updateTournament(Long id, Tournament tournamentDetails) {
         return tournamentRepository.findById(id).map(tournament -> {
             tournament.setTitle(tournamentDetails.getTitle());

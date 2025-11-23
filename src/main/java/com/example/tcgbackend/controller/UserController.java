@@ -2,6 +2,10 @@ package com.example.tcgbackend.controller;
 
 import com.example.tcgbackend.model.User;
 import com.example.tcgbackend.service.UserService;
+import com.example.tcgbackend.service.UserStatsService;
+import com.example.tcgbackend.model.UserStats;
+import com.example.tcgbackend.repository.UserRepository;
+import com.example.tcgbackend.service.UserActivityService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -20,6 +24,15 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private UserActivityService userActivityService;
+
+    @Autowired
+    private UserStatsService userStatsService;
 
     @GetMapping
     @Operation(summary = "Get all users", description = "Retrieves a list of all registered users")
@@ -53,13 +66,13 @@ public class UserController {
     }
 
     @GetMapping("/leaderboard")
-    @Operation(summary = "Get user leaderboard", description = "Retrieves the leaderboard of users based on their performance")
+    @Operation(summary = "Get user leaderboard", description = "Retrieves the leaderboard of users based on their points")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Successfully retrieved leaderboard")
     })
     public List<User> getLeaderboard() {
-        // Implement leaderboard logic
-        return userService.getAllUsers();
+        // Return users ordered by points descending
+        return userRepository.findAllByOrderByPointsDesc();
     }
 
     @PostMapping
@@ -95,5 +108,73 @@ public class UserController {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();
+    }
+
+    @PutMapping("/{id}/profile-image")
+    @Operation(summary = "Update user profile image", description = "Updates the profile image URL for a specific user")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Profile image updated successfully"),
+        @ApiResponse(responseCode = "404", description = "User not found")
+    })
+    public ResponseEntity<User> updateUserProfileImage(@Parameter(description = "Unique identifier of the user") @PathVariable Long id, @Parameter(description = "Profile image URL") @RequestBody String profileImageUrl) {
+        return userService.getUserById(id).map(user -> {
+            user.setProfileImageUrl(profileImageUrl);
+            User updatedUser = userRepository.save(user);
+            
+            // Log profile image update activity
+            userActivityService.logActivity(id,
+                com.example.tcgbackend.model.ActivityType.USER_PROFILE_UPDATED,
+                "Updated profile image");
+            
+            return ResponseEntity.ok(updatedUser);
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @PutMapping("/{id}/device-token")
+    @Operation(summary = "Update user device token", description = "Updates the device token for push notifications for a specific user")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Device token updated successfully"),
+        @ApiResponse(responseCode = "404", description = "User not found")
+    })
+    public ResponseEntity<User> updateUserDeviceToken(@Parameter(description = "Unique identifier of the user") @PathVariable Long id, @Parameter(description = "Device token for push notifications") @RequestBody String deviceToken) {
+        return userService.getUserById(id).map(user -> {
+            user.setDeviceToken(deviceToken);
+            User updatedUser = userRepository.save(user);
+
+            return ResponseEntity.ok(updatedUser);
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/{id}/stats")
+    @Operation(summary = "Get user statistics", description = "Retrieves detailed statistics for a specific user")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "User statistics retrieved successfully"),
+        @ApiResponse(responseCode = "404", description = "User not found")
+    })
+    public ResponseEntity<UserStats> getUserStats(@Parameter(description = "Unique identifier of the user") @PathVariable Long id) {
+        return userService.getUserById(id).map(user -> {
+            UserStats stats = userStatsService.getOrCreateUserStats(user);
+            return ResponseEntity.ok(stats);
+        }).orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/leaderboard/stats")
+    @Operation(summary = "Get user leaderboard stats", description = "Retrieves the leaderboard of users with detailed statistics")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Leaderboard stats retrieved successfully")
+    })
+    public List<UserStats> getLeaderboardStats(@Parameter(description = "Maximum number of results to return") @RequestParam(defaultValue = "50") int limit) {
+        return userStatsService.getLeaderboard(limit);
+    }
+
+    @GetMapping("/leaderboard/active")
+    @Operation(summary = "Get active players leaderboard", description = "Retrieves the leaderboard of active players")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Active players leaderboard retrieved successfully")
+    })
+    public List<User> getActivePlayersLeaderboard() {
+        // For now, return same as general leaderboard
+        // TODO: Implement logic for active players (recent tournament participants)
+        return userRepository.findAllByOrderByPointsDesc();
     }
 }

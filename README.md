@@ -16,6 +16,8 @@ Backend for TCG Arena app, providing card data for Pokémon, Magic: The Gatherin
 - Spring Data JPA
 - Spring Batch
 - Spring WebFlux (for API calls)
+- Spring Cache with Caffeine (for performance optimization)
+- Image compression utilities
 
 ## Setup
 
@@ -78,3 +80,26 @@ To run the import job manually:
 ```bash
 curl -X POST http://localhost:8080/actuator/batch/job/importCardsJob
 ```
+
+## Performance Optimizations
+
+The application includes several performance optimizations to ensure efficient operation:
+
+### Caching Layer
+- **Spring Cache with Caffeine**: In-memory caching for frequently accessed data
+- **User Statistics**: Cached for 30 minutes to reduce database load
+- **Leaderboards**: Cached with automatic invalidation on updates
+- **Configuration**: 1000 max entries, 30-minute expiration
+
+### Database Query Optimization
+- **UserStats Queries**: Optimized with LIMIT clauses for leaderboard queries
+- **Indexed Fields**: Proper indexing on frequently queried columns
+- **Connection Pooling**: Configured for optimal database connections
+
+### Image Compression
+- **Automatic Compression**: Images are compressed before storage to reduce file sizes
+- **Format Support**: JPEG, PNG, WebP compression
+- **Quality Preservation**: Maintains visual quality while reducing storage requirements
+
+### Monitoring
+Cache hit rates and performance metrics can be monitored through Spring Boot Actuator endpoints.

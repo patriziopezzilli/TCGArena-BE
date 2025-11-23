@@ -37,6 +37,28 @@
 			"isBackground": true,
 			"problemMatcher": [],
 			"group": "build"
+		},
+		{
+			"label": "test-run",
+			"type": "shell",
+			"command": "./mvnw",
+			"args": [
+				"spring-boot:run",
+				"-Dspring-boot.run.profiles=test"
+			],
+			"isBackground": true,
+			"group": "build"
+		},
+		{
+			"label": "test-run",
+			"type": "shell",
+			"command": "./mvnw",
+			"args": [
+				"spring-boot:run",
+				"-Dspring-boot.run.profiles=test"
+			],
+			"isBackground": true,
+			"group": "build"
 		}
 	]
 }

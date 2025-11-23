@@ -35,11 +35,16 @@ public class User {
 
     private Long shopId;
 
+    @Column(nullable = false)
+    private Integer points = 0;
+
     @Enumerated(EnumType.STRING)
     private TCGType favoriteGame;
 
     @Embedded
     private UserLocation location;
+
+    private String deviceToken;
 
     // Getters and Setters
     public Long getId() {
@@ -122,6 +127,14 @@ public class User {
         this.shopId = shopId;
     }
 
+    public Integer getPoints() {
+        return points;
+    }
+
+    public void setPoints(Integer points) {
+        this.points = points;
+    }
+
     public TCGType getFavoriteGame() {
         return favoriteGame;
     }
@@ -136,5 +149,13 @@ public class User {
 
     public void setLocation(UserLocation location) {
         this.location = location;
+    }
+
+    public String getDeviceToken() {
+        return deviceToken;
+    }
+
+    public void setDeviceToken(String deviceToken) {
+        this.deviceToken = deviceToken;
     }
 }

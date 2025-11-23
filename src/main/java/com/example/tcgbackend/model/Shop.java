@@ -36,6 +36,9 @@ public class Shop {
     @Column(nullable = false)
     private Long ownerId;
 
+    private String openingHours; // e.g., "9:00-18:00"
+    private String openingDays; // e.g., "Mon-Fri,Sat"
+
     @OneToMany(mappedBy = "shopId", cascade = CascadeType.ALL)
     private List<ShopInventory> inventory = new ArrayList<>();
 
@@ -72,6 +75,12 @@ public class Shop {
 
     public Long getOwnerId() { return ownerId; }
     public void setOwnerId(Long ownerId) { this.ownerId = ownerId; }
+
+    public String getOpeningHours() { return openingHours; }
+    public void setOpeningHours(String openingHours) { this.openingHours = openingHours; }
+
+    public String getOpeningDays() { return openingDays; }
+    public void setOpeningDays(String openingDays) { this.openingDays = openingDays; }
 
     public List<ShopInventory> getInventory() { return inventory; }
     public void setInventory(List<ShopInventory> inventory) { this.inventory = inventory; }

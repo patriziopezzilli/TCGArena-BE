@@ -66,13 +66,13 @@ public class DeckController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete a deck", description = "Deletes a deck from the system")
+    @Operation(summary = "Delete a deck", description = "Deletes an existing deck from the system")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "204", description = "Deck deleted successfully"),
         @ApiResponse(responseCode = "404", description = "Deck not found")
     })
-    public ResponseEntity<Void> deleteDeck(@Parameter(description = "Unique identifier of the deck to delete") @PathVariable Long id) {
-        if (deckService.deleteDeck(id)) {
+    public ResponseEntity<Void> deleteDeck(@Parameter(description = "Unique identifier of the deck to delete") @PathVariable Long id, @Parameter(description = "Unique identifier of the user performing the action") @RequestParam Long userId) {
+        if (deckService.deleteDeck(id, userId)) {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();
@@ -84,9 +84,9 @@ public class DeckController {
         @ApiResponse(responseCode = "200", description = "Card added to deck successfully"),
         @ApiResponse(responseCode = "400", description = "Invalid request or deck/card not found")
     })
-    public ResponseEntity<Deck> addCardToDeck(@Parameter(description = "Unique identifier of the deck") @PathVariable Long id, @Parameter(description = "Unique identifier of the card") @RequestParam Long cardId, @Parameter(description = "Quantity of cards to add") @RequestParam int quantity) {
+    public ResponseEntity<Deck> addCardToDeck(@Parameter(description = "Unique identifier of the deck") @PathVariable Long id, @Parameter(description = "Unique identifier of the card") @RequestParam Long cardId, @Parameter(description = "Quantity of cards to add") @RequestParam int quantity, @Parameter(description = "Unique identifier of the user performing the action") @RequestParam Long userId) {
         try {
-            return ResponseEntity.ok(deckService.addCardToDeck(id, cardId, quantity));
+            return ResponseEntity.ok(deckService.addCardToDeck(id, cardId, quantity, userId));
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
@@ -98,8 +98,8 @@ public class DeckController {
         @ApiResponse(responseCode = "204", description = "Card removed from deck successfully"),
         @ApiResponse(responseCode = "404", description = "Deck or card not found")
     })
-    public ResponseEntity<Void> removeCardFromDeck(@Parameter(description = "Unique identifier of the deck") @PathVariable Long id, @Parameter(description = "Unique identifier of the card") @RequestParam Long cardId) {
-        if (deckService.removeCardFromDeck(id, cardId)) {
+    public ResponseEntity<Void> removeCardFromDeck(@Parameter(description = "Unique identifier of the deck") @PathVariable Long id, @Parameter(description = "Unique identifier of the card") @RequestParam Long cardId, @Parameter(description = "Unique identifier of the user performing the action") @RequestParam Long userId) {
+        if (deckService.removeCardFromDeck(id, cardId, userId)) {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();

@@ -21,8 +21,18 @@ public class UserService {
     @Autowired
     private DeckService deckService;
 
+    @Autowired
+    private UserActivityService userActivityService;
+
     public List<User> getAllUsers() {
         return userRepository.findAll();
+    }
+
+    public List<User> getLeaderboard() {
+        return userRepository.findAll().stream()
+            .sorted((u1, u2) -> Integer.compare(u2.getPoints(), u1.getPoints()))
+            .limit(50)
+            .collect(java.util.stream.Collectors.toList());
     }
 
     public Optional<User> getUserById(Long id) {
@@ -47,6 +57,12 @@ public class UserService {
         }
         // Save the user first
         User savedUser = userRepository.save(user);
+
+        // Log user registration activity
+        userActivityService.logActivity(savedUser.getId(),
+            com.example.tcgbackend.model.ActivityType.USER_REGISTERED,
+            "Joined TCG Arena");
+
         // Create default "My Collection" deck
         Deck defaultDeck = new Deck();
         defaultDeck.setName("My Collection");
@@ -71,7 +87,14 @@ public class UserService {
             user.setIsPremium(userDetails.getIsPremium());
             user.setFavoriteGame(userDetails.getFavoriteGame());
             user.setLocation(userDetails.getLocation());
-            return userRepository.save(user);
+            User updatedUser = userRepository.save(user);
+
+            // Log profile update activity
+            userActivityService.logActivity(id,
+                com.example.tcgbackend.model.ActivityType.USER_PROFILE_UPDATED,
+                "Updated profile information");
+
+            return updatedUser;
         });
     }
 

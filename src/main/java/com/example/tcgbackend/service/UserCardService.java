@@ -25,6 +25,9 @@ public class UserCardService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private UserActivityService userActivityService;
+
     public List<UserCard> getAllUserCards() {
         return userCardRepository.findAll();
     }
@@ -58,7 +61,15 @@ public class UserCardService {
     }
 
     public boolean deleteUserCard(Long id) {
-        if (userCardRepository.existsById(id)) {
+        Optional<UserCard> userCardOpt = userCardRepository.findById(id);
+        if (userCardOpt.isPresent()) {
+            UserCard userCard = userCardOpt.get();
+
+            // Log activity before deletion
+            userActivityService.logActivity(userCard.getOwner().getId(),
+                com.example.tcgbackend.model.ActivityType.CARD_REMOVED_FROM_COLLECTION,
+                "Removed " + userCard.getCardTemplate().getName() + " from collection");
+
             userCardRepository.deleteById(id);
             return true;
         }
@@ -72,7 +83,14 @@ public class UserCardService {
         userCard.setCondition(condition);
         userCard.setIsGraded(false);
         userCard.setDateAdded(LocalDateTime.now());
-        return userCardRepository.save(userCard);
+        UserCard savedCard = userCardRepository.save(userCard);
+
+        // Log activity
+        userActivityService.logActivity(owner.getId(),
+            com.example.tcgbackend.model.ActivityType.CARD_ADDED_TO_COLLECTION,
+            "Added " + cardTemplate.getName() + " to collection");
+
+        return savedCard;
     }
 
     public Optional<User> getUserById(Long id) {

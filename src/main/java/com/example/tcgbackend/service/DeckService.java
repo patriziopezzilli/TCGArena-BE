@@ -22,6 +22,9 @@ public class DeckService {
     @Autowired
     private CardRepository cardRepository;
 
+    @Autowired
+    private UserActivityService userActivityService;
+
     public List<Deck> getAllDecks() {
         return deckRepository.findAll();
     }
@@ -31,7 +34,14 @@ public class DeckService {
     }
 
     public Deck saveDeck(Deck deck) {
-        return deckRepository.save(deck);
+        Deck savedDeck = deckRepository.save(deck);
+
+        // Log deck creation activity
+        userActivityService.logActivity(deck.getOwnerId(),
+            com.example.tcgbackend.model.ActivityType.DECK_CREATED,
+            "Created deck '" + deck.getName() + "'");
+
+        return savedDeck;
     }
 
     public Optional<Deck> updateDeck(Long id, Deck deckDetails) {
@@ -42,12 +52,21 @@ public class DeckService {
             deck.setIsPublic(deckDetails.getIsPublic());
             deck.setDescription(deckDetails.getDescription());
             deck.setTags(deckDetails.getTags());
-            return deckRepository.save(deck);
+            Deck updatedDeck = deckRepository.save(deck);
+
+            userActivityService.logActivity(deck.getOwnerId(),
+                com.example.tcgbackend.model.ActivityType.DECK_UPDATED,
+                "Updated deck '" + deck.getName() + "'");
+
+            return updatedDeck;
         });
     }
 
-    public boolean deleteDeck(Long id) {
-        if (deckRepository.existsById(id)) {
+    public boolean deleteDeck(Long id, Long userId) {
+        Optional<Deck> deckOpt = deckRepository.findById(id);
+        if (deckOpt.isPresent()) {
+            Deck deck = deckOpt.get();
+            userActivityService.logActivity(userId, ActivityType.DECK_DELETED, "Deleted deck: " + deck.getName());
             deckRepository.deleteById(id);
             return true;
         }
@@ -61,10 +80,14 @@ public class DeckService {
         deck.setOwnerId(ownerId);
         deck.setDateCreated(LocalDateTime.now());
         deck.setDateModified(LocalDateTime.now());
-        return deckRepository.save(deck);
+        Deck savedDeck = deckRepository.save(deck);
+
+        userActivityService.logActivity(ownerId, ActivityType.DECK_CREATED, "Created new deck: " + name);
+
+        return savedDeck;
     }
 
-    public Deck addCardToDeck(Long deckId, Long cardId, int quantity) {
+    public Deck addCardToDeck(Long deckId, Long cardId, int quantity, Long userId) {
         Deck deck = deckRepository.findById(deckId)
             .orElseThrow(() -> new RuntimeException("Deck not found"));
 
@@ -82,14 +105,31 @@ public class DeckService {
         deck.getCards().add(deckCard);
         deck.setDateModified(LocalDateTime.now());
 
-        return deckRepository.save(deck);
+        Deck savedDeck = deckRepository.save(deck);
+
+        // Log deck update activity
+        userActivityService.logActivity(userId, ActivityType.DECK_UPDATED, "Added " + quantity + "x " + card.getCardTemplate().getName() + " to deck '" + deck.getName() + "'");
+
+        return savedDeck;
     }
 
-    public boolean removeCardFromDeck(Long deckId, Long cardId) {
+    public boolean removeCardFromDeck(Long deckId, Long cardId, Long userId) {
+        Deck deck = deckRepository.findById(deckId).orElse(null);
+        if (deck == null) return false;
+
+        Card card = cardRepository.findById(cardId).orElse(null);
+        if (card == null) return false;
+
         List<DeckCard> deckCards = deckCardRepository.findByDeckId(deckId);
         for (DeckCard deckCard : deckCards) {
             if (deckCard.getCardId().equals(cardId)) {
                 deckCardRepository.delete(deckCard);
+                deck.setDateModified(LocalDateTime.now());
+                deckRepository.save(deck);
+
+                // Log deck update activity
+                userActivityService.logActivity(userId, ActivityType.DECK_UPDATED, "Removed " + deckCard.getQuantity() + "x " + card.getCardTemplate().getName() + " from deck '" + deck.getName() + "'");
+
                 return true;
             }
         }

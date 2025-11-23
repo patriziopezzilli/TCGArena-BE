@@ -1,10 +1,7 @@
 package com.example.tcgbackend.controller;
 
-import com.example.tcgbackend.model.CardCondition;
 import com.example.tcgbackend.model.CardTemplate;
-import com.example.tcgbackend.model.UserCard;
 import com.example.tcgbackend.service.CardTemplateService;
-import com.example.tcgbackend.service.UserCardService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -20,15 +17,12 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/cards")
-@Tag(name = "Cards", description = "API for managing trading cards in the TCG Arena system")
+@RequestMapping("/api/cards/templates")
+@Tag(name = "Card Templates", description = "API for managing card templates in the TCG Arena system")
 public class CardController {
 
     @Autowired
     private CardTemplateService cardTemplateService;
-
-    @Autowired
-    private UserCardService userCardService;
 
     @GetMapping
     @Operation(summary = "Get all card templates", description = "Retrieves a paginated list of all available card templates in the system")
@@ -87,34 +81,6 @@ public class CardController {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();
-    }
-
-    @GetMapping("/collection/{userId}")
-    @Operation(summary = "Get user's card collection", description = "Retrieves all user cards owned by a specific user")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Successfully retrieved user's card collection")
-    })
-    public List<UserCard> getUserCollection(@Parameter(description = "Unique identifier of the user") @PathVariable Long userId) {
-        return userCardService.getUserCardsByUserId(userId);
-    }
-
-    @PostMapping("/{id}/add-to-collection")
-    @Operation(summary = "Add card template to user's collection", description = "Adds a specific card template to a user's collection as a user card")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Card added to collection successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid request or card template not found"),
-        @ApiResponse(responseCode = "404", description = "Card template not found")
-    })
-    public ResponseEntity<UserCard> addToCollection(@Parameter(description = "Unique identifier of the card template") @PathVariable Long cardTemplateId, @Parameter(description = "Unique identifier of the user") @RequestParam Long userId, @Parameter(description = "Condition of the card") @RequestParam(defaultValue = "NEAR_MINT") String condition) {
-        try {
-            var cardTemplate = cardTemplateService.getCardTemplateById(cardTemplateId).orElseThrow();
-            var user = userCardService.getUserById(userId).orElseThrow();
-            CardCondition cardCondition = CardCondition.valueOf(condition.toUpperCase());
-            UserCard userCard = userCardService.addCardToUserCollection(cardTemplate, user, cardCondition);
-            return ResponseEntity.ok(userCard);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
-        }
     }
 
     @GetMapping("/market-price/{id}")

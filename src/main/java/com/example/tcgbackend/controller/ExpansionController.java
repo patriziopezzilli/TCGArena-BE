@@ -2,7 +2,9 @@ package com.example.tcgbackend.controller;
 
 import com.example.tcgbackend.model.Expansion;
 import com.example.tcgbackend.model.TCGType;
+import com.example.tcgbackend.model.CardTemplate;
 import com.example.tcgbackend.service.ExpansionService;
+import com.example.tcgbackend.service.CardTemplateService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,16 +18,21 @@ public class ExpansionController {
     @Autowired
     private ExpansionService expansionService;
 
+    @Autowired
+    private CardTemplateService cardTemplateService;
+
     @GetMapping
     public List<Expansion> getAllExpansions() {
         return expansionService.getAllExpansions();
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<Expansion> getExpansionById(@PathVariable Long id) {
-        return expansionService.getExpansionById(id)
-            .map(ResponseEntity::ok)
-            .orElse(ResponseEntity.notFound().build());
+    @GetMapping("/{id}/cards")
+    public ResponseEntity<List<CardTemplate>> getCardsForExpansion(@PathVariable Long id) {
+        if (!expansionService.getExpansionById(id).isPresent()) {
+            return ResponseEntity.notFound().build();
+        }
+        List<CardTemplate> cards = cardTemplateService.getCardTemplatesByExpansion(id);
+        return ResponseEntity.ok(cards);
     }
 
     @GetMapping("/recent")

@@ -22,6 +22,10 @@ public class TournamentParticipant {
     @Column(nullable = false)
     private Boolean hasPaid = false;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ParticipantStatus status = ParticipantStatus.REGISTERED;
+
     private Integer placement; // Final position in tournament
 
     // Getters and Setters
@@ -39,6 +43,9 @@ public class TournamentParticipant {
 
     public Boolean getHasPaid() { return hasPaid; }
     public void setHasPaid(Boolean hasPaid) { this.hasPaid = hasPaid; }
+
+    public ParticipantStatus getStatus() { return status; }
+    public void setStatus(ParticipantStatus status) { this.status = status; }
 
     public Integer getPlacement() { return placement; }
     public void setPlacement(Integer placement) { this.placement = placement; }
