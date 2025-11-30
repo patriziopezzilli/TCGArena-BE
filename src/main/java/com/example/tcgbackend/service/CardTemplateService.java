@@ -43,8 +43,16 @@ public class CardTemplateService {
         return cardTemplateRepository.findByExpansionId(expansionId);
     }
 
+    public Page<CardTemplate> getCardTemplatesBySetCode(String setCode, Pageable pageable) {
+        return cardTemplateRepository.findBySetCode(setCode, pageable);
+    }
+
     public List<CardTemplate> getCardTemplatesByRarity(String rarity) {
         return cardTemplateRepository.findByRarity(rarity);
+    }
+
+    public List<CardTemplate> searchCardTemplates(String query) {
+        return cardTemplateRepository.searchByNameOrSetCode(query);
     }
 
     public CardTemplate saveCardTemplate(CardTemplate cardTemplate) {

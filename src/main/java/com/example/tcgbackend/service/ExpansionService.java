@@ -1,6 +1,7 @@
 package com.example.tcgbackend.service;
 
 import com.example.tcgbackend.model.Expansion;
+import com.example.tcgbackend.model.TCGSet;
 import com.example.tcgbackend.model.TCGType;
 import com.example.tcgbackend.repository.ExpansionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class ExpansionService {
@@ -29,7 +31,15 @@ public class ExpansionService {
 
     public List<Expansion> getRecentExpansions() {
         // Implement logic to get recent expansions
-        return expansionRepository.findAll();
+        return getRecentExpansions(5);
+    }
+
+    public List<Expansion> getRecentExpansions(int limit) {
+        return expansionRepository.findAllByOrderByReleaseDateDesc().stream().limit(limit).collect(Collectors.toList());
+    }
+
+    public List<TCGSet> getSetsByExpansionId(Long id) {
+        return expansionRepository.findByIdWithSets(id).map(Expansion::getSets).orElse(List.of());
     }
 
     public Expansion saveExpansion(Expansion expansion) {

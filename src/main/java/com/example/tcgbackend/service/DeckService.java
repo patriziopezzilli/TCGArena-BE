@@ -2,6 +2,7 @@ package com.example.tcgbackend.service;
 
 import com.example.tcgbackend.model.*;
 import com.example.tcgbackend.repository.CardRepository;
+import com.example.tcgbackend.repository.CardTemplateRepository;
 import com.example.tcgbackend.repository.DeckCardRepository;
 import com.example.tcgbackend.repository.DeckRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,10 +24,17 @@ public class DeckService {
     private CardRepository cardRepository;
 
     @Autowired
+    private CardTemplateRepository cardTemplateRepository;
+
+    @Autowired
     private UserActivityService userActivityService;
 
     public List<Deck> getAllDecks() {
         return deckRepository.findAll();
+    }
+
+    public List<Deck> getDecksByOwnerId(Long ownerId) {
+        return deckRepository.findByOwnerId(ownerId);
     }
 
     public Optional<Deck> getDeckById(Long id) {
@@ -38,8 +46,8 @@ public class DeckService {
 
         // Log deck creation activity
         userActivityService.logActivity(deck.getOwnerId(),
-            com.example.tcgbackend.model.ActivityType.DECK_CREATED,
-            "Created deck '" + deck.getName() + "'");
+                com.example.tcgbackend.model.ActivityType.DECK_CREATED,
+                "Created deck '" + deck.getName() + "'");
 
         return savedDeck;
     }
@@ -55,8 +63,8 @@ public class DeckService {
             Deck updatedDeck = deckRepository.save(deck);
 
             userActivityService.logActivity(deck.getOwnerId(),
-                com.example.tcgbackend.model.ActivityType.DECK_UPDATED,
-                "Updated deck '" + deck.getName() + "'");
+                    com.example.tcgbackend.model.ActivityType.DECK_UPDATED,
+                    "Updated deck '" + deck.getName() + "'");
 
             return updatedDeck;
         });
@@ -89,10 +97,10 @@ public class DeckService {
 
     public Deck addCardToDeck(Long deckId, Long cardId, int quantity, Long userId) {
         Deck deck = deckRepository.findById(deckId)
-            .orElseThrow(() -> new RuntimeException("Deck not found"));
+                .orElseThrow(() -> new RuntimeException("Deck not found"));
 
         Card card = cardRepository.findById(cardId)
-            .orElseThrow(() -> new RuntimeException("Card not found"));
+                .orElseThrow(() -> new RuntimeException("Card not found"));
 
         DeckCard deckCard = new DeckCard();
         deckCard.setDeck(deck);
@@ -108,17 +116,65 @@ public class DeckService {
         Deck savedDeck = deckRepository.save(deck);
 
         // Log deck update activity
-        userActivityService.logActivity(userId, ActivityType.DECK_UPDATED, "Added " + quantity + "x " + card.getCardTemplate().getName() + " to deck '" + deck.getName() + "'");
+        userActivityService.logActivity(userId, ActivityType.DECK_UPDATED,
+                "Added " + quantity + "x " + card.getCardTemplate().getName() + " to deck '" + deck.getName() + "'");
+
+        return savedDeck;
+    }
+
+    public Deck addCardTemplateToDeck(Long deckId, Long templateId, Long userId) {
+        Deck deck = deckRepository.findById(deckId)
+                .orElseThrow(() -> new RuntimeException("Deck not found"));
+
+        CardTemplate template = cardTemplateRepository.findById(templateId)
+                .orElseThrow(() -> new RuntimeException("Card template not found"));
+
+        // Check if a card with this template already exists in the deck
+        List<DeckCard> existingCards = deckCardRepository.findByDeckId(deckId);
+        for (DeckCard existingCard : existingCards) {
+            if (existingCard.getCardId().equals(templateId)) {
+                // Card already exists, increment quantity
+                existingCard.setQuantity(existingCard.getQuantity() + 1);
+                deckCardRepository.save(existingCard);
+                deck.setDateModified(LocalDateTime.now());
+                Deck savedDeck = deckRepository.save(deck);
+
+                userActivityService.logActivity(userId, ActivityType.DECK_UPDATED,
+                        "Added 1x " + template.getName() + " to deck '" + deck.getName() + "'");
+
+                return savedDeck;
+            }
+        }
+
+        // Card doesn't exist, create new DeckCard entry
+        DeckCard deckCard = new DeckCard();
+        deckCard.setDeck(deck);
+        deckCard.setCardId(templateId);
+        deckCard.setQuantity(1);
+        deckCard.setCardName(template.getName());
+        deckCard.setCardImageUrl(template.getImageUrl());
+
+        deckCardRepository.save(deckCard);
+        deck.getCards().add(deckCard);
+        deck.setDateModified(LocalDateTime.now());
+
+        Deck savedDeck = deckRepository.save(deck);
+
+        // Log deck update activity
+        userActivityService.logActivity(userId, ActivityType.DECK_UPDATED,
+                "Added 1x " + template.getName() + " to deck '" + deck.getName() + "'");
 
         return savedDeck;
     }
 
     public boolean removeCardFromDeck(Long deckId, Long cardId, Long userId) {
         Deck deck = deckRepository.findById(deckId).orElse(null);
-        if (deck == null) return false;
+        if (deck == null)
+            return false;
 
         Card card = cardRepository.findById(cardId).orElse(null);
-        if (card == null) return false;
+        if (card == null)
+            return false;
 
         List<DeckCard> deckCards = deckCardRepository.findByDeckId(deckId);
         for (DeckCard deckCard : deckCards) {
@@ -128,7 +184,8 @@ public class DeckService {
                 deckRepository.save(deck);
 
                 // Log deck update activity
-                userActivityService.logActivity(userId, ActivityType.DECK_UPDATED, "Removed " + deckCard.getQuantity() + "x " + card.getCardTemplate().getName() + " from deck '" + deck.getName() + "'");
+                userActivityService.logActivity(userId, ActivityType.DECK_UPDATED, "Removed " + deckCard.getQuantity()
+                        + "x " + card.getCardTemplate().getName() + " from deck '" + deck.getName() + "'");
 
                 return true;
             }

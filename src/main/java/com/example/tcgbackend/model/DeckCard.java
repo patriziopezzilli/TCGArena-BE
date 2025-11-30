@@ -1,5 +1,7 @@
 package com.example.tcgbackend.model;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 
 @Entity
@@ -11,17 +13,21 @@ public class DeckCard {
 
     @ManyToOne
     @JoinColumn(name = "deck_id", nullable = false)
+    @JsonBackReference
     private Deck deck;
 
     @Column(nullable = false)
+    @JsonProperty("card_id")
     private Long cardId;
 
     @Column(nullable = false)
     private Integer quantity;
 
     @Column(nullable = false)
+    @JsonProperty("card_name")
     private String cardName;
 
+    @JsonProperty("card_image_url")
     private String cardImageUrl;
 
     // Getters and Setters

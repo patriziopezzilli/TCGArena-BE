@@ -1,5 +1,6 @@
 package com.example.tcgbackend.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -38,6 +39,7 @@ public class User {
     @Column(nullable = false)
     private Integer points = 0;
 
+    @JsonProperty("favorite_game")
     @Enumerated(EnumType.STRING)
     private TCGType favoriteGame;
 

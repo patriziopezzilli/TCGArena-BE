@@ -1,5 +1,6 @@
 package com.example.tcgbackend.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -29,6 +30,7 @@ public class TCGSet {
 
     @ManyToOne
     @JoinColumn(name = "expansion_id")
+    @JsonIgnore
     private Expansion expansion;
 
     // Getters and Setters

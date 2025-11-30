@@ -1,5 +1,6 @@
 package com.example.tcgbackend.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -17,18 +18,23 @@ public class Deck {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @JsonProperty("tcg_type")
     private TCGType tcgType;
 
     @Column(nullable = false)
+    @JsonProperty("owner_id")
     private Long ownerId;
 
     @Column(nullable = false)
+    @JsonProperty("date_created")
     private LocalDateTime dateCreated;
 
     @Column(nullable = false)
+    @JsonProperty("date_modified")
     private LocalDateTime dateModified;
 
     @Column(nullable = false)
+    @JsonProperty("is_public")
     private Boolean isPublic = false;
 
     @Column(length = 1000)

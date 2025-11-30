@@ -21,7 +21,7 @@ public class Expansion {
 
     private String imageUrl;
 
-    @OneToMany(mappedBy = "expansion", cascade = CascadeType.ALL)
+    @OneToMany(mappedBy = "expansion", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<TCGSet> sets = new ArrayList<>();
 
     // Computed fields (handled in service layer)

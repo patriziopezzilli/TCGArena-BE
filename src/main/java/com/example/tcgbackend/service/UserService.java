@@ -69,6 +69,7 @@ public class UserService {
         defaultDeck.setDescription("Default collection deck for " + savedUser.getUsername());
         defaultDeck.setOwnerId(savedUser.getId());
         defaultDeck.setIsPublic(true);
+        defaultDeck.setTcgType(user.getFavoriteGame());
         defaultDeck.setDateCreated(LocalDateTime.now());
         defaultDeck.setDateModified(LocalDateTime.now());
         if (savedUser.getFavoriteGame() != null) {

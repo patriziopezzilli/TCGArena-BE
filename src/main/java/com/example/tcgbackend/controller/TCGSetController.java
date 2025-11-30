@@ -2,11 +2,18 @@ package com.example.tcgbackend.controller;
 
 import com.example.tcgbackend.model.Card;
 import com.example.tcgbackend.model.TCGSet;
+import com.example.tcgbackend.model.CardTemplate;
 import com.example.tcgbackend.service.CardService;
 import com.example.tcgbackend.service.TCGSetService;
+import com.example.tcgbackend.service.CardTemplateService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.data.domain.Sort;
 
 import java.util.List;
 
@@ -20,6 +27,9 @@ public class TCGSetController {
     @Autowired
     private CardService cardService;
 
+    @Autowired
+    private CardTemplateService cardTemplateService;
+
     @GetMapping
     public List<TCGSet> getAllSets() {
         return tcgSetService.getAllSets();
@@ -28,15 +38,24 @@ public class TCGSetController {
     @GetMapping("/{id}")
     public ResponseEntity<TCGSet> getSetById(@PathVariable Long id) {
         return tcgSetService.getSetById(id)
-            .map(ResponseEntity::ok)
-            .orElse(ResponseEntity.notFound().build());
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/{setCode}/cards")
+    @GetMapping("/{id}/cards")
+    public ResponseEntity<Page<CardTemplate>> getCardTemplatesBySetId(@PathVariable Long id,
+            @PageableDefault(size = 10, sort = "dateCreated", direction = Sort.Direction.DESC) Pageable pageable) {
+        return tcgSetService.getSetById(id)
+                .map(set -> ResponseEntity
+                        .ok(cardTemplateService.getCardTemplatesBySetCode(set.getSetCode(), pageable)))
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/code/{setCode}/cards")
     public List<Card> getCardsBySetCode(@PathVariable String setCode) {
         return cardService.getAllCards().stream()
-            .filter(card -> setCode.equals(card.getCardTemplate().getSetCode()))
-            .toList();
+                .filter(card -> setCode.equals(card.getCardTemplate().getSetCode()))
+                .toList();
     }
 
     @PostMapping
@@ -47,8 +66,8 @@ public class TCGSetController {
     @PutMapping("/{id}")
     public ResponseEntity<TCGSet> updateSet(@PathVariable Long id, @RequestBody TCGSet set) {
         return tcgSetService.updateSet(id, set)
-            .map(ResponseEntity::ok)
-            .orElse(ResponseEntity.notFound().build());
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
