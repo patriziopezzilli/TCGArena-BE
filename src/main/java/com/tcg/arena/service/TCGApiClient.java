@@ -62,6 +62,9 @@ public class TCGApiClient {
     @Value("${app.demo-env:false}")
     private boolean demoEnv;
 
+    @Value("${onepiece.api.key:}")
+    private String onePieceApiKey;
+
     @Autowired
     public TCGApiClient(CardRepository cardRepository, CardTemplateRepository cardTemplateRepository, ImportProgressRepository importProgressRepository, TCGSetRepository tcgSetRepository, ExpansionRepository expansionRepository) {
         this.cardRepository = cardRepository;
@@ -1281,12 +1284,11 @@ public class TCGApiClient {
                 .uri(url);
 
         // Add API key header if available
-        String apiKey = System.getenv("ONE_PIECE_API_KEY");
-        if (apiKey != null && !apiKey.isEmpty()) {
-            request = request.header("x-api-key", apiKey);
+        if (onePieceApiKey != null && !onePieceApiKey.isEmpty()) {
+            request = request.header("x-api-key", onePieceApiKey);
             System.out.println("Added API key header to One Piece request");
         } else {
-            System.out.println("No ONE_PIECE_API_KEY environment variable found");
+            System.out.println("No onepiece.api.key configured in application.properties");
         }
 
         // Handle redirects manually but simply - max 1 redirect to prevent loops
@@ -1298,8 +1300,8 @@ public class TCGApiClient {
                     System.out.println("Following redirect to: " + location);
                     // Make second request to redirect location (only once to prevent loops)
                     WebClient.RequestHeadersSpec<?> redirectRequest = onePieceWebClient.get().uri(location);
-                    if (apiKey != null && !apiKey.isEmpty()) {
-                        redirectRequest = redirectRequest.header("x-api-key", apiKey);
+                    if (onePieceApiKey != null && !onePieceApiKey.isEmpty()) {
+                        redirectRequest = redirectRequest.header("x-api-key", onePieceApiKey);
                     }
                     return redirectRequest.retrieve().bodyToMono(String.class);
                 } else if (location != null && location.equals(url)) {
