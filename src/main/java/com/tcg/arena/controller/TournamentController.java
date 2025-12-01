@@ -85,6 +85,9 @@ public class TournamentController {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
+        // Set the organizerId from the current user
+        tournament.setOrganizerId(currentUser.get().getId());
+        
         Tournament savedTournament = tournamentService.saveTournament(tournament);
         return ResponseEntity.ok(savedTournament);
     }
