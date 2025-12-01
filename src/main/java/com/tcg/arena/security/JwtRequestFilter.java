@@ -31,6 +31,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         boolean skip = path.startsWith("/api/waiting-list/") ||
                path.startsWith("/api/auth/") ||
                path.startsWith("/api/public/") ||
+               path.startsWith("/api/admin/") ||
                path.startsWith("/health") ||
                path.startsWith("/swagger-ui/") ||
                path.startsWith("/v3/api-docs/");
