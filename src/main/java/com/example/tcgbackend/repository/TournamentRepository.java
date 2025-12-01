@@ -15,6 +15,7 @@ public interface TournamentRepository extends JpaRepository<Tournament, Long> {
     @Query("SELECT t FROM Tournament t WHERE t.startDate > :now ORDER BY t.startDate")
     List<Tournament> findUpcomingTournaments(@Param("now") LocalDateTime now);
 
+    List<Tournament> findAllByOrderByStartDateDesc();
     List<Tournament> findByStatus(TournamentStatus status);
     List<Tournament> findByOrganizerId(Long organizerId);
 }

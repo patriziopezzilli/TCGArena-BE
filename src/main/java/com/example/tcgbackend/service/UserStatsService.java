@@ -3,6 +3,7 @@ package com.example.tcgbackend.service;
 import com.example.tcgbackend.model.User;
 import com.example.tcgbackend.model.UserStats;
 import com.example.tcgbackend.model.TCGType;
+import com.example.tcgbackend.model.Deck;
 import com.example.tcgbackend.repository.UserStatsRepository;
 import com.example.tcgbackend.repository.UserCardRepository;
 import com.example.tcgbackend.repository.DeckRepository;
@@ -63,7 +64,7 @@ public class UserStatsService {
         stats.setTotalCards(totalCards);
 
         // Calculate total decks
-        int totalDecks = deckRepository.findByOwnerId(user.getId()).size();
+        int totalDecks = deckRepository.findByOwnerIdOrderByDateCreatedDesc(user.getId()).size();
         stats.setTotalDecks(totalDecks);
 
         // Calculate tournament stats
@@ -101,10 +102,10 @@ public class UserStatsService {
 
     private TCGType determineFavoriteTCGType(User user) {
         // Count decks by TCG type
-        var decks = deckRepository.findByOwnerId(user.getId());
+        var decks = deckRepository.findByOwnerIdOrderByDateCreatedDesc(user.getId());
         var typeCount = decks.stream()
             .filter(d -> d.getTcgType() != null)
-            .collect(Collectors.groupingBy(d -> d.getTcgType(), Collectors.counting()));
+            .collect(Collectors.groupingBy(Deck::getTcgType, Collectors.counting()));
 
         if (typeCount.isEmpty()) {
             return user.getFavoriteGame(); // fallback to user's preference

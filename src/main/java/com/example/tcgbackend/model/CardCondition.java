@@ -1,5 +1,5 @@
 package com.example.tcgbackend.model;
 
 public enum CardCondition {
-    POOR, FAIR, GOOD, VERY_GOOD, NEAR_MINT, MINT
+    MINT, NEAR_MINT, LIGHTLY_PLAYED, MODERATELY_PLAYED, HEAVILY_PLAYED, DAMAGED
 }

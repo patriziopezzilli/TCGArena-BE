@@ -18,7 +18,7 @@ public class ExpansionService {
     private ExpansionRepository expansionRepository;
 
     public List<Expansion> getAllExpansions() {
-        return expansionRepository.findAll();
+        return expansionRepository.findAllByOrderByReleaseDateDesc();
     }
 
     public Optional<Expansion> getExpansionById(Long id) {
@@ -26,7 +26,9 @@ public class ExpansionService {
     }
 
     public List<Expansion> getExpansionsByTcgType(TCGType tcgType) {
-        return expansionRepository.findByTcgType(tcgType);
+        return expansionRepository.findByTcgType(tcgType).stream()
+            .sorted((e1, e2) -> e2.getReleaseDate().compareTo(e1.getReleaseDate()))
+            .collect(Collectors.toList());
     }
 
     public List<Expansion> getRecentExpansions() {

@@ -3,6 +3,8 @@ package com.example.tcgbackend.model;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "users")
@@ -41,7 +43,11 @@ public class User {
 
     @JsonProperty("favorite_game")
     @Enumerated(EnumType.STRING)
-    private TCGType favoriteGame;
+    private TCGType favoriteGame; // Deprecated, kept for backward compatibility
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    @JsonProperty("favorite_games")
+    private List<UserFavoriteTCG> favoriteTCGs = new ArrayList<>();
 
     @Embedded
     private UserLocation location;
@@ -159,5 +165,30 @@ public class User {
 
     public void setDeviceToken(String deviceToken) {
         this.deviceToken = deviceToken;
+    }
+
+    public List<UserFavoriteTCG> getFavoriteTCGs() {
+        return favoriteTCGs;
+    }
+
+    public void setFavoriteTCGs(List<UserFavoriteTCG> favoriteTCGs) {
+        this.favoriteTCGs = favoriteTCGs;
+    }
+
+    // Helper method to get TCG types as a list
+    public List<TCGType> getFavoriteTCGTypes() {
+        return favoriteTCGs.stream()
+                .map(UserFavoriteTCG::getTcgType)
+                .toList();
+    }
+
+    // Helper method to set TCG types from a list
+    public void setFavoriteTCGTypes(List<TCGType> tcgTypes) {
+        favoriteTCGs.clear();
+        if (tcgTypes != null) {
+            for (TCGType tcgType : tcgTypes) {
+                favoriteTCGs.add(new UserFavoriteTCG(this, tcgType));
+            }
+        }
     }
 }

@@ -15,7 +15,7 @@ public class TCGSetService {
     private TCGSetRepository tcgSetRepository;
 
     public List<TCGSet> getAllSets() {
-        return tcgSetRepository.findAll();
+        return tcgSetRepository.findAllByOrderByReleaseDateDesc();
     }
 
     public Optional<TCGSet> getSetById(Long id) {

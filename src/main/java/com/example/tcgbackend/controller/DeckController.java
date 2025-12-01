@@ -1,6 +1,9 @@
 package com.example.tcgbackend.controller;
 
+import com.example.tcgbackend.dto.DeckCardUpdateDTO;
+import com.example.tcgbackend.model.CardCondition;
 import com.example.tcgbackend.model.Deck;
+import com.example.tcgbackend.model.DeckType;
 import com.example.tcgbackend.model.TCGType;
 import com.example.tcgbackend.service.DeckService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -135,12 +138,122 @@ public class DeckController {
         return ResponseEntity.notFound().build();
     }
 
-    @GetMapping("/public")
-    @Operation(summary = "Get public decks", description = "Retrieves a list of all public decks available for viewing")
+    @PutMapping("/{id}/cards/{deckCardId}/condition")
+    @Operation(summary = "Update card condition in deck", description = "Updates the condition of a specific card in an existing deck")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Successfully retrieved list of public decks")
+            @ApiResponse(responseCode = "200", description = "Card condition updated successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid condition value"),
+            @ApiResponse(responseCode = "403", description = "User not authorized to update this deck"),
+            @ApiResponse(responseCode = "404", description = "Deck or card not found")
     })
-    public List<Deck> getPublicDecks() {
-        return deckService.getPublicDecks();
+    public ResponseEntity<Void> updateDeckCardCondition(
+            @Parameter(description = "Unique identifier of the deck") @PathVariable Long id,
+            @Parameter(description = "Unique identifier of the deck card") @PathVariable Long deckCardId,
+            @Parameter(description = "New condition for the card") @RequestParam String condition,
+            @Parameter(description = "Unique identifier of the user performing the action") @RequestParam Long userId) {
+        try {
+            CardCondition cardCondition = CardCondition.valueOf(condition.toUpperCase());
+            if (deckService.updateDeckCardCondition(id, deckCardId, cardCondition, userId)) {
+                return ResponseEntity.ok().build();
+            }
+            return ResponseEntity.notFound().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PutMapping("/cards/{cardId}/condition")
+    @Operation(summary = "Update card condition by card ID", description = "Updates the condition of a card using only the card ID (direct endpoint)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Card condition updated successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid condition value"),
+            @ApiResponse(responseCode = "403", description = "User not authorized to update this card"),
+            @ApiResponse(responseCode = "404", description = "Card not found")
+    })
+    public ResponseEntity<Void> updateDeckCardConditionByCardId(
+            @Parameter(description = "Unique identifier of the deck card") @PathVariable Long cardId,
+            @Parameter(description = "New condition for the card") @RequestParam String condition,
+            @Parameter(description = "Unique identifier of the user performing the action") @RequestParam Long userId) {
+        try {
+            CardCondition cardCondition = CardCondition.valueOf(condition.toUpperCase());
+            if (deckService.updateDeckCardConditionByCardId(cardId, cardCondition, userId)) {
+                return ResponseEntity.ok().build();
+            }
+            return ResponseEntity.notFound().build();
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PutMapping("/cards/{cardId}")
+    @Operation(summary = "Update deck card by card ID", description = "Updates a deck card using only the card ID (direct endpoint)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Card updated successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid update data"),
+            @ApiResponse(responseCode = "403", description = "User not authorized to update this card"),
+            @ApiResponse(responseCode = "404", description = "Card not found")
+    })
+    public ResponseEntity<Void> updateDeckCardByCardId(
+            @Parameter(description = "Unique identifier of the deck card") @PathVariable Long cardId,
+            @Parameter(description = "Update data for the card") @RequestBody DeckCardUpdateDTO updateDTO,
+            @Parameter(description = "Unique identifier of the user performing the action") @RequestParam Long userId) {
+        try {
+            if (deckService.updateDeckCardByCardId(cardId, updateDTO, userId)) {
+                return ResponseEntity.ok().build();
+            }
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @DeleteMapping("/cards/{cardId}")
+    @Operation(summary = "Remove card by card ID", description = "Removes a card from its deck using only the card ID (direct endpoint)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "Card removed successfully"),
+            @ApiResponse(responseCode = "403", description = "User not authorized to remove this card"),
+            @ApiResponse(responseCode = "404", description = "Card not found")
+    })
+    public ResponseEntity<Void> removeDeckCardByCardId(
+            @Parameter(description = "Unique identifier of the deck card") @PathVariable Long cardId,
+            @Parameter(description = "Unique identifier of the user performing the action") @RequestParam Long userId) {
+        if (deckService.removeDeckCardByCardId(cardId, userId)) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/collection")
+    @Operation(summary = "Get user's collection deck", description = "Retrieves the user's collection deck (LISTA type deck containing all owned cards)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Collection deck found and returned"),
+            @ApiResponse(responseCode = "404", description = "Collection deck not found")
+    })
+    public ResponseEntity<Deck> getCollectionDeck(
+            @Parameter(description = "User ID to get collection for") @RequestParam Long userId) {
+        return deckService.getCollectionDeckByUserId(userId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/public")
+
+    @PostMapping("/create")
+    @Operation(summary = "Create a new deck with parameters", description = "Creates a new deck with specified name, TCG type, and deck type")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Deck created successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid parameters provided")
+    })
+    public ResponseEntity<Deck> createDeckWithParams(
+            @Parameter(description = "Name of the deck") @RequestParam String name,
+            @Parameter(description = "TCG type of the deck") @RequestParam TCGType tcgType,
+            @Parameter(description = "Type of the deck (DECK or LISTA)") @RequestParam DeckType deckType,
+            @Parameter(description = "Unique identifier of the user creating the deck") @RequestParam Long userId) {
+        try {
+            Deck deck = deckService.createDeck(name, tcgType, deckType, userId);
+            return ResponseEntity.ok(deck);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
     }
 }

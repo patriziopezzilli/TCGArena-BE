@@ -30,6 +30,23 @@ public class DeckCard {
     @JsonProperty("card_image_url")
     private String cardImageUrl;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = true)
+    private CardCondition condition;
+
+    @Column(nullable = true)
+    private Boolean isGraded;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = true)
+    private GradeService gradeService;
+
+    @Column(nullable = true)
+    private String grade;
+
+    @Column(nullable = true)
+    private String certificateNumber;
+
     // Getters and Setters
     public Long getId() {
         return id;
@@ -77,5 +94,45 @@ public class DeckCard {
 
     public void setCardImageUrl(String cardImageUrl) {
         this.cardImageUrl = cardImageUrl;
+    }
+
+    public CardCondition getCondition() {
+        return condition != null ? condition : CardCondition.MINT;
+    }
+
+    public void setCondition(CardCondition condition) {
+        this.condition = condition;
+    }
+
+    public Boolean getIsGraded() {
+        return isGraded != null ? isGraded : false;
+    }
+
+    public void setIsGraded(Boolean isGraded) {
+        this.isGraded = isGraded;
+    }
+
+    public GradeService getGradeService() {
+        return gradeService;
+    }
+
+    public void setGradeService(GradeService gradeService) {
+        this.gradeService = gradeService;
+    }
+
+    public String getGrade() {
+        return grade;
+    }
+
+    public void setGrade(String grade) {
+        this.grade = grade;
+    }
+
+    public String getCertificateNumber() {
+        return certificateNumber;
+    }
+
+    public void setCertificateNumber(String certificateNumber) {
+        this.certificateNumber = certificateNumber;
     }
 }

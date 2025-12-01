@@ -19,7 +19,7 @@ public class TournamentService {
     private TournamentParticipantRepository participantRepository;
 
     public List<Tournament> getAllTournaments() {
-        return tournamentRepository.findAll();
+        return tournamentRepository.findAllByOrderByStartDateDesc();
     }
 
     public Optional<Tournament> getTournamentById(Long id) {

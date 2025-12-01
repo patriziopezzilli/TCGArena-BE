@@ -21,6 +21,11 @@ public class Deck {
     @JsonProperty("tcg_type")
     private TCGType tcgType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = true)
+    @JsonProperty("deck_type")
+    private DeckType deckType;
+
     @Column(nullable = false)
     @JsonProperty("owner_id")
     private Long ownerId;
@@ -70,6 +75,14 @@ public class Deck {
 
     public void setTcgType(TCGType tcgType) {
         this.tcgType = tcgType;
+    }
+
+    public DeckType getDeckType() {
+        return deckType != null ? deckType : DeckType.LISTA;
+    }
+
+    public void setDeckType(DeckType deckType) {
+        this.deckType = deckType != null ? deckType : DeckType.LISTA;
     }
 
     public Long getOwnerId() {

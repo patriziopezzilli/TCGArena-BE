@@ -1,5 +1,8 @@
 package com.example.tcgbackend.controller;
 
+import com.example.tcgbackend.dto.RefreshTokenRequest;
+import com.example.tcgbackend.dto.RefreshTokenResponse;
+import com.example.tcgbackend.dto.RegisterRequestDTO;
 import com.example.tcgbackend.model.User;
 import com.example.tcgbackend.security.JwtTokenUtil;
 import com.example.tcgbackend.security.JwtUserDetailsService;
@@ -43,19 +46,34 @@ public class JwtAuthenticationController {
 
         final UserDetails userDetails = userDetailsService.loadUserByUsername(authenticationRequest.getUsername());
         final String token = jwtTokenUtil.generateToken(userDetails);
+        final String refreshToken = jwtTokenUtil.generateRefreshToken(userDetails);
 
         Map<String, Object> response = new HashMap<>();
         response.put("token", token);
+        response.put("refreshToken", refreshToken);
         response.put("user", userService.getUserByUsername(authenticationRequest.getUsername()).orElse(null));
 
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> registerUser(@RequestBody User user) throws Exception {
-        if (userService.getUserByUsername(user.getUsername()).isPresent() ||
-                userService.getUserByEmail(user.getEmail()).isPresent()) {
+    public ResponseEntity<?> registerUser(@RequestBody RegisterRequestDTO registerRequest) throws Exception {
+        if (userService.getUserByUsername(registerRequest.getUsername()).isPresent() ||
+                userService.getUserByEmail(registerRequest.getEmail()).isPresent()) {
             return ResponseEntity.badRequest().body("Username or email already exists");
+        }
+
+        // Create User from DTO
+        User user = new User();
+        user.setEmail(registerRequest.getEmail());
+        user.setUsername(registerRequest.getUsername());
+        user.setDisplayName(registerRequest.getDisplayName() != null ? registerRequest.getDisplayName() : registerRequest.getUsername());
+        user.setPassword(registerRequest.getPassword());
+        user.setDateJoined(LocalDateTime.now());
+        
+        // Set favorite TCGs from the list
+        if (registerRequest.getFavoriteGames() != null && !registerRequest.getFavoriteGames().isEmpty()) {
+            user.setFavoriteTCGTypes(registerRequest.getFavoriteGames());
         }
 
         System.out.println("DEBUG: Registering user: " + user.getUsername());
@@ -64,18 +82,43 @@ public class JwtAuthenticationController {
         String encodedPassword = passwordEncoder.encode(user.getPassword());
         System.out.println("DEBUG: Encoded password: " + encodedPassword);
         user.setPassword(encodedPassword);
-        user.setDateJoined(LocalDateTime.now());
-        user.setDisplayName(user.getUsername());
+        
         User savedUser = userService.saveUser(user);
         System.out.println("DEBUG: User saved with password: " + savedUser.getPassword());
 
         final UserDetails userDetails = userDetailsService.loadUserByUsername(savedUser.getUsername());
         final String token = jwtTokenUtil.generateToken(userDetails);
+        final String refreshToken = jwtTokenUtil.generateRefreshToken(userDetails);
 
         Map<String, Object> response = new HashMap<>();
         response.put("token", token);
+        response.put("refreshToken", refreshToken);
         response.put("user", savedUser);
 
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/refresh-token")
+    public ResponseEntity<?> refreshToken(@RequestBody RefreshTokenRequest refreshTokenRequest) throws Exception {
+        String refreshToken = refreshTokenRequest.getRefreshToken();
+        if (refreshToken == null || refreshToken.isEmpty()) {
+            return ResponseEntity.badRequest().body("Refresh token is required");
+        }
+
+        String username = jwtTokenUtil.getUsernameFromToken(refreshToken);
+        if (username == null) {
+            return ResponseEntity.badRequest().body("Invalid refresh token");
+        }
+
+        final UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+        if (!jwtTokenUtil.validateRefreshToken(refreshToken, userDetails)) {
+            return ResponseEntity.badRequest().body("Invalid or expired refresh token");
+        }
+
+        final String newAccessToken = jwtTokenUtil.generateToken(userDetails);
+        final String newRefreshToken = jwtTokenUtil.generateRefreshToken(userDetails);
+
+        RefreshTokenResponse response = new RefreshTokenResponse(newAccessToken, newRefreshToken);
         return ResponseEntity.ok(response);
     }
 
