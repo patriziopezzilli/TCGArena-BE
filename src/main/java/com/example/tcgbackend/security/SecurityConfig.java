@@ -64,6 +64,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(authz -> authz
                 // Public endpoints - no authentication required
                 .requestMatchers("/api/auth/**", "/api/public/**", "/api/admin/**", "/health", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                // Waiting list endpoints (public)
+                .requestMatchers("/api/waiting-list/**").permitAll()
                 // Public GET endpoints for browsing content
                 .requestMatchers("GET", "/api/cards/**").permitAll()
                 .requestMatchers("GET", "/api/tournaments/**").permitAll()
@@ -73,6 +75,8 @@ public class SecurityConfig {
                 .requestMatchers("GET", "/api/decks/public").permitAll()
                 .requestMatchers("GET", "/api/users").permitAll()
                 .requestMatchers("GET", "/api/users/leaderboard").permitAll()
+                .requestMatchers("GET", "/api/rewards").permitAll()
+                .requestMatchers("GET", "/api/achievements").permitAll()
                 // All other requests require authentication
                 .anyRequest().authenticated()
             )
