@@ -28,15 +28,32 @@ public class JwtRequestFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) throws ServletException {
         String path = request.getRequestURI();
+        String method = request.getMethod();
+        
+        // Always skip JWT filter for these paths
         boolean skip = path.startsWith("/api/waiting-list/") ||
                path.startsWith("/api/auth/") ||
                path.startsWith("/api/public/") ||
                path.startsWith("/api/admin/") ||
+               path.startsWith("/api/shops/") ||
                path.startsWith("/health") ||
                path.startsWith("/swagger-ui/") ||
                path.startsWith("/v3/api-docs/");
+        
+        // Skip JWT filter for public GET endpoints
+        if (!skip && "GET".equals(method)) {
+            skip = path.startsWith("/api/cards/") ||
+                   path.startsWith("/api/tournaments/") ||
+                   path.startsWith("/api/expansions/") ||
+                   path.startsWith("/api/sets/") ||
+                   path.equals("/api/users") ||
+                   path.equals("/api/users/leaderboard") ||
+                   path.startsWith("/api/rewards") ||
+                   path.startsWith("/api/achievements");
+        }
+        
         if (skip) {
-            System.out.println("Skipping JWT filter for path: " + path);
+            System.out.println("Skipping JWT filter for " + method + " " + path);
         }
         return skip;
     }

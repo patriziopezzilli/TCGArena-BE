@@ -35,10 +35,15 @@ public class TournamentService {
         return allTournaments.stream()
             .filter(tournament -> {
                 if (tournament.getLocation() == null) return false;
+                // Check if latitude and longitude are not null before using them
+                Double lat = tournament.getLocation().getLatitude();
+                Double lon = tournament.getLocation().getLongitude();
+                if (lat == null || lon == null) return false;
+                
                 double distance = calculateDistance(
                     latitude, longitude,
-                    tournament.getLocation().getLatitude(),
-                    tournament.getLocation().getLongitude()
+                    lat,
+                    lon
                 );
                 return distance <= radiusKm;
             })

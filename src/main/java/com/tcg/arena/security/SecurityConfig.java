@@ -70,7 +70,7 @@ public class SecurityConfig {
                 // Public GET endpoints for browsing content
                 .requestMatchers("GET", "/api/cards/**").permitAll()
                 .requestMatchers("GET", "/api/tournaments/**").permitAll()
-                .requestMatchers("GET", "/api/shops/**").permitAll()
+                .requestMatchers("/api/shops/**").permitAll()
                 .requestMatchers("GET", "/api/expansions/**").permitAll()
                 .requestMatchers("GET", "/api/sets/**").permitAll()
                 .requestMatchers("GET", "/api/decks/public").permitAll()
