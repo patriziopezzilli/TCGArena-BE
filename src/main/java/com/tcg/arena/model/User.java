@@ -45,9 +45,8 @@ public class User {
     @Enumerated(EnumType.STRING)
     private TCGType favoriteGame; // Deprecated, kept for backward compatibility
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    @JsonProperty("favorite_games")
-    private List<UserFavoriteTCG> favoriteTCGs = new ArrayList<>();
+    @Column(name = "favorite_tcg_types")
+    private String favoriteTCGTypesString; // Comma-separated TCG types: "POKEMON,MAGIC,YUGIOH"
 
     @Embedded
     private UserLocation location;
@@ -167,28 +166,41 @@ public class User {
         this.deviceToken = deviceToken;
     }
 
-    public List<UserFavoriteTCG> getFavoriteTCGs() {
-        return favoriteTCGs;
+    public String getFavoriteTCGTypesString() {
+        return favoriteTCGTypesString;
     }
 
-    public void setFavoriteTCGs(List<UserFavoriteTCG> favoriteTCGs) {
-        this.favoriteTCGs = favoriteTCGs;
+    public void setFavoriteTCGTypesString(String favoriteTCGTypesString) {
+        this.favoriteTCGTypesString = favoriteTCGTypesString;
     }
 
-    // Helper method to get TCG types as a list
+    // Helper method to get TCG types as a list (for JSON serialization)
+    @JsonProperty("favorite_games")
     public List<TCGType> getFavoriteTCGTypes() {
-        return favoriteTCGs.stream()
-                .map(UserFavoriteTCG::getTcgType)
-                .toList();
+        if (favoriteTCGTypesString == null || favoriteTCGTypesString.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<TCGType> types = new ArrayList<>();
+        for (String typeStr : favoriteTCGTypesString.split(",")) {
+            try {
+                types.add(TCGType.valueOf(typeStr.trim()));
+            } catch (IllegalArgumentException e) {
+                // Skip invalid types
+            }
+        }
+        return types;
     }
 
-    // Helper method to set TCG types from a list
+    // Helper method to set TCG types from a list (for JSON deserialization)
+    @JsonProperty("favorite_games")
     public void setFavoriteTCGTypes(List<TCGType> tcgTypes) {
-        favoriteTCGs.clear();
-        if (tcgTypes != null) {
-            for (TCGType tcgType : tcgTypes) {
-                favoriteTCGs.add(new UserFavoriteTCG(this, tcgType));
-            }
+        if (tcgTypes == null || tcgTypes.isEmpty()) {
+            favoriteTCGTypesString = null;
+        } else {
+            favoriteTCGTypesString = tcgTypes.stream()
+                    .map(TCGType::name)
+                    .reduce((a, b) -> a + "," + b)
+                    .orElse(null);
         }
     }
 }
