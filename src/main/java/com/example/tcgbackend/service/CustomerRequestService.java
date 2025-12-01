@@ -5,8 +5,8 @@ import com.example.tcgbackend.model.CustomerRequest;
 import com.example.tcgbackend.model.RequestMessage;
 import com.example.tcgbackend.repository.CustomerRequestRepository;
 import com.example.tcgbackend.repository.RequestMessageRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -18,12 +18,20 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class CustomerRequestService {
+    
+    private static final Logger log = LoggerFactory.getLogger(CustomerRequestService.class);
     
     private final CustomerRequestRepository customerRequestRepository;
     private final RequestMessageRepository requestMessageRepository;
+    
+    public CustomerRequestService(
+        CustomerRequestRepository customerRequestRepository,
+        RequestMessageRepository requestMessageRepository
+    ) {
+        this.customerRequestRepository = customerRequestRepository;
+        this.requestMessageRepository = requestMessageRepository;
+    }
     
     /**
      * Create a new customer request
@@ -37,7 +45,7 @@ public class CustomerRequestService {
         
         CustomerRequest customerRequest = new CustomerRequest();
         customerRequest.setShopId(request.getShopId());
-        customerRequest.setUserId(userId);
+        customerRequest.setUserId(Long.valueOf(userId));
         customerRequest.setType(request.getType());
         customerRequest.setTitle(request.getTitle());
         customerRequest.setDescription(request.getDescription());
@@ -49,7 +57,7 @@ public class CustomerRequestService {
         // Create initial message with the description
         RequestMessage initialMessage = new RequestMessage();
         initialMessage.setRequestId(saved.getId());
-        initialMessage.setSenderId(userId);
+        initialMessage.setSenderId(Long.valueOf(userId));
         initialMessage.setSenderType(RequestMessage.SenderType.USER);
         initialMessage.setMessage(request.getDescription());
         requestMessageRepository.save(initialMessage);
@@ -74,8 +82,8 @@ public class CustomerRequestService {
         
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<CustomerRequest> requestPage = customerRequestRepository.searchRequests(
-            shopId,
-            userId,
+            shopId != null ? Long.valueOf(shopId) : null,
+            userId != null ? Long.valueOf(userId) : null,
             status,
             type,
             pageable
@@ -113,7 +121,7 @@ public class CustomerRequestService {
         CustomerRequest customerRequest = getRequest(requestId);
         
         // Verify shop ownership
-        if (!customerRequest.getShopId().equals(shopId)) {
+        if (!customerRequest.getShopId().equals(Long.valueOf(shopId))) {
             throw new RuntimeException("Unauthorized");
         }
         
@@ -140,7 +148,7 @@ public class CustomerRequestService {
         CustomerRequest customerRequest = getRequest(requestId);
         
         // Verify user ownership
-        if (!customerRequest.getUserId().equals(userId)) {
+        if (!customerRequest.getUserId().equals(Long.valueOf(userId))) {
             throw new RuntimeException("Unauthorized");
         }
         
@@ -189,20 +197,22 @@ public class CustomerRequestService {
         
         CustomerRequest customerRequest = getRequest(requestId);
         
+        Long senderIdLong = Long.valueOf(senderId);
+        
         // Verify authorization
         if (senderType == RequestMessage.SenderType.USER && 
-            !customerRequest.getUserId().equals(senderId)) {
+            !customerRequest.getUserId().equals(senderIdLong)) {
             throw new RuntimeException("Unauthorized");
         }
         if (senderType == RequestMessage.SenderType.MERCHANT && 
-            !customerRequest.getShopId().equals(senderId)) {
+            !customerRequest.getShopId().equals(senderIdLong)) {
             throw new RuntimeException("Unauthorized");
         }
         
         // Create message
         RequestMessage message = new RequestMessage();
         message.setRequestId(requestId);
-        message.setSenderId(senderId);
+        message.setSenderId(senderIdLong);
         message.setSenderType(senderType);
         message.setMessage(request.getMessage());
         
@@ -224,9 +234,11 @@ public class CustomerRequestService {
         
         CustomerRequest customerRequest = getRequest(requestId);
         
+        Long userIdLong = Long.valueOf(userId);
+        
         // Only the recipient can mark as read
-        if (!customerRequest.getUserId().equals(userId) && 
-            !customerRequest.getShopId().equals(userId)) {
+        if (!customerRequest.getUserId().equals(userIdLong) && 
+            !customerRequest.getShopId().equals(userIdLong)) {
             throw new RuntimeException("Unauthorized");
         }
         
@@ -241,23 +253,25 @@ public class CustomerRequestService {
     public RequestStatsResponse getRequestStats(String shopId) {
         log.info("Getting request stats for shop: {}", shopId);
         
+        Long shopIdLong = Long.valueOf(shopId);
+        
         long pendingCount = customerRequestRepository.countByShopIdAndStatus(
-            shopId, 
+            shopIdLong, 
             CustomerRequest.RequestStatus.PENDING
         );
         
         long acceptedCount = customerRequestRepository.countByShopIdAndStatus(
-            shopId,
+            shopIdLong,
             CustomerRequest.RequestStatus.ACCEPTED
         );
         
         long completedCount = customerRequestRepository.countByShopIdAndStatus(
-            shopId,
+            shopIdLong,
             CustomerRequest.RequestStatus.COMPLETED
         );
         
         long unreadCount = customerRequestRepository.countByShopIdAndHasUnreadMessages(
-            shopId,
+            shopIdLong,
             true
         );
         

@@ -16,18 +16,18 @@ public interface CustomerRequestRepository extends JpaRepository<CustomerRequest
     /**
      * Find requests by shop
      */
-    Page<CustomerRequest> findByShopId(String shopId, Pageable pageable);
+    Page<CustomerRequest> findByShopId(Long shopId, Pageable pageable);
     
     /**
      * Find requests by user
      */
-    Page<CustomerRequest> findByUserId(String userId, Pageable pageable);
+    Page<CustomerRequest> findByUserId(Long userId, Pageable pageable);
     
     /**
      * Find requests by shop and status
      */
     Page<CustomerRequest> findByShopIdAndStatus(
-        String shopId, 
+        Long shopId, 
         CustomerRequest.RequestStatus status, 
         Pageable pageable
     );
@@ -36,7 +36,7 @@ public interface CustomerRequestRepository extends JpaRepository<CustomerRequest
      * Find requests by shop and type
      */
     Page<CustomerRequest> findByShopIdAndType(
-        String shopId, 
+        Long shopId, 
         CustomerRequest.RequestType type, 
         Pageable pageable
     );
@@ -53,8 +53,8 @@ public interface CustomerRequestRepository extends JpaRepository<CustomerRequest
         ORDER BY r.createdAt DESC
         """)
     Page<CustomerRequest> searchRequests(
-        @Param("shopId") String shopId,
-        @Param("userId") String userId,
+        @Param("shopId") Long shopId,
+        @Param("userId") Long userId,
         @Param("status") CustomerRequest.RequestStatus status,
         @Param("type") CustomerRequest.RequestType type,
         Pageable pageable
@@ -69,15 +69,15 @@ public interface CustomerRequestRepository extends JpaRepository<CustomerRequest
         AND r.hasUnreadMessages = true
         ORDER BY r.updatedAt DESC
         """)
-    List<CustomerRequest> findUnreadRequests(@Param("shopId") String shopId);
+    List<CustomerRequest> findUnreadRequests(@Param("shopId") Long shopId);
     
     /**
      * Count pending requests by shop
      */
-    long countByShopIdAndStatus(String shopId, CustomerRequest.RequestStatus status);
+    long countByShopIdAndStatus(Long shopId, CustomerRequest.RequestStatus status);
     
     /**
      * Count requests with unread messages
      */
-    long countByShopIdAndHasUnreadMessages(String shopId, Boolean hasUnreadMessages);
+    long countByShopIdAndHasUnreadMessages(Long shopId, Boolean hasUnreadMessages);
 }

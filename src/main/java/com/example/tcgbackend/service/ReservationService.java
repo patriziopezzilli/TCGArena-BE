@@ -4,8 +4,8 @@ import com.example.tcgbackend.dto.ReservationDTO.*;
 import com.example.tcgbackend.model.InventoryCard;
 import com.example.tcgbackend.model.Reservation;
 import com.example.tcgbackend.repository.ReservationRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -19,14 +19,20 @@ import java.util.List;
 import java.util.UUID;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class ReservationService {
+    
+    private static final Logger log = LoggerFactory.getLogger(ReservationService.class);
     
     private final ReservationRepository reservationRepository;
     private final InventoryCardService inventoryCardService;
     
     private static final int RESERVATION_DURATION_MINUTES = 30;
+    
+    public ReservationService(ReservationRepository reservationRepository, 
+                             InventoryCardService inventoryCardService) {
+        this.reservationRepository = reservationRepository;
+        this.inventoryCardService = inventoryCardService;
+    }
     
     /**
      * Create a new reservation
@@ -48,7 +54,7 @@ public class ReservationService {
         // Create reservation
         Reservation reservation = new Reservation();
         reservation.setCardId(request.getCardId());
-        reservation.setUserId(userId);
+        reservation.setUserId(Long.valueOf(userId));
         reservation.setMerchantId(inventoryCard.getShopId());
         reservation.setStatus(Reservation.ReservationStatus.PENDING);
         reservation.setQrCode(UUID.randomUUID().toString());
@@ -77,7 +83,7 @@ public class ReservationService {
         log.info("Getting reservations for user: {}", userId);
         
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<Reservation> reservationPage = reservationRepository.findByUserId(userId, pageable);
+        Page<Reservation> reservationPage = reservationRepository.findByUserId(Long.valueOf(userId), pageable);
         
         return new ReservationListResponse(
             reservationPage.getContent(),
@@ -103,9 +109,9 @@ public class ReservationService {
         Page<Reservation> reservationPage;
         
         if (status == null) {
-            reservationPage = reservationRepository.findByMerchantId(merchantId, pageable);
+            reservationPage = reservationRepository.findByMerchantId(Long.valueOf(merchantId), pageable);
         } else {
-            reservationPage = reservationRepository.findByMerchantIdAndStatus(merchantId, status, pageable);
+            reservationPage = reservationRepository.findByMerchantIdAndStatus(Long.valueOf(merchantId), status, pageable);
         }
         
         return new ReservationListResponse(
@@ -129,8 +135,10 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findByQrCode(request.getQrCode())
             .orElseThrow(() -> new RuntimeException("Invalid QR code"));
         
+        Long merchantIdLong = Long.valueOf(merchantId);
+        
         // Verify merchant
-        if (!reservation.getMerchantId().equals(merchantId)) {
+        if (!reservation.getMerchantId().equals(merchantIdLong)) {
             throw new RuntimeException("Unauthorized: This reservation belongs to a different shop");
         }
         
@@ -164,8 +172,10 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findById(reservationId)
             .orElseThrow(() -> new RuntimeException("Reservation not found"));
         
+        Long merchantIdLong = Long.valueOf(merchantId);
+        
         // Verify merchant
-        if (!reservation.getMerchantId().equals(merchantId)) {
+        if (!reservation.getMerchantId().equals(merchantIdLong)) {
             throw new RuntimeException("Unauthorized");
         }
         
@@ -199,8 +209,10 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findById(reservationId)
             .orElseThrow(() -> new RuntimeException("Reservation not found"));
         
+        Long userIdLong = Long.valueOf(userId);
+        
         // Verify user
-        if (!reservation.getUserId().equals(userId)) {
+        if (!reservation.getUserId().equals(userIdLong)) {
             throw new RuntimeException("Unauthorized");
         }
         
@@ -210,7 +222,6 @@ public class ReservationService {
         }
         
         // Restore inventory quantity
-        InventoryCard card = inventoryCardService.getInventoryCard(reservation.getCardId());
         inventoryCardService.updateQuantity(reservation.getCardId(), 1);
         
         // Update status
@@ -232,25 +243,25 @@ public class ReservationService {
         log.info("Getting reservation stats for merchant: {}", merchantId);
         
         long pendingCount = reservationRepository.findByMerchantIdAndStatus(
-            merchantId, 
+            Long.valueOf(merchantId), 
             Reservation.ReservationStatus.PENDING,
             Pageable.unpaged()
         ).getTotalElements();
         
         long validatedCount = reservationRepository.findByMerchantIdAndStatus(
-            merchantId,
+            Long.valueOf(merchantId),
             Reservation.ReservationStatus.VALIDATED,
             Pageable.unpaged()
         ).getTotalElements();
         
         long pickedUpCount = reservationRepository.findByMerchantIdAndStatus(
-            merchantId,
+            Long.valueOf(merchantId),
             Reservation.ReservationStatus.PICKED_UP,
             Pageable.unpaged()
         ).getTotalElements();
         
         LocalDateTime thresholdTime = LocalDateTime.now().plusMinutes(5);
-        long expiringSoonCount = reservationRepository.findExpiringSoon(merchantId, thresholdTime).size();
+        long expiringSoonCount = reservationRepository.findExpiringSoon(Long.valueOf(merchantId), thresholdTime).size();
         
         return new ReservationStatsResponse(
             pendingCount,

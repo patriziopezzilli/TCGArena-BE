@@ -3,8 +3,8 @@ package com.example.tcgbackend.service;
 import com.example.tcgbackend.dto.InventoryCardDTO.*;
 import com.example.tcgbackend.model.InventoryCard;
 import com.example.tcgbackend.repository.InventoryCardRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -15,18 +15,22 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
-@Slf4j
 public class InventoryCardService {
     
+    private static final Logger log = LoggerFactory.getLogger(InventoryCardService.class);
+    
     private final InventoryCardRepository inventoryCardRepository;
+    
+    public InventoryCardService(InventoryCardRepository inventoryCardRepository) {
+        this.inventoryCardRepository = inventoryCardRepository;
+    }
     
     /**
      * Get inventory for a shop with filters
      */
     @Transactional(readOnly = true)
     public InventoryListResponse getInventory(
-        String shopId,
+        Long shopId,
         InventoryFilters filters,
         int page,
         int size
@@ -148,7 +152,7 @@ public class InventoryCardService {
      * Get inventory statistics
      */
     @Transactional(readOnly = true)
-    public InventoryStatsResponse getInventoryStats(String shopId) {
+    public InventoryStatsResponse getInventoryStats(Long shopId) {
         log.info("Getting inventory stats for shop: {}", shopId);
         
         List<InventoryCard> allInventory = inventoryCardRepository.findByShopId(
@@ -178,7 +182,7 @@ public class InventoryCardService {
      * Get low stock items
      */
     @Transactional(readOnly = true)
-    public List<InventoryCard> getLowStockItems(String shopId, int threshold) {
+    public List<InventoryCard> getLowStockItems(Long shopId, int threshold) {
         log.info("Getting low stock items for shop: {} with threshold: {}", shopId, threshold);
         return inventoryCardRepository.findLowStockItems(shopId, threshold);
     }

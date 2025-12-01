@@ -4,17 +4,19 @@ import com.tcg.arena.dto.WaitingListRequestDTO;
 import com.tcg.arena.dto.WaitingListResponseDTO;
 import com.tcg.arena.model.WaitingListEntry;
 import com.tcg.arena.repository.WaitingListRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class WaitingListService {
     
     private final WaitingListRepository waitingListRepository;
+    
+    public WaitingListService(WaitingListRepository waitingListRepository) {
+        this.waitingListRepository = waitingListRepository;
+    }
     
     @Transactional
     public WaitingListResponseDTO addToWaitingList(WaitingListRequestDTO request) {

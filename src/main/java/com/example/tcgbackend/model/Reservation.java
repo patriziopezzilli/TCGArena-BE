@@ -2,13 +2,11 @@ package com.example.tcgbackend.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -22,9 +20,6 @@ import java.util.UUID;
     @Index(name = "idx_status", columnList = "status"),
     @Index(name = "idx_qr_code", columnList = "qr_code", unique = true)
 })
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class Reservation {
     
     @Id
@@ -37,11 +32,11 @@ public class Reservation {
     
     @Column(name = "user_id", nullable = false)
     @JsonProperty("user_id")
-    private String userId;
+    private Long userId;
     
     @Column(name = "merchant_id", nullable = false)
     @JsonProperty("merchant_id")
-    private String merchantId;
+    private Long merchantId;
     
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -85,6 +80,170 @@ public class Reservation {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "merchant_id", insertable = false, updatable = false)
     private Shop shop;
+    
+    // Constructors
+    public Reservation() {
+    }
+    
+    public Reservation(String id, String cardId, Long userId, Long merchantId, 
+                      ReservationStatus status, String qrCode, LocalDateTime expiresAt, 
+                      LocalDateTime createdAt, LocalDateTime validatedAt, 
+                      LocalDateTime pickedUpAt, LocalDateTime updatedAt) {
+        this.id = id;
+        this.cardId = cardId;
+        this.userId = userId;
+        this.merchantId = merchantId;
+        this.status = status;
+        this.qrCode = qrCode;
+        this.expiresAt = expiresAt;
+        this.createdAt = createdAt;
+        this.validatedAt = validatedAt;
+        this.pickedUpAt = pickedUpAt;
+        this.updatedAt = updatedAt;
+    }
+
+    // Getters and setters
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public String getCardId() {
+        return cardId;
+    }
+
+    public void setCardId(String cardId) {
+        this.cardId = cardId;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
+    public Long getMerchantId() {
+        return merchantId;
+    }
+
+    public void setMerchantId(Long merchantId) {
+        this.merchantId = merchantId;
+    }
+
+    public ReservationStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(ReservationStatus status) {
+        this.status = status;
+    }
+
+    public String getQrCode() {
+        return qrCode;
+    }
+
+    public void setQrCode(String qrCode) {
+        this.qrCode = qrCode;
+    }
+
+    public LocalDateTime getExpiresAt() {
+        return expiresAt;
+    }
+
+    public void setExpiresAt(LocalDateTime expiresAt) {
+        this.expiresAt = expiresAt;
+    }
+    
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+    
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getValidatedAt() {
+        return validatedAt;
+    }
+
+    public void setValidatedAt(LocalDateTime validatedAt) {
+        this.validatedAt = validatedAt;
+    }
+
+    public LocalDateTime getPickedUpAt() {
+        return pickedUpAt;
+    }
+
+    public void setPickedUpAt(LocalDateTime pickedUpAt) {
+        this.pickedUpAt = pickedUpAt;
+    }
+    
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+    
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+    
+    public InventoryCard getCard() {
+        return card;
+    }
+    
+    public void setCard(InventoryCard card) {
+        this.card = card;
+    }
+    
+    public User getUser() {
+        return user;
+    }
+    
+    public void setUser(User user) {
+        this.user = user;
+    }
+    
+    public Shop getShop() {
+        return shop;
+    }
+    
+    public void setShop(Shop shop) {
+        this.shop = shop;
+    }
+    
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Reservation that = (Reservation) o;
+        return Objects.equals(id, that.id);
+    }
+    
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
+    
+    @Override
+    public String toString() {
+        return "Reservation{" +
+                "id='" + id + '\'' +
+                ", cardId='" + cardId + '\'' +
+                ", userId=" + userId +
+                ", merchantId=" + merchantId +
+                ", status=" + status +
+                ", qrCode='" + qrCode + '\'' +
+                ", expiresAt=" + expiresAt +
+                ", createdAt=" + createdAt +
+                ", validatedAt=" + validatedAt +
+                ", pickedUpAt=" + pickedUpAt +
+                ", updatedAt=" + updatedAt +
+                '}';
+    }
     
     public enum ReservationStatus {
         PENDING,

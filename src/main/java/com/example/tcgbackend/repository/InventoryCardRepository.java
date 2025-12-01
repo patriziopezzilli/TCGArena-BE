@@ -16,13 +16,13 @@ public interface InventoryCardRepository extends JpaRepository<InventoryCard, St
     /**
      * Find all inventory cards for a specific shop
      */
-    Page<InventoryCard> findByShopId(String shopId, Pageable pageable);
+    Page<InventoryCard> findByShopId(Long shopId, Pageable pageable);
     
     /**
      * Find inventory cards by shop and condition
      */
     Page<InventoryCard> findByShopIdAndCondition(
-        String shopId, 
+        Long shopId, 
         InventoryCard.CardCondition condition, 
         Pageable pageable
     );
@@ -32,19 +32,19 @@ public interface InventoryCardRepository extends JpaRepository<InventoryCard, St
      */
     @Query("""
         SELECT i FROM InventoryCard i
-        JOIN i.cardTemplate c
+        JOIN CardTemplate ct ON ct.id = i.cardTemplateId
         WHERE i.shopId = :shopId
-        AND (:tcgType IS NULL OR c.tcgType = :tcgType)
+        AND (:tcgType IS NULL OR CAST(ct.tcgType AS string) = :tcgType)
         AND (:condition IS NULL OR i.condition = :condition)
         AND (:minPrice IS NULL OR i.price >= :minPrice)
         AND (:maxPrice IS NULL OR i.price <= :maxPrice)
         AND (:searchQuery IS NULL OR 
-             LOWER(c.name) LIKE LOWER(CONCAT('%', :searchQuery, '%')) OR
-             LOWER(c.setName) LIKE LOWER(CONCAT('%', :searchQuery, '%')))
+             LOWER(ct.name) LIKE LOWER(CONCAT('%', :searchQuery, '%')) OR
+             LOWER(ct.setCode) LIKE LOWER(CONCAT('%', :searchQuery, '%')))
         AND i.quantity > 0
         """)
     Page<InventoryCard> searchInventory(
-        @Param("shopId") String shopId,
+        @Param("shopId") Long shopId,
         @Param("tcgType") String tcgType,
         @Param("condition") InventoryCard.CardCondition condition,
         @Param("minPrice") Double minPrice,
@@ -56,12 +56,12 @@ public interface InventoryCardRepository extends JpaRepository<InventoryCard, St
     /**
      * Find by card template ID and shop
      */
-    List<InventoryCard> findByCardTemplateIdAndShopId(String cardTemplateId, String shopId);
+    List<InventoryCard> findByCardTemplateIdAndShopId(Long cardTemplateId, Long shopId);
     
     /**
      * Count inventory items by shop
      */
-    long countByShopId(String shopId);
+    long countByShopId(Long shopId);
     
     /**
      * Find low stock items (quantity <= threshold)
@@ -73,5 +73,5 @@ public interface InventoryCardRepository extends JpaRepository<InventoryCard, St
         AND i.quantity <= :threshold
         ORDER BY i.quantity ASC
         """)
-    List<InventoryCard> findLowStockItems(@Param("shopId") String shopId, @Param("threshold") int threshold);
+    List<InventoryCard> findLowStockItems(@Param("shopId") Long shopId, @Param("threshold") int threshold);
 }

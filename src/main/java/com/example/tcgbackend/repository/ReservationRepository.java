@@ -23,18 +23,18 @@ public interface ReservationRepository extends JpaRepository<Reservation, String
     /**
      * Find all reservations for a user
      */
-    Page<Reservation> findByUserId(String userId, Pageable pageable);
+    Page<Reservation> findByUserId(Long userId, Pageable pageable);
     
     /**
      * Find all reservations for a merchant
      */
-    Page<Reservation> findByMerchantId(String merchantId, Pageable pageable);
+    Page<Reservation> findByMerchantId(Long merchantId, Pageable pageable);
     
     /**
      * Find reservations by status
      */
     Page<Reservation> findByMerchantIdAndStatus(
-        String merchantId, 
+        Long merchantId, 
         Reservation.ReservationStatus status, 
         Pageable pageable
     );
@@ -49,7 +49,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, String
         AND r.expiresAt > CURRENT_TIMESTAMP
         ORDER BY r.createdAt DESC
         """)
-    List<Reservation> findActiveReservations(@Param("merchantId") String merchantId);
+    List<Reservation> findActiveReservations(@Param("merchantId") Long merchantId);
     
     /**
      * Find expired pending reservations
@@ -71,7 +71,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, String
         AND r.expiresAt > CURRENT_TIMESTAMP
         ORDER BY r.createdAt DESC
         """)
-    List<Reservation> findUserActiveReservations(@Param("userId") String userId);
+    List<Reservation> findUserActiveReservations(@Param("userId") Long userId);
     
     /**
      * Count reservations by card
@@ -90,7 +90,7 @@ public interface ReservationRepository extends JpaRepository<Reservation, String
         ORDER BY r.expiresAt ASC
         """)
     List<Reservation> findExpiringSoon(
-        @Param("merchantId") String merchantId,
+        @Param("merchantId") Long merchantId,
         @Param("thresholdTime") LocalDateTime thresholdTime
     );
 }

@@ -2,13 +2,11 @@ package com.example.tcgbackend.model;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 /**
  * Represents a customer request to a shop
@@ -20,9 +18,6 @@ import java.time.LocalDateTime;
     @Index(name = "idx_status", columnList = "status"),
     @Index(name = "idx_type", columnList = "type")
 })
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class CustomerRequest {
     
     @Id
@@ -31,11 +26,11 @@ public class CustomerRequest {
     
     @Column(name = "shop_id", nullable = false)
     @JsonProperty("shop_id")
-    private String shopId;
+    private Long shopId;
     
     @Column(name = "user_id", nullable = false)
     @JsonProperty("user_id")
-    private String userId;
+    private Long userId;
     
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -77,6 +72,160 @@ public class CustomerRequest {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", insertable = false, updatable = false)
     private User user;
+    
+    // Constructors
+    public CustomerRequest() {
+    }
+    
+    public CustomerRequest(String id, Long shopId, Long userId, RequestType type, String title, 
+                          String description, RequestStatus status, Boolean hasUnreadMessages, 
+                          LocalDateTime createdAt, LocalDateTime updatedAt, LocalDateTime resolvedAt) {
+        this.id = id;
+        this.shopId = shopId;
+        this.userId = userId;
+        this.type = type;
+        this.title = title;
+        this.description = description;
+        this.status = status;
+        this.hasUnreadMessages = hasUnreadMessages;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+        this.resolvedAt = resolvedAt;
+    }
+
+    // Getters and setters
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public Long getShopId() {
+        return shopId;
+    }
+
+    public void setShopId(Long shopId) {
+        this.shopId = shopId;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
+    public RequestType getType() {
+        return type;
+    }
+
+    public void setType(RequestType type) {
+        this.type = type;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public RequestStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(RequestStatus status) {
+        this.status = status;
+    }
+
+    public Boolean getHasUnreadMessages() {
+        return hasUnreadMessages;
+    }
+
+    public void setHasUnreadMessages(Boolean hasUnreadMessages) {
+        this.hasUnreadMessages = hasUnreadMessages;
+    }
+    
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+    
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+    
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+    
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public LocalDateTime getResolvedAt() {
+        return resolvedAt;
+    }
+
+    public void setResolvedAt(LocalDateTime resolvedAt) {
+        this.resolvedAt = resolvedAt;
+    }
+    
+    public Shop getShop() {
+        return shop;
+    }
+    
+    public void setShop(Shop shop) {
+        this.shop = shop;
+    }
+    
+    public User getUser() {
+        return user;
+    }
+    
+    public void setUser(User user) {
+        this.user = user;
+    }
+    
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        CustomerRequest that = (CustomerRequest) o;
+        return Objects.equals(id, that.id);
+    }
+    
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
+    
+    @Override
+    public String toString() {
+        return "CustomerRequest{" +
+                "id='" + id + '\'' +
+                ", shopId=" + shopId +
+                ", userId=" + userId +
+                ", type=" + type +
+                ", title='" + title + '\'' +
+                ", status=" + status +
+                ", hasUnreadMessages=" + hasUnreadMessages +
+                ", createdAt=" + createdAt +
+                ", updatedAt=" + updatedAt +
+                ", resolvedAt=" + resolvedAt +
+                '}';
+    }
     
     public enum RequestType {
         CARD_SEARCH,
