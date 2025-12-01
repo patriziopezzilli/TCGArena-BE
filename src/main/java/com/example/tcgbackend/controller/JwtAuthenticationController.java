@@ -1,11 +1,16 @@
 package com.example.tcgbackend.controller;
 
+import com.example.tcgbackend.dto.MerchantRegistrationRequestDTO;
+import com.example.tcgbackend.dto.MerchantRegistrationResponseDTO;
 import com.example.tcgbackend.dto.RefreshTokenRequest;
 import com.example.tcgbackend.dto.RefreshTokenResponse;
 import com.example.tcgbackend.dto.RegisterRequestDTO;
+import com.example.tcgbackend.model.Shop;
+import com.example.tcgbackend.model.ShopType;
 import com.example.tcgbackend.model.User;
 import com.example.tcgbackend.security.JwtTokenUtil;
 import com.example.tcgbackend.security.JwtUserDetailsService;
+import com.example.tcgbackend.service.ShopService;
 import com.example.tcgbackend.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -36,6 +41,9 @@ public class JwtAuthenticationController {
 
     @Autowired
     private UserService userService;
+
+    @Autowired
+    private ShopService shopService;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -119,6 +127,53 @@ public class JwtAuthenticationController {
         final String newRefreshToken = jwtTokenUtil.generateRefreshToken(userDetails);
 
         RefreshTokenResponse response = new RefreshTokenResponse(newAccessToken, newRefreshToken);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/register-merchant")
+    public ResponseEntity<?> registerMerchant(@RequestBody MerchantRegistrationRequestDTO request) throws Exception {
+        // Check if username or email already exists
+        if (userService.getUserByUsername(request.getUsername()).isPresent()) {
+            return ResponseEntity.badRequest().body("Username already exists");
+        }
+        if (userService.getUserByEmail(request.getEmail()).isPresent()) {
+            return ResponseEntity.badRequest().body("Email already exists");
+        }
+
+        // Create User
+        User user = new User();
+        user.setEmail(request.getEmail());
+        user.setUsername(request.getUsername());
+        user.setDisplayName(request.getDisplayName() != null ? request.getDisplayName() : request.getUsername());
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
+        user.setDateJoined(LocalDateTime.now());
+        user.setIsMerchant(true);
+        user.setIsPremium(false);
+        
+        User savedUser = userService.saveUser(user);
+
+        // Create Shop
+        Shop shop = new Shop();
+        shop.setName(request.getShopName());
+        shop.setDescription(request.getDescription());
+        shop.setAddress(request.getAddress() + ", " + request.getCity() + " " + request.getZipCode());
+        shop.setPhoneNumber(request.getPhone());
+        shop.setType(ShopType.LOCAL_STORE);
+        shop.setIsVerified(false);
+        shop.setOwnerId(savedUser.getId());
+        
+        Shop savedShop = shopService.saveShop(shop);
+
+        // Update user with shopId
+        savedUser.setShopId(savedShop.getId());
+        savedUser = userService.saveUser(savedUser);
+
+        // Generate JWT token
+        final UserDetails userDetails = userDetailsService.loadUserByUsername(savedUser.getUsername());
+        final String token = jwtTokenUtil.generateToken(userDetails);
+
+        // Create response
+        MerchantRegistrationResponseDTO response = new MerchantRegistrationResponseDTO(savedUser, savedShop, token);
         return ResponseEntity.ok(response);
     }
 

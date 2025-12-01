@@ -14,12 +14,26 @@ public class ShopService {
     @Autowired
     private ShopRepository shopRepository;
 
+    /**
+     * Get all active shops (for public API - app)
+     */
     public List<Shop> getAllShops() {
+        return shopRepository.findByActiveTrue();
+    }
+
+    /**
+     * Get all shops including inactive (for admin/backoffice)
+     */
+    public List<Shop> getAllShopsIncludingInactive() {
         return shopRepository.findAll();
     }
 
     public Optional<Shop> getShopById(Long id) {
         return shopRepository.findById(id);
+    }
+
+    public Optional<Shop> getShopByOwnerId(Long ownerId) {
+        return shopRepository.findByOwnerId(ownerId);
     }
 
     public Shop saveShop(Shop shop) {

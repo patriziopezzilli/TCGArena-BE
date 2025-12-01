@@ -34,6 +34,9 @@ public class Shop {
     private Boolean isVerified = false;
 
     @Column(nullable = false)
+    private Boolean active = false;
+
+    @Column(nullable = false)
     private Long ownerId;
 
     private String openingHours; // e.g., "9:00-18:00"
@@ -72,6 +75,9 @@ public class Shop {
 
     public Boolean getIsVerified() { return isVerified; }
     public void setIsVerified(Boolean isVerified) { this.isVerified = isVerified; }
+
+    public Boolean getActive() { return active; }
+    public void setActive(Boolean active) { this.active = active; }
 
     public Long getOwnerId() { return ownerId; }
     public void setOwnerId(Long ownerId) { this.ownerId = ownerId; }
