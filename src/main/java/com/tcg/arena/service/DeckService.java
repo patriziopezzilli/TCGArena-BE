@@ -409,4 +409,46 @@ public class DeckService {
             System.err.println("Error syncing DeckCard to UserCard: " + e.getMessage());
         }
     }
+
+    /**
+     * Creates starter decks for a new user based on their favorite TCG types
+     * Creates "Collezione" and "Wishlist" decks for each favorite TCG
+     * @param userId The ID of the user
+     * @param favoriteTCGTypes List of favorite TCG types
+     */
+    public void createStarterDecksForUser(Long userId, List<TCGType> favoriteTCGTypes) {
+        if (favoriteTCGTypes == null || favoriteTCGTypes.isEmpty()) {
+            return;
+        }
+
+        for (TCGType tcgType : favoriteTCGTypes) {
+            // Create "Collezione" deck
+            Deck collectionDeck = new Deck();
+            collectionDeck.setOwnerId(userId);
+            collectionDeck.setName("Collezione " + tcgType.getDisplayName());
+            collectionDeck.setDescription("La tua collezione di carte " + tcgType.getDisplayName());
+            collectionDeck.setTcgType(tcgType);
+            collectionDeck.setDeckType(DeckType.COLLECTION);
+            collectionDeck.setDateCreated(LocalDateTime.now());
+            collectionDeck.setDateModified(LocalDateTime.now());
+            collectionDeck.setIsPublic(false);
+            deckRepository.save(collectionDeck);
+            
+            System.out.println("Created collection deck for user " + userId + ": " + collectionDeck.getName());
+            
+            // Create "Wishlist" deck
+            Deck wishlistDeck = new Deck();
+            wishlistDeck.setOwnerId(userId);
+            wishlistDeck.setName("Wishlist " + tcgType.getDisplayName());
+            wishlistDeck.setDescription("Le carte che desideri per " + tcgType.getDisplayName());
+            wishlistDeck.setTcgType(tcgType);
+            wishlistDeck.setDeckType(DeckType.WISHLIST);
+            wishlistDeck.setDateCreated(LocalDateTime.now());
+            wishlistDeck.setDateModified(LocalDateTime.now());
+            wishlistDeck.setIsPublic(false);
+            deckRepository.save(wishlistDeck);
+            
+            System.out.println("Created wishlist deck for user " + userId + ": " + wishlistDeck.getName());
+        }
+    }
 }

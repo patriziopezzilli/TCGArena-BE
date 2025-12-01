@@ -10,6 +10,7 @@ import com.tcg.arena.model.ShopType;
 import com.tcg.arena.model.User;
 import com.tcg.arena.security.JwtTokenUtil;
 import com.tcg.arena.security.JwtUserDetailsService;
+import com.tcg.arena.service.DeckService;
 import com.tcg.arena.service.ShopService;
 import com.tcg.arena.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,6 +48,9 @@ public class JwtAuthenticationController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private DeckService deckService;
 
     @PostMapping("/login")
     public ResponseEntity<?> createAuthenticationToken(@RequestBody JwtRequest authenticationRequest) throws Exception {
@@ -93,6 +97,11 @@ public class JwtAuthenticationController {
         
         User savedUser = userService.saveUser(user);
         System.out.println("DEBUG: User saved with password: " + savedUser.getPassword());
+
+        // Create starter decks for favorite TCG types
+        if (registerRequest.getFavoriteGames() != null && !registerRequest.getFavoriteGames().isEmpty()) {
+            deckService.createStarterDecksForUser(savedUser.getId(), registerRequest.getFavoriteGames());
+        }
 
         final UserDetails userDetails = userDetailsService.loadUserByUsername(savedUser.getUsername());
         final String token = jwtTokenUtil.generateToken(userDetails);
