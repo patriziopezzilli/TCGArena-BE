@@ -88,6 +88,11 @@ public class TournamentController {
         // Set the organizerId from the current user
         tournament.setOrganizerId(currentUser.get().getId());
         
+        // Set default status if not provided
+        if (tournament.getStatus() == null) {
+            tournament.setStatus(com.tcg.arena.model.TournamentStatus.UPCOMING);
+        }
+        
         Tournament savedTournament = tournamentService.saveTournament(tournament);
         return ResponseEntity.ok(savedTournament);
     }

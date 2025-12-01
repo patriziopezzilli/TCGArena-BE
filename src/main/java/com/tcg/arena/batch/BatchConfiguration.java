@@ -45,11 +45,10 @@ class TCGCardReader implements ItemReader<CardTemplate> {
 
     private final ApiService apiService;
     private final TCGApiClient tcgApiClient;
-    private final CardTemplateService cardTemplateService;
     private final int startIndex;
     private final int endIndex;
 
-    public TCGCardReader(ApiService apiService, TCGApiClient tcgApiClient, CardTemplateService cardTemplateService, String tcgTypeParam, int startIndex, int endIndex) {
+    public TCGCardReader(ApiService apiService, TCGApiClient tcgApiClient, String tcgTypeParam, int startIndex, int endIndex) {
         if (apiService == null) {
             throw new IllegalArgumentException("ApiService cannot be null");
         }
@@ -58,7 +57,6 @@ class TCGCardReader implements ItemReader<CardTemplate> {
         }
         this.apiService = apiService;
         this.tcgApiClient = tcgApiClient;
-        this.cardTemplateService = cardTemplateService;
         this.startIndex = startIndex;
         this.endIndex = endIndex;
         System.out.println("TCGCardReader initialized with tcgTypeParam: " + tcgTypeParam + ", startIndex: " + startIndex + ", endIndex: " + endIndex);
@@ -140,9 +138,9 @@ class TCGCardReader implements ItemReader<CardTemplate> {
         TCGType currentTcg = tcgTypes[currentTcgIndex];
         System.out.println("Starting import for " + currentTcg + " cards...");
 
-        // Clear existing CardTemplates for this TCG type to avoid duplicates
-        System.out.println("Clearing existing CardTemplates for " + currentTcg);
-        cardTemplateService.deleteByTcgType(currentTcg);
+        // NOTE: We no longer clear existing CardTemplates to preserve data
+        // The processor() method will handle updates for existing cards and only add new ones
+        System.out.println("Importing " + currentTcg + " cards (updating existing and adding new ones)");
 
         List<CardTemplate> cards = null;
         try {
@@ -240,7 +238,7 @@ public class BatchConfiguration {
             @Value("#{jobParameters['endIndex']}") Long endIndexParam) {
         int startIndex = startIndexParam != null ? startIndexParam.intValue() : -99;
         int endIndex = endIndexParam != null ? endIndexParam.intValue() : -99;
-        return new TCGCardReader(apiService, tcgApiClient, cardTemplateService, tcgTypeParam, startIndex, endIndex);
+        return new TCGCardReader(apiService, tcgApiClient, tcgTypeParam, startIndex, endIndex);
     }
 
     @Bean
