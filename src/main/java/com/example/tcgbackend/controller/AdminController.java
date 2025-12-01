@@ -1,8 +1,12 @@
 package com.example.tcgbackend.controller;
 
+import com.example.tcgbackend.model.Achievement;
+import com.example.tcgbackend.model.Reward;
 import com.example.tcgbackend.model.Shop;
 import com.example.tcgbackend.model.TCGType;
+import com.example.tcgbackend.service.AchievementService;
 import com.example.tcgbackend.service.BatchService;
+import com.example.tcgbackend.service.RewardService;
 import com.example.tcgbackend.service.ShopService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -15,6 +19,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -30,6 +35,12 @@ public class AdminController {
 
     @Autowired
     private ShopService shopService;
+
+    @Autowired
+    private RewardService rewardService;
+
+    @Autowired
+    private AchievementService achievementService;
 
     // ========== SHOP MANAGEMENT ENDPOINTS ==========
 
@@ -128,6 +139,203 @@ public class AdminController {
         stats.put("verified", verified);
 
         return ResponseEntity.ok(stats);
+    }
+
+    /**
+     * Update any shop (Super Admin capability)
+     */
+    @PutMapping("/shops/{id}")
+    @PreAuthorize("permitAll()")
+    @Operation(summary = "Update shop (Super Admin)", description = "Allows admin to modify any shop's information")
+    public ResponseEntity<?> updateShop(@PathVariable Long id, @RequestBody Shop updatedShop) {
+        Optional<Shop> shopOpt = shopService.getShopById(id);
+        if (shopOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("Shop not found");
+        }
+
+        Shop existingShop = shopOpt.get();
+
+        // Update all fields (admin has full control)
+        if (updatedShop.getName() != null) existingShop.setName(updatedShop.getName());
+        if (updatedShop.getDescription() != null) existingShop.setDescription(updatedShop.getDescription());
+        if (updatedShop.getAddress() != null) existingShop.setAddress(updatedShop.getAddress());
+        if (updatedShop.getLatitude() != null) existingShop.setLatitude(updatedShop.getLatitude());
+        if (updatedShop.getLongitude() != null) existingShop.setLongitude(updatedShop.getLongitude());
+        if (updatedShop.getPhoneNumber() != null) existingShop.setPhoneNumber(updatedShop.getPhoneNumber());
+        if (updatedShop.getWebsiteUrl() != null) existingShop.setWebsiteUrl(updatedShop.getWebsiteUrl());
+        if (updatedShop.getOpeningHours() != null) existingShop.setOpeningHours(updatedShop.getOpeningHours());
+        if (updatedShop.getOpeningDays() != null) existingShop.setOpeningDays(updatedShop.getOpeningDays());
+        if (updatedShop.getInstagramUrl() != null) existingShop.setInstagramUrl(updatedShop.getInstagramUrl());
+        if (updatedShop.getFacebookUrl() != null) existingShop.setFacebookUrl(updatedShop.getFacebookUrl());
+        if (updatedShop.getTwitterUrl() != null) existingShop.setTwitterUrl(updatedShop.getTwitterUrl());
+        if (updatedShop.getEmail() != null) existingShop.setEmail(updatedShop.getEmail());
+        if (updatedShop.getType() != null) existingShop.setType(updatedShop.getType());
+        if (updatedShop.getActive() != null) existingShop.setActive(updatedShop.getActive());
+        if (updatedShop.getIsVerified() != null) existingShop.setIsVerified(updatedShop.getIsVerified());
+
+        Shop saved = shopService.saveShop(existingShop);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "Shop updated successfully");
+        response.put("shop", saved);
+
+        return ResponseEntity.ok(response);
+    }
+
+    // ========== REWARDS MANAGEMENT ENDPOINTS ==========
+
+    /**
+     * Create a new reward
+     */
+    @PostMapping("/rewards")
+    @PreAuthorize("permitAll()")
+    @Operation(summary = "Create reward", description = "Creates a new reward in the system")
+    public ResponseEntity<?> createReward(@RequestBody Reward reward) {
+        if (reward.getCreatedAt() == null) {
+            reward.setCreatedAt(LocalDateTime.now());
+        }
+        if (reward.getIsActive() == null) {
+            reward.setIsActive(true);
+        }
+        Reward saved = rewardService.saveReward(reward);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "Reward created successfully");
+        response.put("reward", saved);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Update existing reward
+     */
+    @PutMapping("/rewards/{id}")
+    @PreAuthorize("permitAll()")
+    @Operation(summary = "Update reward", description = "Updates an existing reward")
+    public ResponseEntity<?> updateReward(@PathVariable Long id, @RequestBody Reward updatedReward) {
+        Optional<Reward> rewardOpt = rewardService.getRewardById(id);
+        if (rewardOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("Reward not found");
+        }
+
+        Reward existingReward = rewardOpt.get();
+        if (updatedReward.getName() != null) existingReward.setName(updatedReward.getName());
+        if (updatedReward.getDescription() != null) existingReward.setDescription(updatedReward.getDescription());
+        if (updatedReward.getCostPoints() != null) existingReward.setCostPoints(updatedReward.getCostPoints());
+        if (updatedReward.getImageUrl() != null) existingReward.setImageUrl(updatedReward.getImageUrl());
+        if (updatedReward.getIsActive() != null) existingReward.setIsActive(updatedReward.getIsActive());
+
+        Reward saved = rewardService.saveReward(existingReward);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "Reward updated successfully");
+        response.put("reward", saved);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Delete reward (soft delete)
+     */
+    @DeleteMapping("/rewards/{id}")
+    @PreAuthorize("permitAll()")
+    @Operation(summary = "Delete reward", description = "Soft deletes a reward by setting isActive to false")
+    public ResponseEntity<?> deleteReward(@PathVariable Long id) {
+        Optional<Reward> rewardOpt = rewardService.getRewardById(id);
+        if (rewardOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("Reward not found");
+        }
+
+        Reward reward = rewardOpt.get();
+        reward.setIsActive(false);
+        rewardService.saveReward(reward);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "Reward deleted successfully");
+
+        return ResponseEntity.ok(response);
+    }
+
+    // ========== ACHIEVEMENTS MANAGEMENT ENDPOINTS ==========
+
+    /**
+     * Create a new achievement
+     */
+    @PostMapping("/achievements")
+    @PreAuthorize("permitAll()")
+    @Operation(summary = "Create achievement", description = "Creates a new achievement in the system")
+    public ResponseEntity<?> createAchievement(@RequestBody Achievement achievement) {
+        if (achievement.getCreatedAt() == null) {
+            achievement.setCreatedAt(LocalDateTime.now());
+        }
+        if (achievement.getIsActive() == null) {
+            achievement.setIsActive(true);
+        }
+        Achievement saved = achievementService.saveAchievement(achievement);
+        
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "Achievement created successfully");
+        response.put("achievement", saved);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Update existing achievement
+     */
+    @PutMapping("/achievements/{id}")
+    @PreAuthorize("permitAll()")
+    @Operation(summary = "Update achievement", description = "Updates an existing achievement")
+    public ResponseEntity<?> updateAchievement(@PathVariable Long id, @RequestBody Achievement updatedAchievement) {
+        Optional<Achievement> achievementOpt = achievementService.getAchievementById(id);
+        if (achievementOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("Achievement not found");
+        }
+
+        Achievement existingAchievement = achievementOpt.get();
+        if (updatedAchievement.getName() != null) existingAchievement.setName(updatedAchievement.getName());
+        if (updatedAchievement.getDescription() != null) existingAchievement.setDescription(updatedAchievement.getDescription());
+        if (updatedAchievement.getIconUrl() != null) existingAchievement.setIconUrl(updatedAchievement.getIconUrl());
+        if (updatedAchievement.getCriteria() != null) existingAchievement.setCriteria(updatedAchievement.getCriteria());
+        if (updatedAchievement.getPointsReward() != null) existingAchievement.setPointsReward(updatedAchievement.getPointsReward());
+        if (updatedAchievement.getIsActive() != null) existingAchievement.setIsActive(updatedAchievement.getIsActive());
+
+        Achievement saved = achievementService.saveAchievement(existingAchievement);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "Achievement updated successfully");
+        response.put("achievement", saved);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Delete achievement (soft delete)
+     */
+    @DeleteMapping("/achievements/{id}")
+    @PreAuthorize("permitAll()")
+    @Operation(summary = "Delete achievement", description = "Soft deletes an achievement by setting isActive to false")
+    public ResponseEntity<?> deleteAchievement(@PathVariable Long id) {
+        Optional<Achievement> achievementOpt = achievementService.getAchievementById(id);
+        if (achievementOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("Achievement not found");
+        }
+
+        Achievement achievement = achievementOpt.get();
+        achievement.setIsActive(false);
+        achievementService.saveAchievement(achievement);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "Achievement deleted successfully");
+
+        return ResponseEntity.ok(response);
     }
 
     // ========== BATCH IMPORT ENDPOINTS ==========

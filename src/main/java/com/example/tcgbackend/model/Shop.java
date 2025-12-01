@@ -42,6 +42,12 @@ public class Shop {
     private String openingHours; // e.g., "9:00-18:00"
     private String openingDays; // e.g., "Mon-Fri,Sat"
 
+    // Social media links
+    private String instagramUrl;
+    private String facebookUrl;
+    private String twitterUrl;
+    private String email;
+
     @OneToMany(mappedBy = "shopId", cascade = CascadeType.ALL)
     private List<ShopInventory> inventory = new ArrayList<>();
 
@@ -87,6 +93,18 @@ public class Shop {
 
     public String getOpeningDays() { return openingDays; }
     public void setOpeningDays(String openingDays) { this.openingDays = openingDays; }
+
+    public String getInstagramUrl() { return instagramUrl; }
+    public void setInstagramUrl(String instagramUrl) { this.instagramUrl = instagramUrl; }
+
+    public String getFacebookUrl() { return facebookUrl; }
+    public void setFacebookUrl(String facebookUrl) { this.facebookUrl = facebookUrl; }
+
+    public String getTwitterUrl() { return twitterUrl; }
+    public void setTwitterUrl(String twitterUrl) { this.twitterUrl = twitterUrl; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 
     public List<ShopInventory> getInventory() { return inventory; }
     public void setInventory(List<ShopInventory> inventory) { this.inventory = inventory; }
