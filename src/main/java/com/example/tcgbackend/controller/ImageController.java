@@ -8,17 +8,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -47,38 +41,6 @@ public class ImageController {
             return ResponseEntity.ok(image);
         } catch (IOException e) {
             return ResponseEntity.badRequest().body(Map.of("error", "Failed to upload image"));
-        }
-    }
-
-    @GetMapping("/{filename}")
-    @Operation(summary = "Get image file", description = "Retrieves an image file by filename")
-    @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Image retrieved successfully"),
-        @ApiResponse(responseCode = "404", description = "Image not found")
-    })
-    public ResponseEntity<Resource> getImage(@Parameter(description = "Filename of the image") @PathVariable String filename) {
-        try {
-            Path filePath = imageService.getImagePath(filename);
-            Resource resource = new UrlResource(filePath.toUri());
-
-            if (resource.exists() && resource.isReadable()) {
-                // Determine content type
-                String contentType = "application/octet-stream";
-                try {
-                    contentType = Files.probeContentType(filePath);
-                } catch (IOException e) {
-                    // Use default
-                }
-
-                return ResponseEntity.ok()
-                    .contentType(MediaType.parseMediaType(contentType))
-                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + filename + "\"")
-                    .body(resource);
-            } else {
-                return ResponseEntity.notFound().build();
-            }
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
         }
     }
 

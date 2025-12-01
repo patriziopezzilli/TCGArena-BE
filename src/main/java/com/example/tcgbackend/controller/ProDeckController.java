@@ -28,46 +28,8 @@ public class ProDeckController {
             .orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping("/tcg-type/{tcgType}")
-    public List<ProDeck> getProDecksByTcgType(@PathVariable TCGType tcgType) {
-        return proDeckService.getProDecksByTcgType(tcgType);
-    }
-
-    @GetMapping("/author/{author}")
-    public List<ProDeck> getProDecksByAuthor(@PathVariable String author) {
-        return proDeckService.getProDecksByAuthor(author);
-    }
-
-    @GetMapping("/tournament/{tournament}")
-    public List<ProDeck> getProDecksByTournament(@PathVariable String tournament) {
-        return proDeckService.getProDecksByTournament(tournament);
-    }
-
     @GetMapping("/recent")
     public List<ProDeck> getRecentProDecks() {
         return proDeckService.getRecentProDecks();
-    }
-
-    @PostMapping
-    public ProDeck createProDeck(@RequestBody ProDeck proDeck) {
-        return proDeckService.saveProDeck(proDeck);
-    }
-
-    @PutMapping("/{id}")
-    public ResponseEntity<ProDeck> updateProDeck(@PathVariable Long id, @RequestBody ProDeck proDeck) {
-        return proDeckService.getProDeckById(id)
-            .map(existingDeck -> {
-                proDeck.setId(id);
-                return ResponseEntity.ok(proDeckService.saveProDeck(proDeck));
-            })
-            .orElse(ResponseEntity.notFound().build());
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProDeck(@PathVariable Long id) {
-        if (proDeckService.deleteProDeck(id)) {
-            return ResponseEntity.noContent().build();
-        }
-        return ResponseEntity.notFound().build();
     }
 }

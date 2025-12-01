@@ -91,8 +91,4 @@ public class ImageService {
         }
         return false;
     }
-
-    public Path getImagePath(String filename) {
-        return Paths.get(uploadDir).resolve(filename);
-    }
 }
