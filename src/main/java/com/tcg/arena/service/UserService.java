@@ -1,15 +1,12 @@
 package com.tcg.arena.service;
 
-import com.tcg.arena.model.Deck;
 import com.tcg.arena.model.User;
-import com.tcg.arena.model.TCGType;
 import com.tcg.arena.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -63,40 +60,6 @@ public class UserService {
         userActivityService.logActivity(savedUser.getId(),
             com.tcg.arena.model.ActivityType.USER_REGISTERED,
             "Joined TCG Arena");
-
-        // Get list of favorite TCGs - use new favoriteTCGs if available, otherwise fall back to favoriteGame
-        List<TCGType> favoriteTCGTypes = savedUser.getFavoriteTCGTypes();
-        if (favoriteTCGTypes.isEmpty() && savedUser.getFavoriteGame() != null) {
-            // Backward compatibility: if no favoriteTCGs but favoriteGame exists, use it
-            favoriteTCGTypes = List.of(savedUser.getFavoriteGame());
-        }
-
-        // Create default decks for each favorite TCG
-        for (TCGType tcgType : favoriteTCGTypes) {
-            // Create "My Collection" deck for this TCG
-            Deck defaultDeck = new Deck();
-            defaultDeck.setName("My Collection");
-            defaultDeck.setDescription("Default collection deck for " + savedUser.getUsername() + " - " + tcgType.name());
-            defaultDeck.setOwnerId(savedUser.getId());
-            defaultDeck.setIsPublic(true);
-            defaultDeck.setDeckType(com.tcg.arena.model.DeckType.LISTA);
-            defaultDeck.setTcgType(tcgType);
-            defaultDeck.setDateCreated(LocalDateTime.now());
-            defaultDeck.setDateModified(LocalDateTime.now());
-            deckService.saveDeck(defaultDeck);
-
-            // Create "Wishlist" deck for this TCG
-            Deck wishlistDeck = new Deck();
-            wishlistDeck.setName("Wishlist");
-            wishlistDeck.setDescription("Wishlist deck for " + savedUser.getUsername() + " - " + tcgType.name());
-            wishlistDeck.setOwnerId(savedUser.getId());
-            wishlistDeck.setIsPublic(false);
-            wishlistDeck.setDeckType(com.tcg.arena.model.DeckType.LISTA);
-            wishlistDeck.setTcgType(tcgType);
-            wishlistDeck.setDateCreated(LocalDateTime.now());
-            wishlistDeck.setDateModified(LocalDateTime.now());
-            deckService.saveDeck(wishlistDeck);
-        }
 
         // Migrate existing decks to have default deck type
         deckService.migrateExistingDecksToDefaultType();

@@ -1,8 +1,10 @@
 package com.tcg.arena.service;
 
+import com.tcg.arena.config.CacheConfig;
 import com.tcg.arena.model.TCGSet;
 import com.tcg.arena.repository.TCGSetRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,6 +16,7 @@ public class TCGSetService {
     @Autowired
     private TCGSetRepository tcgSetRepository;
 
+    @Cacheable(value = CacheConfig.SETS_CACHE, key = "'all'")
     public List<TCGSet> getAllSets() {
         return tcgSetRepository.findAllByOrderByReleaseDateDesc();
     }

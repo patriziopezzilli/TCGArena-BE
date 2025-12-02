@@ -1,10 +1,12 @@
 package com.tcg.arena.service;
 
+import com.tcg.arena.config.CacheConfig;
 import com.tcg.arena.model.Expansion;
 import com.tcg.arena.model.TCGSet;
 import com.tcg.arena.model.TCGType;
 import com.tcg.arena.repository.ExpansionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -17,6 +19,7 @@ public class ExpansionService {
     @Autowired
     private ExpansionRepository expansionRepository;
 
+    @Cacheable(value = CacheConfig.EXPANSIONS_CACHE, key = "'all'")
     public List<Expansion> getAllExpansions() {
         return expansionRepository.findAllByOrderByReleaseDateDesc();
     }
@@ -25,6 +28,7 @@ public class ExpansionService {
         return expansionRepository.findById(id);
     }
 
+    @Cacheable(value = CacheConfig.EXPANSIONS_CACHE, key = "'tcgType_' + #tcgType.name()")
     public List<Expansion> getExpansionsByTcgType(TCGType tcgType) {
         return expansionRepository.findByTcgType(tcgType).stream()
             .sorted((e1, e2) -> e2.getReleaseDate().compareTo(e1.getReleaseDate()))
@@ -36,6 +40,7 @@ public class ExpansionService {
         return getRecentExpansions(5);
     }
 
+    @Cacheable(value = CacheConfig.RECENT_EXPANSIONS_CACHE, key = "'limit_' + #limit")
     public List<Expansion> getRecentExpansions(int limit) {
         return expansionRepository.findAllByOrderByReleaseDateDesc().stream().limit(limit).collect(Collectors.toList());
     }

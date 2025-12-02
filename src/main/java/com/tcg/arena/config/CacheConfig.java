@@ -8,20 +8,41 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
+import java.util.Arrays;
 
 @Configuration
 @EnableCaching
 public class CacheConfig {
 
+    // Cache names
+    public static final String EXPANSIONS_CACHE = "expansions";
+    public static final String RECENT_EXPANSIONS_CACHE = "recentExpansions";
+    public static final String SETS_CACHE = "sets";
+    public static final String SET_CARDS_CACHE = "setCards";
+    public static final String CARD_TEMPLATES_CACHE = "cardTemplates";
+    public static final String EXPANSION_CARDS_CACHE = "expansionCards";
+
     @Bean
     public CacheManager cacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager();
+        
+        // Set explicit cache names
+        cacheManager.setCacheNames(Arrays.asList(
+            EXPANSIONS_CACHE,
+            RECENT_EXPANSIONS_CACHE,
+            SETS_CACHE,
+            SET_CARDS_CACHE,
+            CARD_TEMPLATES_CACHE,
+            EXPANSION_CARDS_CACHE
+        ));
+        
+        // Configure 3-hour cache for API responses
         cacheManager.setCaffeine(Caffeine.newBuilder()
-                .initialCapacity(100)
-                .maximumSize(1000)
-                .expireAfterWrite(Duration.ofMinutes(30))
-                .weakKeys()
+                .initialCapacity(200)
+                .maximumSize(5000)
+                .expireAfterWrite(Duration.ofHours(3))
                 .recordStats());
+        
         return cacheManager;
     }
 }

@@ -1,11 +1,13 @@
 package com.tcg.arena.service;
 
+import com.tcg.arena.config.CacheConfig;
 import com.tcg.arena.model.CardTemplate;
 import com.tcg.arena.model.Expansion;
 import com.tcg.arena.model.TCGType;
 import com.tcg.arena.repository.CardTemplateRepository;
 import com.tcg.arena.repository.ExpansionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -35,14 +37,17 @@ public class CardTemplateService {
         return cardTemplateRepository.findById(id);
     }
 
+    @Cacheable(value = CacheConfig.CARD_TEMPLATES_CACHE, key = "'tcgType_' + #tcgType")
     public List<CardTemplate> getCardTemplatesByTcgType(String tcgType) {
         return cardTemplateRepository.findByTcgType(tcgType);
     }
 
+    @Cacheable(value = CacheConfig.EXPANSION_CARDS_CACHE, key = "'expansion_' + #expansionId")
     public List<CardTemplate> getCardTemplatesByExpansion(Long expansionId) {
         return cardTemplateRepository.findByExpansionId(expansionId);
     }
 
+    @Cacheable(value = CacheConfig.SET_CARDS_CACHE, key = "'setCode_' + #setCode + '_page_' + #pageable.pageNumber + '_size_' + #pageable.pageSize")
     public Page<CardTemplate> getCardTemplatesBySetCode(String setCode, Pageable pageable) {
         return cardTemplateRepository.findBySetCode(setCode, pageable);
     }

@@ -428,7 +428,7 @@ public class DeckService {
             collectionDeck.setName("Collezione " + tcgType.getDisplayName());
             collectionDeck.setDescription("La tua collezione di carte " + tcgType.getDisplayName());
             collectionDeck.setTcgType(tcgType);
-            collectionDeck.setDeckType(DeckType.COLLECTION);
+            collectionDeck.setDeckType(DeckType.LISTA);
             collectionDeck.setDateCreated(LocalDateTime.now());
             collectionDeck.setDateModified(LocalDateTime.now());
             collectionDeck.setIsPublic(false);
@@ -442,7 +442,7 @@ public class DeckService {
             wishlistDeck.setName("Wishlist " + tcgType.getDisplayName());
             wishlistDeck.setDescription("Le carte che desideri per " + tcgType.getDisplayName());
             wishlistDeck.setTcgType(tcgType);
-            wishlistDeck.setDeckType(DeckType.WISHLIST);
+            wishlistDeck.setDeckType(DeckType.LISTA);
             wishlistDeck.setDateCreated(LocalDateTime.now());
             wishlistDeck.setDateModified(LocalDateTime.now());
             wishlistDeck.setIsPublic(false);
