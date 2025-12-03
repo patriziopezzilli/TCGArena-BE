@@ -2,6 +2,7 @@ package com.tcg.arena.controller;
 
 import com.tcg.arena.model.Notification;
 import com.tcg.arena.service.NotificationService;
+import com.tcg.arena.service.ShopSubscriptionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -21,6 +22,9 @@ public class NotificationController {
 
     @Autowired
     private NotificationService notificationService;
+
+    @Autowired
+    private ShopSubscriptionService subscriptionService;
 
     @GetMapping
     @Operation(summary = "Get user notifications", description = "Retrieves all notifications for the authenticated user")
@@ -88,5 +92,24 @@ public class NotificationController {
         Long userId = 1L;
         notificationService.sendPushNotification(userId, "Test Notification", "This is a test push notification from TCG Arena!");
         return ResponseEntity.ok(Map.of("message", "Test notification sent"));
+    }
+
+    @PostMapping("/shop/{shopId}/broadcast")
+    @Operation(summary = "Send notification to shop subscribers", description = "Sends a notification to all subscribers of a shop (merchant only)")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Notification sent to subscribers"),
+        @ApiResponse(responseCode = "403", description = "Not authorized to send notifications for this shop")
+    })
+    public ResponseEntity<Map<String, String>> sendShopNotification(
+            @Parameter(description = "ID of the shop") @PathVariable Long shopId,
+            @RequestBody Map<String, String> payload) {
+        String title = payload.get("title");
+        String message = payload.get("message");
+
+        // TODO: Check if user is merchant/owner of the shop
+        Long merchantId = 1L; // Mock for now
+
+        notificationService.sendNotificationToShopSubscribers(shopId, title, message);
+        return ResponseEntity.ok(Map.of("message", "Notification sent to shop subscribers"));
     }
 }

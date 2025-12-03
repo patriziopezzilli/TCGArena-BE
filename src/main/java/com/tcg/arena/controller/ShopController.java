@@ -1,49 +1,134 @@
 package com.tcg.arena.controller;
 
 import com.tcg.arena.model.Shop;
+import com.tcg.arena.model.ShopSubscription;
+import com.tcg.arena.model.User;
 import com.tcg.arena.service.ShopService;
+import com.tcg.arena.service.ShopSubscriptionService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/shops")
+@Tag(name = "Shops", description = "API for managing shops and subscriptions")
 public class ShopController {
 
     @Autowired
     private ShopService shopService;
 
+    @Autowired
+    private ShopSubscriptionService subscriptionService;
+
     @GetMapping
+    @Operation(summary = "Get all shops", description = "Retrieves all shops")
     public List<Shop> getAllShops() {
         return shopService.getAllShops();
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<Shop> getShopById(@PathVariable Long id) {
+    @Operation(summary = "Get shop by ID", description = "Retrieves a specific shop by its ID")
+    public ResponseEntity<Shop> getShopById(@Parameter(description = "ID of the shop") @PathVariable Long id) {
         return shopService.getShopById(id)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
+    @Operation(summary = "Create shop", description = "Creates a new shop")
     public Shop createShop(@RequestBody Shop shop) {
         return shopService.saveShop(shop);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Shop> updateShop(@PathVariable Long id, @RequestBody Shop shop) {
+    @Operation(summary = "Update shop", description = "Updates an existing shop")
+    public ResponseEntity<Shop> updateShop(@Parameter(description = "ID of the shop") @PathVariable Long id, @RequestBody Shop shop) {
         return shopService.updateShop(id, shop)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteShop(@PathVariable Long id) {
+    @Operation(summary = "Delete shop", description = "Deletes a shop")
+    public ResponseEntity<Void> deleteShop(@Parameter(description = "ID of the shop") @PathVariable Long id) {
         if (shopService.deleteShop(id)) {
             return ResponseEntity.noContent().build();
         }
         return ResponseEntity.notFound().build();
+    }
+
+    // Shop Subscription Endpoints
+
+    @PostMapping("/{shopId}/subscribe")
+    @Operation(summary = "Subscribe to shop", description = "Subscribes the authenticated user to a shop for notifications")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully subscribed to shop"),
+        @ApiResponse(responseCode = "400", description = "User already subscribed")
+    })
+    public ResponseEntity<Map<String, String>> subscribeToShop(@Parameter(description = "ID of the shop") @PathVariable Long shopId) {
+        // TODO: Get from authentication
+        Long userId = 1L;
+
+        ShopSubscription subscription = subscriptionService.subscribeToShop(userId, shopId);
+        return ResponseEntity.ok(Map.of("message", "Successfully subscribed to shop", "subscriptionId", subscription.getId().toString()));
+    }
+
+    @DeleteMapping("/{shopId}/subscribe")
+    @Operation(summary = "Unsubscribe from shop", description = "Unsubscribes the authenticated user from a shop")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully unsubscribed from shop"),
+        @ApiResponse(responseCode = "404", description = "Subscription not found")
+    })
+    public ResponseEntity<Map<String, String>> unsubscribeFromShop(@Parameter(description = "ID of the shop") @PathVariable Long shopId) {
+        // TODO: Get from authentication
+        Long userId = 1L;
+
+        boolean unsubscribed = subscriptionService.unsubscribeFromShop(userId, shopId);
+        if (unsubscribed) {
+            return ResponseEntity.ok(Map.of("message", "Successfully unsubscribed from shop"));
+        } else {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/{shopId}/subscription")
+    @Operation(summary = "Check subscription status", description = "Checks if the authenticated user is subscribed to a shop")
+    public ResponseEntity<Map<String, Boolean>> checkSubscription(@Parameter(description = "ID of the shop") @PathVariable Long shopId) {
+        // TODO: Get from authentication
+        Long userId = 1L;
+
+        boolean isSubscribed = subscriptionService.isUserSubscribedToShop(userId, shopId);
+        return ResponseEntity.ok(Map.of("subscribed", isSubscribed));
+    }
+
+    @GetMapping("/subscriptions")
+    @Operation(summary = "Get user subscriptions", description = "Retrieves all shops the authenticated user is subscribed to")
+    public List<ShopSubscription> getUserSubscriptions() {
+        // TODO: Get from authentication
+        Long userId = 1L;
+        return subscriptionService.getUserSubscriptions(userId);
+    }
+
+    @GetMapping("/{shopId}/subscribers")
+    @Operation(summary = "Get shop subscribers", description = "Retrieves all users subscribed to a shop (merchant only)")
+    public ResponseEntity<List<User>> getShopSubscribers(@Parameter(description = "ID of the shop") @PathVariable Long shopId) {
+        // TODO: Check if user is merchant/owner of the shop
+        List<User> subscribers = subscriptionService.getShopSubscriberUsers(shopId);
+        return ResponseEntity.ok(subscribers);
+    }
+
+    @GetMapping("/{shopId}/subscriber-count")
+    @Operation(summary = "Get subscriber count", description = "Gets the number of active subscribers for a shop")
+    public ResponseEntity<Map<String, Long>> getSubscriberCount(@Parameter(description = "ID of the shop") @PathVariable Long shopId) {
+        Long count = subscriptionService.getSubscriberCount(shopId);
+        return ResponseEntity.ok(Map.of("count", count));
     }
 }

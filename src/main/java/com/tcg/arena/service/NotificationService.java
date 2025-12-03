@@ -2,6 +2,7 @@ package com.tcg.arena.service;
 
 import com.tcg.arena.model.DeviceToken;
 import com.tcg.arena.model.Notification;
+import com.tcg.arena.model.ShopSubscription;
 import com.tcg.arena.repository.DeviceTokenRepository;
 import com.tcg.arena.repository.NotificationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,6 +22,9 @@ public class NotificationService {
 
     @Autowired
     private FirebaseMessagingService firebaseMessagingService;
+
+    @Autowired
+    private ShopSubscriptionService shopSubscriptionService;
 
     public Notification createNotification(Long userId, String title, String message, String type) {
         Notification notification = new Notification();
@@ -79,6 +83,26 @@ public class NotificationService {
                 firebaseMessagingService.sendPushNotification(deviceToken.getToken(), title, message);
             } catch (Exception e) {
                 System.err.println("Failed to send push notification to device " + deviceToken.getToken() + ": " + e.getMessage());
+            }
+        }
+    }
+
+    // Send notification to all subscribers of a shop
+    public void sendNotificationToShopSubscribers(Long shopId, String title, String message) {
+        List<ShopSubscription> subscriptions = shopSubscriptionService.getShopSubscribers(shopId);
+
+        for (ShopSubscription subscription : subscriptions) {
+            // Create in-app notification for each subscriber
+            createNotification(subscription.getUserId(), title, message, "shop_broadcast");
+
+            // Send push notification to all devices of each subscriber
+            List<DeviceToken> deviceTokens = getUserDeviceTokens(subscription.getUserId());
+            for (DeviceToken deviceToken : deviceTokens) {
+                try {
+                    firebaseMessagingService.sendPushNotification(deviceToken.getToken(), title, message);
+                } catch (Exception e) {
+                    System.err.println("Failed to send push notification to device " + deviceToken.getToken() + ": " + e.getMessage());
+                }
             }
         }
     }
