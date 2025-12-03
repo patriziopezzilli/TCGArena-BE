@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.stream.Collectors;
 
 @Component
 public class JwtRequestFilter extends OncePerRequestFilter {
@@ -48,6 +49,8 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                    path.startsWith("/api/sets/") ||
                    path.equals("/api/users") ||
                    path.equals("/api/users/leaderboard") ||
+                   path.matches("/api/users/\\d+/stats") ||
+                   path.equals("/api/requests") ||
                    path.startsWith("/api/rewards") ||
                    path.startsWith("/api/achievements");
         }
@@ -84,10 +87,27 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             UserDetails userDetails = this.jwtUserDetailsService.loadUserByUsername(username);
 
             if (jwtTokenUtil.validateToken(jwtToken, userDetails)) {
-                UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken =
-                        new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                usernamePasswordAuthenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
+                // Get roles from token claims for better performance
+                java.util.List<String> roles = jwtTokenUtil.getRolesFromToken(jwtToken);
+                
+                if (roles != null && !roles.isEmpty()) {
+                    // Create authorities from token roles
+                    java.util.List<org.springframework.security.core.GrantedAuthority> authorities = 
+                        roles.stream()
+                            .map(org.springframework.security.core.authority.SimpleGrantedAuthority::new)
+                            .collect(Collectors.toList());
+                    
+                    UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken =
+                            new UsernamePasswordAuthenticationToken(userDetails, null, authorities);
+                    usernamePasswordAuthenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
+                } else {
+                    // Fallback to userDetails authorities if no roles in token
+                    UsernamePasswordAuthenticationToken usernamePasswordAuthenticationToken =
+                            new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    usernamePasswordAuthenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(usernamePasswordAuthenticationToken);
+                }
             }
         }
         chain.doFilter(request, response);

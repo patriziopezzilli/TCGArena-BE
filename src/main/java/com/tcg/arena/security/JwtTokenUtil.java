@@ -51,6 +51,10 @@ public class JwtTokenUtil {
 
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
+        // Add roles to the token claims
+        claims.put("roles", userDetails.getAuthorities().stream()
+                .map(authority -> authority.getAuthority())
+                .toList());
         return doGenerateToken(claims, userDetails.getUsername());
     }
 
@@ -79,6 +83,13 @@ public class JwtTokenUtil {
     public Boolean validateRefreshToken(String token, UserDetails userDetails) {
         final String username = getUsernameFromToken(token);
         return (username.equals(userDetails.getUsername()) && !isTokenExpired(token));
+    }
+
+    public java.util.List<String> getRolesFromToken(String token) {
+        Claims claims = getAllClaimsFromToken(token);
+        @SuppressWarnings("unchecked")
+        java.util.List<String> roles = (java.util.List<String>) claims.get("roles");
+        return roles != null ? roles : new java.util.ArrayList<>();
     }
 
     private Key getSignInKey() {

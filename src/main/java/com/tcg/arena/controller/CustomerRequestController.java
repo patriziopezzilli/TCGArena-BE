@@ -3,6 +3,7 @@ package com.tcg.arena.controller;
 import com.tcg.arena.dto.CustomerRequestDTO.*;
 import com.tcg.arena.model.CustomerRequest;
 import com.tcg.arena.model.RequestMessage;
+import com.tcg.arena.repository.UserRepository;
 import com.tcg.arena.service.CustomerRequestService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -21,26 +22,40 @@ public class CustomerRequestController {
     private static final Logger log = LoggerFactory.getLogger(CustomerRequestController.class);
     
     private final CustomerRequestService customerRequestService;
+    private final UserRepository userRepository;
     
-    public CustomerRequestController(CustomerRequestService customerRequestService) {
+    public CustomerRequestController(
+        CustomerRequestService customerRequestService,
+        UserRepository userRepository
+    ) {
         this.customerRequestService = customerRequestService;
+        this.userRepository = userRepository;
     }
     
     /**
-     * Create a new request (Player)
+     * Create a new request (Player or Merchant)
      * POST /api/requests
      */
     @PostMapping
-    @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<CustomerRequest> createRequest(
+    @PreAuthorize("hasRole('USER') or hasRole('MERCHANT')")
+    public ResponseEntity<CustomerRequestSummaryDTO> createRequest(
         Authentication authentication,
         @Valid @RequestBody CreateRequestRequest request
     ) {
-        String userId = authentication.getName();
-        log.info("POST /api/requests - user: {}, shop: {}", userId, request.getShopId());
+        String username = authentication.getName();
+        
+        // Get user ID from database using username
+        com.tcg.arena.model.User user = userRepository.findByUsername(username)
+            .orElseThrow(() -> new RuntimeException("User not found: " + username));
+        
+        String userId = String.valueOf(user.getId());
+        log.info("POST /api/requests - user: {} (ID: {}), shop: {}", username, userId, request.getShopId());
         
         CustomerRequest created = customerRequestService.createRequest(userId, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        CustomerRequestSummaryDTO dto = new CustomerRequestSummaryDTO(created);
+        // Set message count for new request
+        dto.setMessageCount(1); // Initial message is created
+        return ResponseEntity.status(HttpStatus.CREATED).body(dto);
     }
     
     /**
@@ -80,11 +95,15 @@ public class CustomerRequestController {
      * GET /api/requests/{id}
      */
     @GetMapping("/{id}")
-    public ResponseEntity<CustomerRequest> getRequest(@PathVariable String id) {
+    public ResponseEntity<CustomerRequestSummaryDTO> getRequest(@PathVariable String id) {
         log.info("GET /api/requests/{}", id);
         
         CustomerRequest request = customerRequestService.getRequest(id);
-        return ResponseEntity.ok(request);
+        CustomerRequestSummaryDTO dto = new CustomerRequestSummaryDTO(request);
+        // Calculate message count
+        int messageCount = (int) customerRequestService.getMessages(id).getMessages().size();
+        dto.setMessageCount(messageCount);
+        return ResponseEntity.ok(dto);
     }
     
     /**
@@ -93,7 +112,7 @@ public class CustomerRequestController {
      */
     @PutMapping("/{id}/status")
     @PreAuthorize("hasRole('MERCHANT')")
-    public ResponseEntity<CustomerRequest> updateRequestStatus(
+    public ResponseEntity<CustomerRequestSummaryDTO> updateRequestStatus(
         @PathVariable String id,
         @RequestParam String shopId,
         @Valid @RequestBody UpdateRequestStatusRequest request
@@ -102,7 +121,11 @@ public class CustomerRequestController {
                  id, shopId, request.getStatus());
         
         CustomerRequest updated = customerRequestService.updateRequestStatus(shopId, id, request);
-        return ResponseEntity.ok(updated);
+        CustomerRequestSummaryDTO dto = new CustomerRequestSummaryDTO(updated);
+        // Calculate message count
+        int messageCount = (int) customerRequestService.getMessages(id).getMessages().size();
+        dto.setMessageCount(messageCount);
+        return ResponseEntity.ok(dto);
     }
     
     /**
@@ -111,15 +134,25 @@ public class CustomerRequestController {
      */
     @PostMapping("/{id}/cancel")
     @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<CustomerRequest> cancelRequest(
+    public ResponseEntity<CustomerRequestSummaryDTO> cancelRequest(
         Authentication authentication,
         @PathVariable String id
     ) {
-        String userId = authentication.getName();
-        log.info("POST /api/requests/{}/cancel - user: {}", id, userId);
+        String username = authentication.getName();
+        
+        // Get user ID from database using username
+        com.tcg.arena.model.User user = userRepository.findByUsername(username)
+            .orElseThrow(() -> new RuntimeException("User not found: " + username));
+        
+        String userId = String.valueOf(user.getId());
+        log.info("POST /api/requests/{}/cancel - user: {} (ID: {})", id, username, userId);
         
         CustomerRequest cancelled = customerRequestService.cancelRequest(userId, id);
-        return ResponseEntity.ok(cancelled);
+        CustomerRequestSummaryDTO dto = new CustomerRequestSummaryDTO(cancelled);
+        // Calculate message count
+        int messageCount = (int) customerRequestService.getMessages(id).getMessages().size();
+        dto.setMessageCount(messageCount);
+        return ResponseEntity.ok(dto);
     }
     
     /**
@@ -145,8 +178,14 @@ public class CustomerRequestController {
         @PathVariable String id,
         @Valid @RequestBody SendMessageRequest request
     ) {
-        String userId = authentication.getName();
-        log.info("POST /api/requests/{}/messages - user: {}", id, userId);
+        String username = authentication.getName();
+        
+        // Get user ID from database using username
+        com.tcg.arena.model.User user = userRepository.findByUsername(username)
+            .orElseThrow(() -> new RuntimeException("User not found: " + username));
+        
+        String userId = String.valueOf(user.getId());
+        log.info("POST /api/requests/{}/messages - user: {} (ID: {})", id, username, userId);
         
         RequestMessage message = customerRequestService.sendMessage(
             id,
@@ -188,8 +227,14 @@ public class CustomerRequestController {
         Authentication authentication,
         @PathVariable String id
     ) {
-        String userId = authentication.getName();
-        log.info("POST /api/requests/{}/read - user: {}", id, userId);
+        String username = authentication.getName();
+        
+        // Get user ID from database using username
+        com.tcg.arena.model.User user = userRepository.findByUsername(username)
+            .orElseThrow(() -> new RuntimeException("User not found: " + username));
+        
+        String userId = String.valueOf(user.getId());
+        log.info("POST /api/requests/{}/read - user: {} (ID: {})", id, username, userId);
         
         customerRequestService.markAsRead(id, userId);
         return ResponseEntity.ok().build();

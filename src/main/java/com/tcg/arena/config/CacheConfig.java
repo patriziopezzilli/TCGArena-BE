@@ -21,6 +21,8 @@ public class CacheConfig {
     public static final String SET_CARDS_CACHE = "setCards";
     public static final String CARD_TEMPLATES_CACHE = "cardTemplates";
     public static final String EXPANSION_CARDS_CACHE = "expansionCards";
+    public static final String USER_STATS_CACHE = "userStats";
+    public static final String LEADERBOARD_CACHE = "leaderboard";
 
     @Bean
     public CacheManager cacheManager() {
@@ -33,7 +35,9 @@ public class CacheConfig {
             SETS_CACHE,
             SET_CARDS_CACHE,
             CARD_TEMPLATES_CACHE,
-            EXPANSION_CARDS_CACHE
+            EXPANSION_CARDS_CACHE,
+            USER_STATS_CACHE,
+            LEADERBOARD_CACHE
         ));
         
         // Configure 3-hour cache for API responses

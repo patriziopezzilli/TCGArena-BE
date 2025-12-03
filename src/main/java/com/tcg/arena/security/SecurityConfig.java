@@ -76,6 +76,8 @@ public class SecurityConfig {
                 .requestMatchers("GET", "/api/decks/public").permitAll()
                 .requestMatchers("GET", "/api/users").permitAll()
                 .requestMatchers("GET", "/api/users/leaderboard").permitAll()
+                .requestMatchers("GET", "/api/users/*/stats").permitAll()
+                .requestMatchers("GET", "/api/requests").permitAll()
                 .requestMatchers("GET", "/api/rewards").permitAll()
                 .requestMatchers("GET", "/api/achievements").permitAll()
                 // All other requests require authentication

@@ -127,6 +127,8 @@ public class MerchantBackofficeController {
         if (updatedShop.getTwitterUrl() != null) existingShop.setTwitterUrl(updatedShop.getTwitterUrl());
         if (updatedShop.getEmail() != null) existingShop.setEmail(updatedShop.getEmail());
         if (updatedShop.getType() != null) existingShop.setType(updatedShop.getType());
+        if (updatedShop.getTcgTypes() != null) existingShop.setTcgTypes(updatedShop.getTcgTypes());
+        if (updatedShop.getServices() != null) existingShop.setServices(updatedShop.getServices());
 
         Shop saved = shopService.saveShop(existingShop);
 

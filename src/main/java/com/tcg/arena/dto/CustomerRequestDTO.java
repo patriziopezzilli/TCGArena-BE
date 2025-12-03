@@ -185,7 +185,7 @@ public class CustomerRequestDTO {
     }
     
     public static class RequestListResponse {
-        private java.util.List<CustomerRequest> requests;
+        private java.util.List<CustomerRequestSummaryDTO> requests;
         private int total;
         private int page;
         private int pageSize;
@@ -194,18 +194,18 @@ public class CustomerRequestDTO {
         }
 
         // Constructor with arguments
-        public RequestListResponse(java.util.List<CustomerRequest> requests, int total, int page, int pageSize) {
+        public RequestListResponse(java.util.List<CustomerRequestSummaryDTO> requests, int total, int page, int pageSize) {
             this.requests = requests;
             this.total = total;
             this.page = page;
             this.pageSize = pageSize;
         }
         
-        public java.util.List<CustomerRequest> getRequests() {
+        public java.util.List<CustomerRequestSummaryDTO> getRequests() {
             return requests;
         }
         
-        public void setRequests(java.util.List<CustomerRequest> requests) {
+        public void setRequests(java.util.List<CustomerRequestSummaryDTO> requests) {
             this.requests = requests;
         }
         
@@ -341,6 +341,210 @@ public class CustomerRequestDTO {
                     ", completedCount=" + completedCount +
                     ", unreadCount=" + unreadCount +
                     '}';
+        }
+    }
+    
+    public static class CustomerRequestSummaryDTO {
+        
+        private String id;
+        
+        @JsonProperty("user_id")
+        private Long userId;
+        
+        @JsonProperty("shop_id")
+        private Long shopId;
+        
+        private CustomerRequest.RequestType type;
+        private CustomerRequest.RequestStatus status;
+        private String title;
+        private String description;
+        
+        @JsonProperty("has_unread_messages")
+        private Boolean hasUnreadMessages;
+        
+        @JsonProperty("message_count")
+        private int messageCount;
+        
+        @JsonProperty("created_at")
+        private java.time.LocalDateTime createdAt;
+        
+        @JsonProperty("updated_at")
+        private java.time.LocalDateTime updatedAt;
+        
+        @JsonProperty("resolved_at")
+        private java.time.LocalDateTime resolvedAt;
+        
+        // Shop info (without full entity)
+        @JsonProperty("shop_name")
+        private String shopName;
+        
+        @JsonProperty("shop_address")
+        private String shopAddress;
+        
+        // User info (without full entity)
+        @JsonProperty("user_name")
+        private String userName;
+        
+        @JsonProperty("user_avatar")
+        private String userAvatar;
+        
+        public CustomerRequestSummaryDTO() {
+        }
+        
+        public CustomerRequestSummaryDTO(CustomerRequest request) {
+            this.id = request.getId();
+            this.userId = request.getUserId();
+            this.shopId = request.getShopId();
+            this.type = request.getType();
+            this.status = request.getStatus();
+            this.title = request.getTitle();
+            this.description = request.getDescription();
+            this.hasUnreadMessages = request.getHasUnreadMessages();
+            this.messageCount = 0; // Will be calculated separately
+            this.createdAt = request.getCreatedAt();
+            this.updatedAt = request.getUpdatedAt();
+            this.resolvedAt = request.getResolvedAt();
+            
+            // Extract shop info if available
+            if (request.getShop() != null) {
+                this.shopName = request.getShop().getName();
+                this.shopAddress = request.getShop().getAddress();
+            }
+            
+            // Extract user info if available
+            if (request.getUser() != null) {
+                this.userName = request.getUser().getDisplayName();
+                this.userAvatar = request.getUser().getProfileImageUrl();
+            }
+        }
+        
+        // Getters and setters
+        public String getId() {
+            return id;
+        }
+        
+        public void setId(String id) {
+            this.id = id;
+        }
+        
+        public Long getUserId() {
+            return userId;
+        }
+        
+        public void setUserId(Long userId) {
+            this.userId = userId;
+        }
+        
+        public Long getShopId() {
+            return shopId;
+        }
+        
+        public void setShopId(Long shopId) {
+            this.shopId = shopId;
+        }
+        
+        public CustomerRequest.RequestType getType() {
+            return type;
+        }
+        
+        public void setType(CustomerRequest.RequestType type) {
+            this.type = type;
+        }
+        
+        public CustomerRequest.RequestStatus getStatus() {
+            return status;
+        }
+        
+        public void setStatus(CustomerRequest.RequestStatus status) {
+            this.status = status;
+        }
+        
+        public String getTitle() {
+            return title;
+        }
+        
+        public void setTitle(String title) {
+            this.title = title;
+        }
+        
+        public String getDescription() {
+            return description;
+        }
+        
+        public void setDescription(String description) {
+            this.description = description;
+        }
+        
+        public Boolean getHasUnreadMessages() {
+            return hasUnreadMessages;
+        }
+        
+        public void setHasUnreadMessages(Boolean hasUnreadMessages) {
+            this.hasUnreadMessages = hasUnreadMessages;
+        }
+        
+        public int getMessageCount() {
+            return messageCount;
+        }
+        
+        public void setMessageCount(int messageCount) {
+            this.messageCount = messageCount;
+        }
+        
+        public java.time.LocalDateTime getCreatedAt() {
+            return createdAt;
+        }
+        
+        public void setCreatedAt(java.time.LocalDateTime createdAt) {
+            this.createdAt = createdAt;
+        }
+        
+        public java.time.LocalDateTime getUpdatedAt() {
+            return updatedAt;
+        }
+        
+        public void setUpdatedAt(java.time.LocalDateTime updatedAt) {
+            this.updatedAt = updatedAt;
+        }
+        
+        public java.time.LocalDateTime getResolvedAt() {
+            return resolvedAt;
+        }
+        
+        public void setResolvedAt(java.time.LocalDateTime resolvedAt) {
+            this.resolvedAt = resolvedAt;
+        }
+        
+        public String getShopName() {
+            return shopName;
+        }
+        
+        public void setShopName(String shopName) {
+            this.shopName = shopName;
+        }
+        
+        public String getShopAddress() {
+            return shopAddress;
+        }
+        
+        public void setShopAddress(String shopAddress) {
+            this.shopAddress = shopAddress;
+        }
+        
+        public String getUserName() {
+            return userName;
+        }
+        
+        public void setUserName(String userName) {
+            this.userName = userName;
+        }
+        
+        public String getUserAvatar() {
+            return userAvatar;
+        }
+        
+        public void setUserAvatar(String userAvatar) {
+            this.userAvatar = userAvatar;
         }
     }
     

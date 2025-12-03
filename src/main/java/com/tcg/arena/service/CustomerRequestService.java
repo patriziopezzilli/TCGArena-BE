@@ -89,8 +89,19 @@ public class CustomerRequestService {
             pageable
         );
         
+        // Convert to DTOs to avoid Hibernate proxy serialization issues
+        List<CustomerRequestSummaryDTO> dtos = requestPage.getContent().stream()
+            .map(request -> {
+                CustomerRequestSummaryDTO dto = new CustomerRequestSummaryDTO(request);
+                // Calculate message count
+                int messageCount = (int) requestMessageRepository.countByRequestId(request.getId());
+                dto.setMessageCount(messageCount);
+                return dto;
+            })
+            .toList();
+        
         return new RequestListResponse(
-            requestPage.getContent(),
+            dtos,
             (int) requestPage.getTotalElements(),
             page,
             size

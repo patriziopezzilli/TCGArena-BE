@@ -48,6 +48,16 @@ public class Shop {
     private String twitterUrl;
     private String email;
 
+    // TCG Types supported (stored as comma-separated string)
+    // e.g., "POKEMON,MAGIC,YUGIOH,ONE_PIECE,DRAGON_BALL,LORCANA"
+    @Column(length = 500)
+    private String tcgTypes;
+
+    // Services offered (stored as comma-separated string)
+    // e.g., "BUY_CARDS,SELL_CARDS,TRADE,TOURNAMENTS,CARD_GRADING,PREORDERS,SEALED_PRODUCTS,ACCESSORIES,PLAY_AREA,EVENTS"
+    @Column(length = 1000)
+    private String services;
+
     @OneToMany(mappedBy = "shopId", cascade = CascadeType.ALL)
     private List<ShopInventory> inventory = new ArrayList<>();
 
@@ -108,4 +118,41 @@ public class Shop {
 
     public List<ShopInventory> getInventory() { return inventory; }
     public void setInventory(List<ShopInventory> inventory) { this.inventory = inventory; }
+
+    public String getTcgTypes() { return tcgTypes; }
+    public void setTcgTypes(String tcgTypes) { this.tcgTypes = tcgTypes; }
+
+    public String getServices() { return services; }
+    public void setServices(String services) { this.services = services; }
+
+    // Helper methods to convert comma-separated strings to/from Lists
+    public List<String> getTcgTypesList() {
+        if (tcgTypes == null || tcgTypes.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return List.of(tcgTypes.split(","));
+    }
+
+    public void setTcgTypesList(List<String> types) {
+        if (types == null || types.isEmpty()) {
+            this.tcgTypes = null;
+        } else {
+            this.tcgTypes = String.join(",", types);
+        }
+    }
+
+    public List<String> getServicesList() {
+        if (services == null || services.isEmpty()) {
+            return new ArrayList<>();
+        }
+        return List.of(services.split(","));
+    }
+
+    public void setServicesList(List<String> servicesList) {
+        if (servicesList == null || servicesList.isEmpty()) {
+            this.services = null;
+        } else {
+            this.services = String.join(",", servicesList);
+        }
+    }
 }

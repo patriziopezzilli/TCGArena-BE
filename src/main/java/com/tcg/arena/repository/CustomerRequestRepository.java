@@ -45,7 +45,9 @@ public interface CustomerRequestRepository extends JpaRepository<CustomerRequest
      * Complex search with multiple filters
      */
     @Query("""
-        SELECT r FROM CustomerRequest r
+        SELECT DISTINCT r FROM CustomerRequest r
+        LEFT JOIN FETCH r.shop
+        LEFT JOIN FETCH r.user
         WHERE (:shopId IS NULL OR r.shopId = :shopId)
         AND (:userId IS NULL OR r.userId = :userId)
         AND (:status IS NULL OR r.status = :status)

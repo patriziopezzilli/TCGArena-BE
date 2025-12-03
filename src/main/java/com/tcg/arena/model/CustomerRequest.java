@@ -228,34 +228,31 @@ public class CustomerRequest {
     }
     
     public enum RequestType {
-        CARD_SEARCH,
-        PRICE_CHECK,
-        BULK_SALE,
-        TRADE_IN,
-        REPAIR_SERVICE,
-        CUSTOM_ORDER,
+        AVAILABILITY,
+        EVALUATION,
+        SELL,
+        BUY,
+        TRADE,
         GENERAL;
         
         public String getDisplayName() {
             return switch (this) {
-                case CARD_SEARCH -> "Card Search";
-                case PRICE_CHECK -> "Price Check";
-                case BULK_SALE -> "Bulk Sale";
-                case TRADE_IN -> "Trade In";
-                case REPAIR_SERVICE -> "Repair Service";
-                case CUSTOM_ORDER -> "Custom Order";
-                case GENERAL -> "General Question";
+                case AVAILABILITY -> "Card Availability";
+                case EVALUATION -> "Card Evaluation";
+                case SELL -> "Sell Cards";
+                case BUY -> "Buy Request";
+                case TRADE -> "Trade Proposal";
+                case GENERAL -> "General Inquiry";
             };
         }
         
         public String getIcon() {
             return switch (this) {
-                case CARD_SEARCH -> "magnifyingglass";
-                case PRICE_CHECK -> "dollarsign.circle";
-                case BULK_SALE -> "cart.fill";
-                case TRADE_IN -> "arrow.triangle.2.circlepath";
-                case REPAIR_SERVICE -> "wrench.and.screwdriver";
-                case CUSTOM_ORDER -> "star.fill";
+                case AVAILABILITY -> "magnifyingglass";
+                case EVALUATION -> "dollarsign.circle";
+                case SELL -> "arrow.up.circle";
+                case BUY -> "cart";
+                case TRADE -> "arrow.left.arrow.right";
                 case GENERAL -> "questionmark.circle";
             };
         }
