@@ -1,8 +1,5 @@
 package com.tcg.arena.service;
 
-import com.tcg.arena.dto.InventoryCardDTO.*;
-import com.tcg.arena.model.InventoryCard;
-import com.tcg.arena.repository.InventoryCardRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -13,6 +10,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.time.LocalDateTime;
+
+import com.tcg.arena.dto.InventoryCardDTO.*;
+import com.tcg.arena.model.InventoryCard;
+import com.tcg.arena.repository.InventoryCardRepository;
+import com.tcg.arena.service.CardTemplateService;
 
 @Service
 public class InventoryCardService {
@@ -20,9 +23,11 @@ public class InventoryCardService {
     private static final Logger log = LoggerFactory.getLogger(InventoryCardService.class);
     
     private final InventoryCardRepository inventoryCardRepository;
+    private final CardTemplateService cardTemplateService;
     
-    public InventoryCardService(InventoryCardRepository inventoryCardRepository) {
+    public InventoryCardService(InventoryCardRepository inventoryCardRepository, CardTemplateService cardTemplateService) {
         this.inventoryCardRepository = inventoryCardRepository;
+        this.cardTemplateService = cardTemplateService;
     }
     
     /**
@@ -80,6 +85,11 @@ public class InventoryCardService {
     public InventoryCard createInventoryCard(CreateInventoryCardRequest request) {
         log.info("Creating inventory card for shop: {}", request.getShopId());
         
+        // Validate that the card template exists
+        if (!cardTemplateService.getCardTemplateById(request.getCardTemplateId()).isPresent()) {
+            throw new RuntimeException("Card template not found: " + request.getCardTemplateId());
+        }
+        
         InventoryCard inventoryCard = new InventoryCard();
         inventoryCard.setCardTemplateId(request.getCardTemplateId());
         inventoryCard.setShopId(request.getShopId());
@@ -87,6 +97,12 @@ public class InventoryCardService {
         inventoryCard.setPrice(request.getPrice());
         inventoryCard.setQuantity(request.getQuantity());
         inventoryCard.setNotes(request.getNotes());
+        inventoryCard.setNationality(request.getNationality());
+        
+        // Set timestamps manually since @CreationTimestamp is not used
+        LocalDateTime now = LocalDateTime.now();
+        inventoryCard.setCreatedAt(now);
+        inventoryCard.setUpdatedAt(now);
         
         return inventoryCardRepository.save(inventoryCard);
     }
@@ -111,6 +127,9 @@ public class InventoryCardService {
         }
         if (request.getNotes() != null) {
             inventoryCard.setNotes(request.getNotes());
+        }
+        if (request.getNationality() != null) {
+            inventoryCard.setNationality(request.getNationality());
         }
         
         return inventoryCardRepository.save(inventoryCard);

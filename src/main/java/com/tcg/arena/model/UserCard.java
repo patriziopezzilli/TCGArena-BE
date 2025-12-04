@@ -39,7 +39,9 @@ public class UserCard {
 
     private Long deckId;
 
-    // Getters and Setters
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = true)
+    private CardNationality nationality;
     public Long getId() {
         return id;
     }
@@ -126,5 +128,13 @@ public class UserCard {
 
     public void setDeckId(Long deckId) {
         this.deckId = deckId;
+    }
+
+    public CardNationality getNationality() {
+        return nationality != null ? nationality : CardNationality.EN; // Default to English
+    }
+
+    public void setNationality(CardNationality nationality) {
+        this.nationality = nationality;
     }
 }

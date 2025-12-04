@@ -60,6 +60,17 @@ public class CardTemplateService {
         return cardTemplateRepository.searchByNameOrSetCode(query);
     }
 
+    public Page<CardTemplate> searchCardTemplatesWithFilters(
+        String tcgType,
+        Long expansionId,
+        String setCode,
+        String rarity,
+        String searchQuery,
+        Pageable pageable
+    ) {
+        return cardTemplateRepository.findWithFilters(tcgType, expansionId, setCode, rarity, searchQuery, pageable);
+    }
+
     public CardTemplate saveCardTemplate(CardTemplate cardTemplate) {
         return cardTemplateRepository.save(cardTemplate);
     }

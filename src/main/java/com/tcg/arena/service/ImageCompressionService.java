@@ -13,7 +13,6 @@ public class ImageCompressionService {
 
     private static final int MAX_WIDTH = 800;
     private static final int MAX_HEIGHT = 800;
-    private static final float COMPRESSION_QUALITY = 0.8f;
 
     public byte[] compressImage(byte[] imageData, String format) throws IOException {
         // Read the image

@@ -47,7 +47,9 @@ public class DeckCard {
     @Column(nullable = true)
     private String certificateNumber;
 
-    // Getters and Setters
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = true)
+    private CardNationality nationality;
     public Long getId() {
         return id;
     }
@@ -134,5 +136,13 @@ public class DeckCard {
 
     public void setCertificateNumber(String certificateNumber) {
         this.certificateNumber = certificateNumber;
+    }
+
+    public CardNationality getNationality() {
+        return nationality != null ? nationality : CardNationality.EN; // Default to English
+    }
+
+    public void setNationality(CardNationality nationality) {
+        this.nationality = nationality;
     }
 }

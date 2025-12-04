@@ -6,7 +6,6 @@ import com.tcg.arena.model.User;
 import com.tcg.arena.model.UserCard;
 import com.tcg.arena.model.Deck;
 import com.tcg.arena.model.DeckCard;
-import com.tcg.arena.model.GradeService;
 import com.tcg.arena.repository.CardTemplateRepository;
 import com.tcg.arena.repository.UserCardRepository;
 import com.tcg.arena.repository.UserRepository;

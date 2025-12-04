@@ -121,6 +121,7 @@ public class DeckService {
         deckCard.setCardImageUrl(card.getCardTemplate().getImageUrl());
         deckCard.setCondition(CardCondition.MINT); // Default condition
         deckCard.setIsGraded(false); // Default grading status
+        deckCard.setNationality(CardNationality.EN); // Default nationality
 
         deckCardRepository.save(deckCard);
         deck.getCards().add(deckCard);
@@ -181,8 +182,10 @@ public class DeckService {
             deckCard.setGradeService(existingUserCard.getGradeService());
             deckCard.setGrade(existingUserCard.getGradeScore() != null ? existingUserCard.getGradeScore().toString() : null);
             deckCard.setCondition(existingUserCard.getCondition()); // Also copy condition
+            deckCard.setNationality(existingUserCard.getNationality()); // Copy nationality
         } else {
             deckCard.setIsGraded(false); // Default grading status
+            deckCard.setNationality(CardNationality.EN); // Default nationality
         }
 
         deckCardRepository.save(deckCard);
@@ -296,6 +299,10 @@ public class DeckService {
             deckCard.setCertificateNumber(updateDTO.getCertificateNumber());
             hasChanges = true;
         }
+        if (updateDTO.getNationality() != null) {
+            deckCard.setNationality(updateDTO.getNationality());
+            hasChanges = true;
+        }
 
         if (hasChanges) {
             deckCardRepository.save(deckCard);
@@ -400,6 +407,10 @@ public class DeckService {
                 }
                 if (!java.util.Objects.equals(userCard.getGradeScore(), newGradeScore)) {
                     userCard.setGradeScore(newGradeScore);
+                    hasChanges = true;
+                }
+                if (!java.util.Objects.equals(userCard.getNationality(), deckCard.getNationality())) {
+                    userCard.setNationality(deckCard.getNationality());
                     hasChanges = true;
                 }
 

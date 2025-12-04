@@ -1,7 +1,6 @@
 package com.tcg.arena.service;
 
 import com.tcg.arena.model.*;
-import com.tcg.arena.repository.CardRepository;
 import com.tcg.arena.repository.CardTemplateRepository;
 import com.tcg.arena.repository.ExpansionRepository;
 import com.tcg.arena.repository.TCGSetRepository;
@@ -20,7 +19,6 @@ import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
 import reactor.core.scheduler.Schedulers;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.annotation.Propagation;
 import net.tcgdex.sdk.TCGdex;
 import net.tcgdex.sdk.models.Card;
 import net.tcgdex.sdk.models.CardResume;
@@ -45,7 +43,6 @@ public class TCGApiClient {
     private final WebClient scryfallWebClient;
     private TCGdex tcgdexClient;
     private final ObjectMapper objectMapper;
-    private final CardRepository cardRepository;
     private final CardTemplateRepository cardTemplateRepository;
     private final ImportProgressRepository importProgressRepository;
     private final TCGSetRepository tcgSetRepository;
@@ -70,8 +67,7 @@ public class TCGApiClient {
     private String onePieceApiKey;
 
     @Autowired
-    public TCGApiClient(CardRepository cardRepository, CardTemplateRepository cardTemplateRepository, ImportProgressRepository importProgressRepository, TCGSetRepository tcgSetRepository, ExpansionRepository expansionRepository) {
-        this.cardRepository = cardRepository;
+    public TCGApiClient(CardTemplateRepository cardTemplateRepository, ImportProgressRepository importProgressRepository, TCGSetRepository tcgSetRepository, ExpansionRepository expansionRepository) {
         this.cardTemplateRepository = cardTemplateRepository;
         this.importProgressRepository = importProgressRepository;
         this.tcgSetRepository = tcgSetRepository;
@@ -116,7 +112,6 @@ public class TCGApiClient {
 
         // Start fetching using TCGdex (no pagination, bulk import)
         final ImportProgress importProgress = progress;
-        final int startPageFinal = startPage;
         final int startIndexFinal = startIndex;
         final int endIndexFinal = endIndex;
         return Mono.fromRunnable(() -> {

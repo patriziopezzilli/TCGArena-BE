@@ -1,8 +1,8 @@
 package com.tcg.arena.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
-import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
@@ -45,7 +45,9 @@ public class InventoryCard {
     @Column(length = 1000)
     private String notes;
     
-    @CreationTimestamp
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = true)
+    private CardNationality nationality;
     @Column(name = "created_at", nullable = false, updatable = false)
     @JsonProperty("created_at")
     private LocalDateTime createdAt;
@@ -56,13 +58,14 @@ public class InventoryCard {
     private LocalDateTime updatedAt;
     
     // Relationships - will be populated via joins
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "card_template_id", insertable = false, updatable = false)
     @JsonProperty("card_template")
-    private Card cardTemplate;
+    private CardTemplate cardTemplate;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "shop_id", insertable = false, updatable = false)
+    @JsonIgnore
     private Shop shop;
     
     // Constructors
@@ -139,6 +142,14 @@ public class InventoryCard {
     public void setNotes(String notes) {
         this.notes = notes;
     }
+
+    public CardNationality getNationality() {
+        return nationality != null ? nationality : CardNationality.EN; // Default to English
+    }
+
+    public void setNationality(CardNationality nationality) {
+        this.nationality = nationality;
+    }
     
     public LocalDateTime getCreatedAt() {
         return createdAt;
@@ -156,11 +167,11 @@ public class InventoryCard {
         this.updatedAt = updatedAt;
     }
     
-    public Card getCardTemplate() {
+    public CardTemplate getCardTemplate() {
         return cardTemplate;
     }
     
-    public void setCardTemplate(Card cardTemplate) {
+    public void setCardTemplate(CardTemplate cardTemplate) {
         this.cardTemplate = cardTemplate;
     }
     

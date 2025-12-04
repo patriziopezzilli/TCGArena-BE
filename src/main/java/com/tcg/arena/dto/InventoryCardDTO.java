@@ -1,5 +1,6 @@
 package com.tcg.arena.dto;
 
+import com.tcg.arena.model.CardNationality;
 import com.tcg.arena.model.InventoryCard;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.validation.constraints.*;
@@ -35,17 +36,20 @@ public class InventoryCardDTO {
         @Size(max = 1000, message = "Notes cannot exceed 1000 characters")
         private String notes;
         
+        private CardNationality nationality;
+        
         public CreateInventoryCardRequest() {
         }
         
         public CreateInventoryCardRequest(Long cardTemplateId, Long shopId, InventoryCard.CardCondition condition,
-                                         Double price, Integer quantity, String notes) {
+                                         Double price, Integer quantity, String notes, CardNationality nationality) {
             this.cardTemplateId = cardTemplateId;
             this.shopId = shopId;
             this.condition = condition;
             this.price = price;
             this.quantity = quantity;
             this.notes = notes;
+            this.nationality = nationality;
         }
 
         // Getters and setters
@@ -96,6 +100,14 @@ public class InventoryCardDTO {
         public void setNotes(String notes) {
             this.notes = notes;
         }
+
+        public CardNationality getNationality() {
+            return nationality;
+        }
+
+        public void setNationality(CardNationality nationality) {
+            this.nationality = nationality;
+        }
         
         @Override
         public boolean equals(Object o) {
@@ -141,15 +153,18 @@ public class InventoryCardDTO {
         @Size(max = 1000, message = "Notes cannot exceed 1000 characters")
         private String notes;
         
+        private CardNationality nationality;
+        
         public UpdateInventoryCardRequest() {
         }
         
         public UpdateInventoryCardRequest(InventoryCard.CardCondition condition, Double price, 
-                                         Integer quantity, String notes) {
+                                         Integer quantity, String notes, CardNationality nationality) {
             this.condition = condition;
             this.price = price;
             this.quantity = quantity;
             this.notes = notes;
+            this.nationality = nationality;
         }
 
         // Getters and setters
@@ -183,6 +198,14 @@ public class InventoryCardDTO {
 
         public void setNotes(String notes) {
             this.notes = notes;
+        }
+
+        public CardNationality getNationality() {
+            return nationality;
+        }
+
+        public void setNationality(CardNationality nationality) {
+            this.nationality = nationality;
         }
         
         @Override

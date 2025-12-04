@@ -28,9 +28,26 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
     List<CardTemplate> findByNameAndSetCodeAndCardNumber(String name, String setCode, String cardNumber);
 
     @Query("SELECT c FROM CardTemplate c WHERE " +
-            "LOWER(c.name) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
-            "LOWER(c.setCode) LIKE LOWER(CONCAT('%', :query, '%'))")
+            "c.name LIKE CONCAT('%', :query, '%') OR " +
+            "c.setCode LIKE CONCAT('%', :query, '%')")
     List<CardTemplate> searchByNameOrSetCode(@Param("query") String query);
+
+    @Query(value = "SELECT * FROM card_templates ct WHERE " +
+           "(:tcgType IS NULL OR ct.tcg_type = :tcgType) AND " +
+           "(:expansionId IS NULL OR ct.expansion_id = :expansionId) AND " +
+           "(:setCode IS NULL OR ct.set_code = :setCode) AND " +
+           "(:rarity IS NULL OR ct.rarity = :rarity) AND " +
+           "(:searchQuery IS NULL OR ct.name LIKE CONCAT('%', :searchQuery, '%')) " +
+           "ORDER BY ct.id",
+           nativeQuery = true)
+    Page<CardTemplate> findWithFilters(
+        @Param("tcgType") String tcgType,
+        @Param("expansionId") Long expansionId,
+        @Param("setCode") String setCode,
+        @Param("rarity") String rarity,
+        @Param("searchQuery") String searchQuery,
+        Pageable pageable
+    );
 
     @Modifying
     @Query("DELETE FROM CardTemplate c WHERE c.tcgType = :tcgType")

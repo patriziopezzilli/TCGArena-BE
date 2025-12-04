@@ -4,6 +4,7 @@ import com.tcg.arena.config.CacheConfig;
 import com.tcg.arena.model.Expansion;
 import com.tcg.arena.model.TCGSet;
 import com.tcg.arena.model.TCGType;
+import com.tcg.arena.dto.TCGStatsDTO;
 import com.tcg.arena.repository.ExpansionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
@@ -12,6 +13,8 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.Map;
+import java.util.HashMap;
 
 @Service
 public class ExpansionService {
@@ -68,5 +71,31 @@ public class ExpansionService {
             return true;
         }
         return false;
+    }
+
+    @Cacheable(value = CacheConfig.EXPANSIONS_CACHE, key = "'stats'")
+    public List<TCGStatsDTO> getTCGStatistics() {
+        List<Expansion> allExpansions = expansionRepository.findAllByOrderByReleaseDateDesc();
+
+        Map<TCGType, TCGStatsDTO> statsMap = new HashMap<>();
+
+        // Initialize stats for all TCG types
+        for (TCGType tcgType : TCGType.values()) {
+            statsMap.put(tcgType, new TCGStatsDTO(tcgType, 0, 0, 0));
+        }
+
+        // Calculate statistics
+        for (Expansion expansion : allExpansions) {
+            TCGStatsDTO stats = statsMap.get(expansion.getTcgType());
+            if (stats != null) {
+                stats.setExpansions(stats.getExpansions() + 1);
+                stats.setSets(stats.getSets() + expansion.getSets().size());
+                stats.setCards(stats.getCards() + expansion.getSets().stream()
+                    .mapToInt(set -> set.getCardCount() != null ? set.getCardCount() : 0)
+                    .sum());
+            }
+        }
+
+        return statsMap.values().stream().collect(Collectors.toList());
     }
 }

@@ -3,10 +3,8 @@ package com.tcg.arena.batch;
 import com.tcg.arena.model.Card;
 import com.tcg.arena.model.CardTemplate;
 import com.tcg.arena.model.Expansion;
-import com.tcg.arena.model.Rarity;
 import com.tcg.arena.model.TCGType;
 import com.tcg.arena.repository.CardTemplateRepository;
-import com.tcg.arena.service.ApiService;
 import com.tcg.arena.service.CardTemplateService;
 import com.tcg.arena.service.TCGApiClient;
 import org.slf4j.Logger;
@@ -27,7 +25,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.ArrayList;
@@ -47,19 +44,14 @@ class TCGCardReader implements ItemReader<CardTemplate> {
     @Value("${app.demo-env:false}")
     private boolean demoEnv;
 
-    private final ApiService apiService;
     private final TCGApiClient tcgApiClient;
     private final int startIndex;
     private final int endIndex;
 
-    public TCGCardReader(ApiService apiService, TCGApiClient tcgApiClient, String tcgTypeParam, int startIndex, int endIndex) {
-        if (apiService == null) {
-            throw new IllegalArgumentException("ApiService cannot be null");
-        }
+    public TCGCardReader(TCGApiClient tcgApiClient, String tcgTypeParam, int startIndex, int endIndex) {
         if (tcgApiClient == null) {
             throw new IllegalArgumentException("TCGApiClient cannot be null");
         }
-        this.apiService = apiService;
         this.tcgApiClient = tcgApiClient;
         this.startIndex = startIndex;
         this.endIndex = endIndex;
@@ -210,11 +202,6 @@ class TCGCardReader implements ItemReader<CardTemplate> {
 @Configuration
 public class BatchConfiguration {
 
-    private static final Logger logger = LoggerFactory.getLogger(BatchConfiguration.class);
-
-    @Autowired
-    private ApiService apiService;
-
     @Autowired
     private CardTemplateService cardTemplateService;
 
@@ -251,7 +238,7 @@ public class BatchConfiguration {
             @Value("#{jobParameters['endIndex']}") Long endIndexParam) {
         int startIndex = startIndexParam != null ? startIndexParam.intValue() : -99;
         int endIndex = endIndexParam != null ? endIndexParam.intValue() : -99;
-        return new TCGCardReader(apiService, tcgApiClient, tcgTypeParam, startIndex, endIndex);
+        return new TCGCardReader(tcgApiClient, tcgTypeParam, startIndex, endIndex);
     }
 
     @Bean

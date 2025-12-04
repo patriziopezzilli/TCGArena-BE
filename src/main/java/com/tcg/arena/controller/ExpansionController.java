@@ -1,12 +1,11 @@
 package com.tcg.arena.controller;
 
 import com.tcg.arena.model.Expansion;
-import com.tcg.arena.model.TCGSet;
-import com.tcg.arena.model.TCGType;
 import com.tcg.arena.model.CardTemplate;
 import com.tcg.arena.service.ExpansionService;
 import com.tcg.arena.service.CardTemplateService;
 import com.tcg.arena.dto.ExpansionDTO;
+import com.tcg.arena.dto.TCGStatsDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -47,13 +46,9 @@ public class ExpansionController {
             .collect(Collectors.toList());
     }
 
-    @GetMapping("/{id}/sets")
-    public ResponseEntity<List<TCGSet>> getSetsForExpansion(@PathVariable Long id) {
-        if (!expansionService.getExpansionById(id).isPresent()) {
-            return ResponseEntity.notFound().build();
-        }
-        List<TCGSet> sets = expansionService.getSetsByExpansionId(id);
-        return ResponseEntity.ok(sets);
+    @GetMapping("/stats")
+    public List<TCGStatsDTO> getTCGStatistics() {
+        return expansionService.getTCGStatistics();
     }
 
     @PostMapping

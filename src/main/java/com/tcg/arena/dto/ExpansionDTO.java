@@ -2,7 +2,6 @@ package com.tcg.arena.dto;
 
 import com.tcg.arena.model.Expansion;
 import com.tcg.arena.model.TCGType;
-import com.tcg.arena.model.TCGSet;
 import java.util.List;
 import java.util.stream.Collectors;
 

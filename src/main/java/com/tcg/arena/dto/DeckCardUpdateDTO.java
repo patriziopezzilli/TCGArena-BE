@@ -1,6 +1,7 @@
 package com.tcg.arena.dto;
 
 import com.tcg.arena.model.CardCondition;
+import com.tcg.arena.model.CardNationality;
 import com.tcg.arena.model.GradeService;
 
 public class DeckCardUpdateDTO {
@@ -10,18 +11,20 @@ public class DeckCardUpdateDTO {
     private GradeService gradeService;
     private String grade;
     private String certificateNumber;
+    private CardNationality nationality;
 
     // Default constructor
     public DeckCardUpdateDTO() {}
 
     // Constructor with parameters
-    public DeckCardUpdateDTO(Integer quantity, CardCondition condition, Boolean isGraded, GradeService gradeService, String grade, String certificateNumber) {
+    public DeckCardUpdateDTO(Integer quantity, CardCondition condition, Boolean isGraded, GradeService gradeService, String grade, String certificateNumber, CardNationality nationality) {
         this.quantity = quantity;
         this.condition = condition;
         this.isGraded = isGraded;
         this.gradeService = gradeService;
         this.grade = grade;
         this.certificateNumber = certificateNumber;
+        this.nationality = nationality;
     }
 
     // Getters and Setters
@@ -71,5 +74,13 @@ public class DeckCardUpdateDTO {
 
     public void setCertificateNumber(String certificateNumber) {
         this.certificateNumber = certificateNumber;
+    }
+
+    public CardNationality getNationality() {
+        return nationality;
+    }
+
+    public void setNationality(CardNationality nationality) {
+        this.nationality = nationality;
     }
 }

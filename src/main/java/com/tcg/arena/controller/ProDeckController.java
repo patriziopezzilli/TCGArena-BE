@@ -1,7 +1,6 @@
 package com.tcg.arena.controller;
 
 import com.tcg.arena.model.ProDeck;
-import com.tcg.arena.model.TCGType;
 import com.tcg.arena.service.ProDeckService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;

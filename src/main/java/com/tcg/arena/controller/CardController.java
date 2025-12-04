@@ -1,6 +1,9 @@
 package com.tcg.arena.controller;
 
 import com.tcg.arena.model.CardTemplate;
+import com.tcg.arena.model.Rarity;
+import com.tcg.arena.model.TCGType;
+import com.tcg.arena.repository.CardTemplateRepository;
 import com.tcg.arena.service.CardTemplateService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -23,6 +26,9 @@ public class CardController {
 
     @Autowired
     private CardTemplateService cardTemplateService;
+
+    @Autowired
+    private CardTemplateRepository cardTemplateRepository;
 
     @GetMapping
     @Operation(summary = "Get all card templates", description = "Retrieves a paginated list of all available card templates in the system")
@@ -101,6 +107,54 @@ public class CardController {
         }
         List<CardTemplate> results = cardTemplateService.searchCardTemplates(query.trim());
         return ResponseEntity.ok(results);
+    }
+
+    @GetMapping("/search/advanced")
+    @Operation(summary = "Advanced search for card templates", description = "Search card templates with multiple filters and pagination")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Search completed successfully")
+    })
+    public Page<CardTemplate> searchCardsAdvanced(
+            @Parameter(description = "TCG Type filter") @RequestParam(required = false) String tcgType,
+            @Parameter(description = "Expansion ID filter") @RequestParam(required = false) Long expansionId,
+            @Parameter(description = "Set Code filter") @RequestParam(required = false) String setCode,
+            @Parameter(description = "Rarity filter") @RequestParam(required = false) String rarity,
+            @Parameter(description = "Search query for name") @RequestParam(required = false) String q,
+            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Number of items per page") @RequestParam(defaultValue = "20") int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        return cardTemplateService.searchCardTemplatesWithFilters(tcgType, expansionId, setCode, rarity, q, pageable);
+    }
+
+    @GetMapping("/filters/tcg-types")
+    @Operation(summary = "Get all TCG types", description = "Retrieves all available TCG types for filtering")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "TCG types retrieved successfully")
+    })
+    public TCGType[] getTcgTypes() {
+        return TCGType.values();
+    }
+
+    @GetMapping("/filters/rarities")
+    @Operation(summary = "Get all rarities", description = "Retrieves all available card rarities for filtering")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Rarities retrieved successfully")
+    })
+    public Rarity[] getRarities() {
+        return Rarity.values();
+    }
+
+    @GetMapping("/filters/set-codes")
+    @Operation(summary = "Get all set codes", description = "Retrieves all available set codes for filtering")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Set codes retrieved successfully")
+    })
+    public List<String> getSetCodes() {
+        return cardTemplateRepository.findAll().stream()
+                .map(CardTemplate::getSetCode)
+                .distinct()
+                .sorted()
+                .toList();
     }
 
     @GetMapping("/market-price/{id}")
