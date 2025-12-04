@@ -21,9 +21,6 @@ public class ShopSubscriptionService {
     @Autowired
     private UserRepository userRepository;
 
-    @Autowired
-    private NotificationService notificationService;
-
     @Transactional
     public ShopSubscription subscribeToShop(Long userId, Long shopId) {
         // Check if already subscribed
@@ -43,9 +40,7 @@ public class ShopSubscriptionService {
 
         ShopSubscription savedSubscription = subscriptionRepository.save(subscription);
 
-        // Send welcome notification
-        notificationService.sendPushNotification(userId, "Subscribed to Shop",
-            "You'll now receive updates from this shop!");
+        // Note: Welcome notification can be sent from controller layer if needed
 
         return savedSubscription;
     }
@@ -60,9 +55,7 @@ public class ShopSubscriptionService {
             sub.setIsActive(false);
             subscriptionRepository.save(sub);
 
-            // Send notification
-            notificationService.sendPushNotification(userId, "Unsubscribed",
-                "You won't receive updates from this shop anymore.");
+            // Note: Unsubscribe notification can be sent from controller layer if needed
 
             return true;
         }

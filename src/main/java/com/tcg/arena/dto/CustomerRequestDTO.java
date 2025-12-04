@@ -145,6 +145,7 @@ public class CustomerRequestDTO {
         
         @NotBlank(message = "Message is required")
         @Size(min = 1, max = 2000, message = "Message must be between 1 and 2000 characters")
+        @JsonProperty("message")
         private String message;
         
         public SendMessageRequest() {
@@ -161,6 +162,17 @@ public class CustomerRequestDTO {
 
         public void setMessage(String message) {
             this.message = message;
+        }
+        
+        // Support for "content" field from client
+        @JsonProperty("content")
+        public void setContent(String content) {
+            this.message = content;
+        }
+        
+        @JsonProperty("content")
+        public String getContent() {
+            return this.message;
         }
         
         @Override

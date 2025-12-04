@@ -1,5 +1,6 @@
 package com.tcg.arena.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -35,6 +36,7 @@ public class RequestMessage {
     private SenderType senderType;
     
     @Column(nullable = false, length = 2000)
+    @JsonProperty("content")
     private String message;
     
     @CreationTimestamp
@@ -45,10 +47,12 @@ public class RequestMessage {
     // Relationships
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "request_id", insertable = false, updatable = false)
+    @JsonIgnore
     private CustomerRequest request;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "sender_id", insertable = false, updatable = false)
+    @JsonIgnore
     private User sender;
     
     // Constructors

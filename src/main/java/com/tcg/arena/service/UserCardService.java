@@ -10,6 +10,8 @@ import com.tcg.arena.model.GradeService;
 import com.tcg.arena.repository.CardTemplateRepository;
 import com.tcg.arena.repository.UserCardRepository;
 import com.tcg.arena.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +21,8 @@ import java.util.Optional;
 
 @Service
 public class UserCardService {
+    private static final Logger logger = LoggerFactory.getLogger(UserCardService.class);
+
     @Autowired
     private UserCardRepository userCardRepository;
 
@@ -92,7 +96,7 @@ public class UserCardService {
                 }
             } catch (Exception e) {
                 // Log error but don't fail the user card deletion
-                System.err.println("Error removing card from collection deck: " + e.getMessage());
+                logger.error("Error removing card from collection deck: " + e.getMessage());
             }
 
             // Log activity before deletion
@@ -131,7 +135,7 @@ public class UserCardService {
             }
         } catch (Exception e) {
             // Log error but don't fail the user card creation
-            System.err.println("Error adding card to collection deck: " + e.getMessage());
+            logger.error("Error adding card to collection deck: " + e.getMessage());
         }
 
         // Log activity
@@ -204,7 +208,7 @@ public class UserCardService {
             }
         } catch (Exception e) {
             // Log error but don't fail the UserCard update
-            System.err.println("Error syncing UserCard to collection deck: " + e.getMessage());
+            logger.error("Error syncing UserCard to collection deck: " + e.getMessage());
         }
     }
 }

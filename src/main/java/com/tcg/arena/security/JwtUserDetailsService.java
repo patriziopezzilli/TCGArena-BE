@@ -2,6 +2,8 @@ package com.tcg.arena.security;
 
 import com.tcg.arena.model.User;
 import com.tcg.arena.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,6 +17,8 @@ import java.util.List;
 @Service
 public class JwtUserDetailsService implements UserDetailsService {
 
+    private static final Logger logger = LoggerFactory.getLogger(JwtUserDetailsService.class);
+
     @Autowired
     private UserRepository userRepository;
 
@@ -23,9 +27,8 @@ public class JwtUserDetailsService implements UserDetailsService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with username: " + username));
 
-        System.out.println("DEBUG: Loading user from DB: " + username);
-        System.out.println("DEBUG: Stored password hash: " + user.getPassword());
-        System.out.println("DEBUG: User isMerchant: " + user.getIsMerchant());
+        logger.debug("Loading user from DB: {}", username);
+        logger.debug("User isMerchant: {}", user.getIsMerchant());
 
         // Assign roles based on user type
         List<SimpleGrantedAuthority> authorities = new ArrayList<>();

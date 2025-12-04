@@ -6,6 +6,8 @@ import com.google.firebase.FirebaseOptions;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
@@ -14,6 +16,8 @@ import java.io.IOException;
 
 @Service
 public class FirebaseMessagingService {
+
+    private static final Logger logger = LoggerFactory.getLogger(FirebaseMessagingService.class);
 
     @PostConstruct
     public void initializeFirebase() {
@@ -30,7 +34,7 @@ public class FirebaseMessagingService {
                 FirebaseApp.initializeApp(options);
             }
         } catch (IOException e) {
-            System.err.println("Failed to initialize Firebase: " + e.getMessage());
+            logger.error("Failed to initialize Firebase: " + e.getMessage());
             // For development, we'll continue without Firebase initialization
             // In production, this should throw an exception
         }
@@ -49,9 +53,9 @@ public class FirebaseMessagingService {
                     .build();
 
             String response = FirebaseMessaging.getInstance().send(message);
-            System.out.println("Successfully sent message: " + response);
+            logger.info("Successfully sent message: " + response);
         } catch (Exception e) {
-            System.err.println("Failed to send push notification: " + e.getMessage());
+            logger.error("Failed to send push notification: " + e.getMessage());
             // Fallback: could implement APNs or other push service
         }
     }
@@ -69,9 +73,9 @@ public class FirebaseMessagingService {
                     .build();
 
             String response = FirebaseMessaging.getInstance().send(message);
-            System.out.println("Successfully sent message to topic: " + response);
+            logger.info("Successfully sent message to topic: " + response);
         } catch (Exception e) {
-            System.err.println("Failed to send push notification to topic: " + e.getMessage());
+            logger.error("Failed to send push notification to topic: " + e.getMessage());
         }
     }
 }

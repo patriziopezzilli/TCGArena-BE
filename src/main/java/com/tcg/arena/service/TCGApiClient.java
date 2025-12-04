@@ -8,6 +8,8 @@ import com.tcg.arena.repository.TCGSetRepository;
 import com.tcg.arena.repository.ImportProgressRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -35,6 +37,8 @@ import java.util.HashMap;
 
 @Service
 public class TCGApiClient {
+
+    private static final Logger logger = LoggerFactory.getLogger(TCGApiClient.class);
 
     private final WebClient webClient;
     private final WebClient onePieceWebClient;
@@ -95,19 +99,19 @@ public class TCGApiClient {
 
         // Check if we should skip import entirely
         if (shouldSkipImport(progress)) {
-            System.out.println("Skipping Pokemon import - recently completed and no need to check for updates yet");
+            logger.info("Skipping Pokemon import - recently completed and no need to check for updates yet");
             return Mono.empty();
         }
 
         // Determine starting page based on progress
         int startPage = progress.getLastProcessedPage() + 1;
-        System.out.println("Starting Pokemon import from page " + startPage +
+        logger.info("Starting Pokemon import from page " + startPage +
                           " (previously processed: " + progress.getLastProcessedPage() + " pages)");
 
         // If we need to check for updates (complete but old), start from page 1 to get current total
         if (progress.isComplete() && needsUpdateCheck(progress)) {
             startPage = 1;
-            System.out.println("Checking for Pokemon card updates...");
+            logger.info("Checking for Pokemon card updates...");
         }
 
         // Start fetching using TCGdex (no pagination, bulk import)
@@ -120,7 +124,7 @@ public class TCGApiClient {
                 // Switch to TCGdex for Pokemon cards
                 fetchPokemonCardsWithTcgdex(importProgress, startIndexFinal, endIndexFinal);
             } catch (Exception e) {
-                System.err.println("Error during Pokemon import: " + e.getMessage());
+                logger.error("Error during Pokemon import: " + e.getMessage());
                 throw new RuntimeException(e);
             }
         });
@@ -128,7 +132,7 @@ public class TCGApiClient {
 
     @Transactional
     private void fetchPokemonCardsWithTcgdex(ImportProgress progress, int startIndex, int endIndex) {
-        System.out.println("Pokemon: Starting bulk import using TCGdex API");
+        logger.info("Pokemon: Starting bulk import using TCGdex API");
 
         try {
             // Clear caches at the start of import
@@ -137,12 +141,12 @@ public class TCGApiClient {
 
             // Get all Pokemon cards from TCGdex
             CardResume[] cardResumes = getTcgdexClient().fetchCards();
-            System.out.println("Pokemon: Retrieved " + cardResumes.length + " card resumes from TCGdex");
+            logger.info("Pokemon: Retrieved " + cardResumes.length + " card resumes from TCGdex");
 
             // Process each card individually, saving the complete hierarchy
             int startFrom = (startIndex != -99) ? Math.max(0, startIndex) : 0;
             int endAt = (endIndex != -99) ? Math.min(cardResumes.length, Math.max(startFrom, endIndex + 1)) : cardResumes.length;
-            System.out.println("Pokemon: Starting import from index " + startFrom + " to " + (endAt - 1) + " (total cards: " + cardResumes.length + ")");
+            logger.info("Pokemon: Starting import from index " + startFrom + " to " + (endAt - 1) + " (total cards: " + cardResumes.length + ")");
 
             for (int i = startFrom; i < endAt; i++) {
                 CardResume resume = cardResumes[i];
@@ -157,19 +161,19 @@ public class TCGApiClient {
 
                     // Log progress every 100 cards
                     if ((i + 1) % 100 == 0) {
-                        System.out.println("Pokemon: Processed " + (i + 1) + "/" + cardResumes.length + " cards");
+                        logger.info("Pokemon: Processed " + (i + 1) + "/" + cardResumes.length + " cards");
                     }
 
                 } catch (Exception e) {
                     // Handle specific TCGdex initialization errors
                     if (e.getMessage() != null && e.getMessage().contains("lateinit property tcgdex has not been initialized")) {
-                        System.err.println("TCGdex client not properly initialized, skipping card " + resume.getId());
+                        logger.error("TCGdex client not properly initialized, skipping card " + resume.getId());
                         // Reset client and clear caches to force re-initialization on next attempt
                         tcgdexClient = null;
                         setCache.clear();
                         serieCache.clear();
                     } else {
-                        System.err.println("Error processing card " + resume.getId() + ": " + e.getMessage());
+                        logger.error("Error processing card " + resume.getId() + ": " + e.getMessage());
                     }
                     // Continue to next card instead of failing the entire import
                 }
@@ -181,7 +185,7 @@ public class TCGApiClient {
                     } catch (InterruptedException ie) {
                         // Restore interrupted status
                         Thread.currentThread().interrupt();
-                        System.out.println("Import interrupted, stopping gracefully...");
+                        logger.info("Import interrupted, stopping gracefully...");
                         break; // Exit the loop if interrupted
                     }
                 }
@@ -194,10 +198,10 @@ public class TCGApiClient {
             progress.setLastCheckDate(LocalDateTime.now());
             importProgressRepository.save(progress);
 
-            System.out.println("Pokemon: Successfully imported all cards using TCGdex");
+            logger.info("Pokemon: Successfully imported all cards using TCGdex");
 
         } catch (Exception e) {
-            System.err.println("Error importing Pokemon cards with TCGdex: " + e.getMessage());
+            logger.error("Error importing Pokemon cards with TCGdex: " + e.getMessage());
             e.printStackTrace();
             throw new RuntimeException("TCGdex import failed", e);
         }
@@ -219,12 +223,12 @@ public class TCGApiClient {
             try {
                 tcgdexClient = new TCGdex("en");
             } catch (Exception e) {
-                System.err.println("Failed to initialize TCGdex client: " + e.getMessage());
+                logger.error("Failed to initialize TCGdex client: " + e.getMessage());
                 // Try with default language
                 try {
                     tcgdexClient = new TCGdex(null);
                 } catch (Exception e2) {
-                    System.err.println("Failed to initialize TCGdex client with default language: " + e2.getMessage());
+                    logger.error("Failed to initialize TCGdex client with default language: " + e2.getMessage());
                     throw new RuntimeException("Cannot initialize TCGdex client", e2);
                 }
             }
@@ -247,7 +251,7 @@ public class TCGApiClient {
             }
 
         } catch (Exception e) {
-            System.err.println("Error saving card hierarchy for " + tcgdexCard.getId() + ": " + e.getMessage());
+            logger.error("Error saving card hierarchy for " + tcgdexCard.getId() + ": " + e.getMessage());
             throw e; // Re-throw to be caught by the calling method
         }
     }
@@ -304,7 +308,7 @@ public class TCGApiClient {
             return expansionRepository.save(expansion);
 
         } catch (Exception e) {
-            System.err.println("Error getting/creating expansion: " + e.getMessage());
+            logger.error("Error getting/creating expansion: " + e.getMessage());
             throw e;
         }
     }
@@ -381,7 +385,7 @@ public class TCGApiClient {
             return tcgSetRepository.save(tcgSet);
 
         } catch (Exception e) {
-            System.err.println("Error getting/creating TCG set: " + e.getMessage());
+            logger.error("Error getting/creating TCG set: " + e.getMessage());
             throw e;
         }
     }
@@ -425,7 +429,7 @@ public class TCGApiClient {
             return template;
 
         } catch (Exception e) {
-            System.err.println("Error creating card template for " + tcgdexCard.getId() + ": " + e.getMessage());
+            logger.error("Error creating card template for " + tcgdexCard.getId() + ": " + e.getMessage());
             return null;
         }
     }
@@ -474,7 +478,7 @@ public class TCGApiClient {
             return template;
 
         } catch (Exception e) {
-            System.err.println("Error converting TCGdex card " + tcgdexCard.getId() + ": " + e.getMessage());
+            logger.error("Error converting TCGdex card " + tcgdexCard.getId() + ": " + e.getMessage());
             return null;
         }
     }
@@ -511,7 +515,7 @@ public class TCGApiClient {
                 // Fetch current page
                 String response = fetchOnePieceCardsFromAPI(currentPage).block();
                 if (response == null) {
-                    System.err.println("Failed to fetch One Piece cards for page " + currentPage);
+                    logger.error("Failed to fetch One Piece cards for page " + currentPage);
                     break;
                 }
 
@@ -524,13 +528,13 @@ public class TCGApiClient {
                 progress.setTotalPagesKnown(totalPages);
                 importProgressRepository.save(progress);
 
-                System.out.println("One Piece API: Page " + currentPage + "/" + totalPages +
+                logger.info("One Piece API: Page " + currentPage + "/" + totalPages +
                                   " (Total cards: " + totalCards + ", Limit: " + limit + ")");
 
                 // Safety check: if data array is empty, stop importing
                 JsonNode dataArray = jsonResponse.path("data");
                 if (dataArray.isArray() && dataArray.size() == 0) {
-                    System.out.println("One Piece API: Page " + currentPage + " has empty data array, stopping import");
+                    logger.info("One Piece API: Page " + currentPage + " has empty data array, stopping import");
                     progress.setComplete(true);
                     progress.setLastCheckDate(LocalDateTime.now());
                     importProgressRepository.save(progress);
@@ -540,7 +544,7 @@ public class TCGApiClient {
                 // If this is an update check and we have all cards, mark as checked and stop
                 if (progress.isComplete() && progress.getTotalPagesKnown() != null &&
                     totalPages <= progress.getLastProcessedPage()) {
-                    System.out.println("No new One Piece cards available");
+                    logger.info("No new One Piece cards available");
                     progress.setLastCheckDate(LocalDateTime.now());
                     importProgressRepository.save(progress);
                     break;
@@ -558,7 +562,7 @@ public class TCGApiClient {
                     progress.setComplete(true);
                     progress.setLastCheckDate(LocalDateTime.now());
                     importProgressRepository.save(progress);
-                    System.out.println("One Piece import completed! All " + totalCards + " cards imported.");
+                    logger.info("One Piece import completed! All " + totalCards + " cards imported.");
                     break;
                 }
 
@@ -566,7 +570,7 @@ public class TCGApiClient {
                 currentPage++;
 
             } catch (Exception e) {
-                System.err.println("Error processing One Piece page " + currentPage + ": " + e.getMessage());
+                logger.error("Error processing One Piece page " + currentPage + ": " + e.getMessage());
                 break;
             }
         }
@@ -588,7 +592,7 @@ public class TCGApiClient {
     private boolean shouldSkipImport(ImportProgress progress) {
         // In demo environment, never skip imports to allow repeated testing
         if (demoEnv) {
-            System.out.println("Demo environment detected - forcing import execution");
+            logger.info("Demo environment detected - forcing import execution");
             return false;
         }
 
@@ -611,7 +615,7 @@ public class TCGApiClient {
             return;
         }
 
-        System.out.println("Demo environment: Resetting progress and clearing existing cards for " + tcgType);
+        logger.info("Demo environment: Resetting progress and clearing existing cards for " + tcgType);
 
         // Delete all existing card templates for this TCG type
         cardTemplateRepository.deleteByTcgType(tcgType);
@@ -625,7 +629,7 @@ public class TCGApiClient {
         progress.setLastUpdated(LocalDateTime.now());
         importProgressRepository.save(progress);
 
-        System.out.println("Demo environment: Progress reset complete for " + tcgType);
+        logger.info("Demo environment: Progress reset complete for " + tcgType);
     }
 
     private boolean needsUpdateCheck(ImportProgress progress) {
@@ -642,17 +646,17 @@ public class TCGApiClient {
         boolean continueImport = true;
 
         while (continueImport) {
-            System.out.println("Pokemon: Starting processing of page " + currentPage);
+            logger.info("Pokemon: Starting processing of page " + currentPage);
             try {
                 // Fetch current page
-                System.out.println("Pokemon: Fetching data from API for page " + currentPage);
+                logger.info("Pokemon: Fetching data from API for page " + currentPage);
                 String response = fetchPokemonCardsFromAPI(currentPage).block();
                 if (response == null) {
-                    System.err.println("Failed to fetch Pokemon cards for page " + currentPage);
+                    logger.error("Failed to fetch Pokemon cards for page " + currentPage);
                     break;
                 }
 
-                System.out.println("Pokemon: Received response for page " + currentPage + ", parsing JSON...");
+                logger.info("Pokemon: Received response for page " + currentPage + ", parsing JSON...");
 
                 JsonNode jsonResponse = objectMapper.readTree(response);
                 int pageSize = jsonResponse.path("pageSize").asInt();
@@ -663,13 +667,13 @@ public class TCGApiClient {
                 progress.setTotalPagesKnown(totalPages);
                 importProgressRepository.save(progress);
 
-                System.out.println("Pokemon API: Page " + currentPage + "/" + totalPages +
+                logger.info("Pokemon API: Page " + currentPage + "/" + totalPages +
                                   " (Total cards: " + totalCount + ")");
 
                 // Safety check: if data array is empty, stop importing
                 JsonNode dataArray = jsonResponse.path("data");
                 if (dataArray.isArray() && dataArray.size() == 0) {
-                    System.out.println("Pokemon API: Page " + currentPage + " has empty data array, stopping import");
+                    logger.info("Pokemon API: Page " + currentPage + " has empty data array, stopping import");
                     progress.setComplete(true);
                     progress.setLastCheckDate(LocalDateTime.now());
                     importProgressRepository.save(progress);
@@ -679,19 +683,19 @@ public class TCGApiClient {
                 // If this is an update check and we have all cards, mark as checked and stop
                 if (progress.isComplete() && progress.getTotalPagesKnown() != null &&
                     totalPages <= progress.getLastProcessedPage()) {
-                    System.out.println("No new Pokemon cards available");
+                    logger.info("No new Pokemon cards available");
                     progress.setLastCheckDate(LocalDateTime.now());
                     importProgressRepository.save(progress);
                     break;
                 }
 
                 // Parse cards from current page (saves directly to database)
-                System.out.println("Pokemon: Starting to parse page " + currentPage + " response (length: " + response.length() + " chars)");
+                logger.info("Pokemon: Starting to parse page " + currentPage + " response (length: " + response.length() + " chars)");
                 parsePokemonCards(response);
-                System.out.println("Pokemon: Successfully parsed page " + currentPage);
+                logger.info("Pokemon: Successfully parsed page " + currentPage);
 
                 // Force database commit after each page to ensure data persistence
-                System.out.println("Pokemon: Committing database transaction for page " + currentPage);
+                logger.info("Pokemon: Committing database transaction for page " + currentPage);
                 // Note: In Spring Boot with JPA, transactions are auto-committed, but we can force flush
                 cardTemplateRepository.flush();
 
@@ -704,7 +708,7 @@ public class TCGApiClient {
                     progress.setComplete(true);
                     progress.setLastCheckDate(LocalDateTime.now());
                     importProgressRepository.save(progress);
-                    System.out.println("Pokemon import completed! All " + totalCount + " cards imported.");
+                    logger.info("Pokemon import completed! All " + totalCount + " cards imported.");
                     break;
                 }
 
@@ -712,7 +716,7 @@ public class TCGApiClient {
                 currentPage++;
 
                 // Add delay between pages to avoid overwhelming the API
-                System.out.println("Pokemon: Waiting 5 seconds before next page...");
+                logger.info("Pokemon: Waiting 5 seconds before next page...");
                 try {
                     Thread.sleep(5000); // 5 second delay between pages
                 } catch (InterruptedException ie) {
@@ -721,9 +725,9 @@ public class TCGApiClient {
                 }
 
             } catch (Exception e) {
-                System.err.println("Error processing Pokemon page " + currentPage + ": " + e.getMessage());
-                System.err.println("Error type: " + e.getClass().getSimpleName());
-                System.err.println("Stack trace:");
+                logger.error("Error processing Pokemon page " + currentPage + ": " + e.getMessage());
+                logger.error("Error type: " + e.getClass().getSimpleName());
+                logger.error("Stack trace:");
                 e.printStackTrace();
                 break;
             }
@@ -732,7 +736,7 @@ public class TCGApiClient {
 
     private Mono<String> fetchPokemonCardsFromAPI(int page) {
         long startTime = System.currentTimeMillis();
-        System.out.println("Pokemon: fetchPokemonCardsFromAPI called for page " + page + " at " + LocalDateTime.now());
+        logger.info("Pokemon: fetchPokemonCardsFromAPI called for page " + page + " at " + LocalDateTime.now());
 
         return webClient.get()
                 .uri(uriBuilder -> uriBuilder
@@ -743,16 +747,16 @@ public class TCGApiClient {
                         .build())
                 .retrieve()
                 .bodyToMono(String.class)
-                .doOnSubscribe(subscription -> System.out.println("Pokemon: Starting HTTP request for page " + page))
+                .doOnSubscribe(subscription -> logger.info("Pokemon: Starting HTTP request for page " + page))
                 .doOnNext(response -> {
                     long duration = System.currentTimeMillis() - startTime;
-                    System.out.println("Pokemon: API call successful for page " + page +
+                    logger.info("Pokemon: API call successful for page " + page +
                                      ", response length: " + response.length() +
                                      ", duration: " + duration + "ms");
                 })
                 .doOnError(error -> {
                     long duration = System.currentTimeMillis() - startTime;
-                    System.err.println("Pokemon: API call failed for page " + page +
+                    logger.error("Pokemon: API call failed for page " + page +
                                      " after " + duration + "ms: " + error.getMessage() +
                                      " (type: " + error.getClass().getSimpleName() + ")");
                 })
@@ -761,12 +765,12 @@ public class TCGApiClient {
                         .maxBackoff(Duration.ofSeconds(30))
                         .doBeforeRetry(retrySignal -> {
                             long duration = System.currentTimeMillis() - startTime;
-                            System.out.println("Pokemon: Retrying page " + page +
+                            logger.info("Pokemon: Retrying page " + page +
                                              " (attempt " + (retrySignal.totalRetries() + 1) + "/3) after " + duration + "ms");
                         }))
                 .doOnTerminate(() -> {
                     long duration = System.currentTimeMillis() - startTime;
-                    System.out.println("Pokemon: Request terminated for page " + page + " after " + duration + "ms");
+                    logger.info("Pokemon: Request terminated for page " + page + " after " + duration + "ms");
                 });
     }
 
@@ -822,55 +826,55 @@ public class TCGApiClient {
     }
 
     private Flux<Card> parsePokemonCards(String jsonResponse) throws com.fasterxml.jackson.core.JsonProcessingException {
-        System.out.println("Pokemon: parsePokemonCards called with response length: " + jsonResponse.length());
+        logger.info("Pokemon: parsePokemonCards called with response length: " + jsonResponse.length());
         List<CardTemplate> templates = new ArrayList<>();
         try {
-            System.out.println("Pokemon: Parsing JSON response...");
+            logger.info("Pokemon: Parsing JSON response...");
             JsonNode root = objectMapper.readTree(jsonResponse);
             JsonNode data = root.path("data");
 
-            System.out.println("Pokemon: Found " + data.size() + " cards in data array");
+            logger.info("Pokemon: Found " + data.size() + " cards in data array");
 
             for (int i = 0; i < data.size(); i++) {
                 JsonNode cardNode = data.get(i);
-                System.out.println("Pokemon: Processing card " + (i + 1) + "/" + data.size() + " - Name: " + cardNode.path("name").asText());
+                logger.info("Pokemon: Processing card " + (i + 1) + "/" + data.size() + " - Name: " + cardNode.path("name").asText());
                 CardTemplate template = parsePokemonCardTemplate(cardNode);
                 if (template != null) {
                     templates.add(template);
-                    System.out.println("Pokemon: Successfully parsed card template: " + template.getName());
+                    logger.info("Pokemon: Successfully parsed card template: " + template.getName());
                 } else {
-                    System.err.println("Pokemon: Failed to parse card template for card " + (i + 1));
+                    logger.error("Pokemon: Failed to parse card template for card " + (i + 1));
                 }
             }
 
-            System.out.println("Parsed " + templates.size() + " Pokemon card templates from API response");
+            logger.info("Parsed " + templates.size() + " Pokemon card templates from API response");
 
             if (!templates.isEmpty()) {
                 // Save templates in smaller batches to reduce memory usage and database load
                 final int BATCH_SIZE = 50;
-                System.out.println("Saving " + templates.size() + " Pokemon card templates in batches of " + BATCH_SIZE);
+                logger.info("Saving " + templates.size() + " Pokemon card templates in batches of " + BATCH_SIZE);
 
                 for (int i = 0; i < templates.size(); i += BATCH_SIZE) {
                     int endIndex = Math.min(i + BATCH_SIZE, templates.size());
                     List<CardTemplate> batch = templates.subList(i, endIndex);
-                    System.out.println("Pokemon: Saving batch " + (i / BATCH_SIZE + 1) + "/" +
+                    logger.info("Pokemon: Saving batch " + (i / BATCH_SIZE + 1) + "/" +
                                       ((templates.size() + BATCH_SIZE - 1) / BATCH_SIZE) +
                                       " (" + batch.size() + " templates)");
                     try {
                         cardTemplateRepository.saveAll(batch);
-                        System.out.println("Pokemon: Successfully saved batch " + (i / BATCH_SIZE + 1));
+                        logger.info("Pokemon: Successfully saved batch " + (i / BATCH_SIZE + 1));
                     } catch (Exception e) {
-                        System.err.println("Pokemon: Error saving batch " + (i / BATCH_SIZE + 1) + ": " + e.getMessage());
+                        logger.error("Pokemon: Error saving batch " + (i / BATCH_SIZE + 1) + ": " + e.getMessage());
                         throw e;
                     }
                 }
 
-                System.out.println("Successfully saved all " + templates.size() + " Pokemon card templates");
+                logger.info("Successfully saved all " + templates.size() + " Pokemon card templates");
             } else {
-                System.out.println("Pokemon: No templates to save");
+                logger.info("Pokemon: No templates to save");
             }
         } catch (Exception e) {
-            System.err.println("Error parsing Pokemon cards: " + e.getMessage());
+            logger.error("Error parsing Pokemon cards: " + e.getMessage());
             e.printStackTrace();
             throw e; // Re-throw to propagate the error
         }
@@ -880,12 +884,12 @@ public class TCGApiClient {
 
     private CardTemplate parsePokemonCardTemplate(JsonNode cardNode) {
         try {
-            System.out.println("Pokemon: parsePokemonCardTemplate - Processing card: " + cardNode.path("name").asText());
+            logger.info("Pokemon: parsePokemonCardTemplate - Processing card: " + cardNode.path("name").asText());
             CardTemplate template = new CardTemplate();
 
             // Basic info
             String name = cardNode.path("name").asText();
-            System.out.println("Pokemon: Setting name: " + name);
+            logger.info("Pokemon: Setting name: " + name);
             template.setName(name);
             template.setTcgType(TCGType.POKEMON);
 
@@ -894,17 +898,17 @@ public class TCGApiClient {
             if (!setNode.isMissingNode()) {
                 String setCode = setNode.path("id").asText();
                 String cardNumber = cardNode.path("number").asText();
-                System.out.println("Pokemon: Setting setCode: " + setCode + ", cardNumber: " + cardNumber);
+                logger.info("Pokemon: Setting setCode: " + setCode + ", cardNumber: " + cardNumber);
                 template.setSetCode(setCode);
                 template.setCardNumber(cardNumber);
             } else {
-                System.out.println("Pokemon: No set information found for card");
+                logger.info("Pokemon: No set information found for card");
             }
 
             // Rarity
             String rarityStr = cardNode.path("rarity").asText();
             Rarity rarity = mapPokemonRarity(rarityStr);
-            System.out.println("Pokemon: Setting rarity: " + rarityStr + " -> " + rarity);
+            logger.info("Pokemon: Setting rarity: " + rarityStr + " -> " + rarity);
             template.setRarity(rarity);
 
             // Images
@@ -925,11 +929,11 @@ public class TCGApiClient {
             // Set creation date
             template.setDateCreated(LocalDateTime.now());
 
-            System.out.println("Pokemon: Successfully created template for: " + template.getName());
+            logger.info("Pokemon: Successfully created template for: " + template.getName());
             return template;
         } catch (Exception e) {
-            System.err.println("Error parsing individual Pokemon card template: " + e.getMessage());
-            System.err.println("Card data: " + cardNode.toString());
+            logger.error("Error parsing individual Pokemon card template: " + e.getMessage());
+            logger.error("Card data: " + cardNode.toString());
             e.printStackTrace();
             return null;
         }
@@ -966,7 +970,7 @@ public class TCGApiClient {
 
         // Check if we should skip import entirely
         if (shouldSkipImport(progress)) {
-            System.out.println("Skipping Magic import - recently completed and no need to check for updates yet");
+            logger.info("Skipping Magic import - recently completed and no need to check for updates yet");
             return Mono.empty();
         }
 
@@ -986,25 +990,25 @@ public class TCGApiClient {
             "type:planeswalker" // Planeswalkers
         );
 
-        System.out.println("Starting Magic import with " + categories.size() + " categories (~50-100 cards per category)");
+        logger.info("Starting Magic import with " + categories.size() + " categories (~50-100 cards per category)");
 
         // Use synchronous sequential processing
         return Mono.fromRunnable(() -> {
             try {
                 for (String category : categories) {
-                    System.out.println("Processing Magic category: " + category);
+                    logger.info("Processing Magic category: " + category);
                     fetchMagicCardsByCategorySync(category, progress);
-                    System.out.println("Completed category: " + category);
+                    logger.info("Completed category: " + category);
                 }
 
                 // Mark as complete
                 progress.setComplete(true);
                 progress.setLastCheckDate(LocalDateTime.now());
                 importProgressRepository.save(progress);
-                System.out.println("Magic import completed! All categories processed.");
+                logger.info("Magic import completed! All categories processed.");
 
             } catch (Exception e) {
-                System.err.println("Error during Magic import: " + e.getMessage());
+                logger.error("Error during Magic import: " + e.getMessage());
                 throw new RuntimeException(e);
             }
         });
@@ -1020,7 +1024,7 @@ public class TCGApiClient {
                 String response = fetchMagicCardsFromAPIByCategory(category, page).block();
 
                 if (response == null) {
-                    System.out.println("No response received for category " + category + ", page " + page);
+                    logger.info("No response received for category " + category + ", page " + page);
                     break;
                 }
 
@@ -1029,20 +1033,20 @@ public class TCGApiClient {
                 try {
                     jsonResponse = objectMapper.readTree(response);
                 } catch (Exception e) {
-                    System.err.println("Error parsing JSON response for category " + category + ", page " + page + ": " + e.getMessage());
+                    logger.error("Error parsing JSON response for category " + category + ", page " + page + ": " + e.getMessage());
                     break;
                 }
 
                 hasMore = jsonResponse.path("has_more").asBoolean();
                 int totalCards = jsonResponse.path("total_cards").asInt();
 
-                System.out.println("Magic API [" + category + "]: Page " + page +
+                logger.info("Magic API [" + category + "]: Page " + page +
                                   " (Total cards in category: " + totalCards + ", Has more: " + hasMore + ")");
 
                 // Check for empty data
                 JsonNode dataArray = jsonResponse.path("data");
                 if (dataArray.isArray() && dataArray.size() == 0) {
-                    System.out.println("Magic API [" + category + "]: Page " + page + " has empty data array, moving to next category");
+                    logger.info("Magic API [" + category + "]: Page " + page + " has empty data array, moving to next category");
                     break;
                 }
 
@@ -1052,7 +1056,7 @@ public class TCGApiClient {
                 page++;
 
             } catch (Exception e) {
-                System.err.println("Error processing category " + category + ", page " + page + ": " + e.getMessage());
+                logger.error("Error processing category " + category + ", page " + page + ": " + e.getMessage());
                 break;
             }
         }
@@ -1070,23 +1074,23 @@ public class TCGApiClient {
             }
         }
 
-        System.out.println("Parsed " + templates.size() + " Magic card templates from API response");
+        logger.info("Parsed " + templates.size() + " Magic card templates from API response");
 
         if (!templates.isEmpty()) {
             // Save templates in smaller batches to reduce memory usage and database load
             final int BATCH_SIZE = 50;
-            System.out.println("Saving " + templates.size() + " Magic card templates in batches of " + BATCH_SIZE);
+            logger.info("Saving " + templates.size() + " Magic card templates in batches of " + BATCH_SIZE);
 
             for (int i = 0; i < templates.size(); i += BATCH_SIZE) {
                 int endIndex = Math.min(i + BATCH_SIZE, templates.size());
                 List<CardTemplate> batch = templates.subList(i, endIndex);
-                System.out.println("Saving batch " + (i / BATCH_SIZE + 1) + "/" +
+                logger.info("Saving batch " + (i / BATCH_SIZE + 1) + "/" +
                                   ((templates.size() + BATCH_SIZE - 1) / BATCH_SIZE) +
                                   " (" + batch.size() + " templates)");
                 cardTemplateRepository.saveAll(batch);
             }
 
-            System.out.println("Successfully saved all " + templates.size() + " Magic card templates");
+            logger.info("Successfully saved all " + templates.size() + " Magic card templates");
         }
     }
 
@@ -1099,19 +1103,19 @@ public class TCGApiClient {
 
         // Check if we should skip import entirely
         if (shouldSkipImport(progress)) {
-            System.out.println("Skipping One Piece import - recently completed and no need to check for updates yet");
+            logger.info("Skipping One Piece import - recently completed and no need to check for updates yet");
             return Mono.empty();
         }
 
         // Determine starting page based on progress
         int startPage = progress.getLastProcessedPage() + 1;
-        System.out.println("Starting One Piece import from page " + startPage +
+        logger.info("Starting One Piece import from page " + startPage +
                           " (previously processed: " + progress.getLastProcessedPage() + " pages)");
 
         // If we need to check for updates (complete but old), start from page 1 to get current total
         if (progress.isComplete() && needsUpdateCheck(progress)) {
             startPage = 1;
-            System.out.println("Checking for One Piece card updates...");
+            logger.info("Checking for One Piece card updates...");
         }
 
         // Start fetching from the determined page
@@ -1121,7 +1125,7 @@ public class TCGApiClient {
             try {
                 fetchOnePieceCardsFromPageSync(startPageFinal, importProgress);
             } catch (Exception e) {
-                System.err.println("Error during One Piece import: " + e.getMessage());
+                logger.error("Error during One Piece import: " + e.getMessage());
                 throw new RuntimeException(e);
             }
         });
@@ -1140,19 +1144,19 @@ public class TCGApiClient {
 
         // Check if we should skip import entirely
         if (shouldSkipImport(progress)) {
-            System.out.println("Skipping One Piece import - recently completed and no need to check for updates yet");
+            logger.info("Skipping One Piece import - recently completed and no need to check for updates yet");
             return Flux.empty();
         }
 
         // Determine starting page based on progress
         int startPage = progress.getLastProcessedPage() + 1;
-        System.out.println("Starting One Piece import from page " + startPage +
+        logger.info("Starting One Piece import from page " + startPage +
                           " (previously processed: " + progress.getLastProcessedPage() + " pages, max pages: " + maxPages + ")");
 
         // If we need to check for updates (complete but old), start from page 1 to get current total
         if (progress.isComplete() && needsUpdateCheck(progress)) {
             startPage = 1;
-            System.out.println("Checking for One Piece card updates...");
+            logger.info("Checking for One Piece card updates...");
         }
 
         // Start fetching from the determined page with page limit
@@ -1169,13 +1173,13 @@ public class TCGApiClient {
                         boolean hasMore = jsonResponse.path("has_more").asBoolean();
                         int totalCards = jsonResponse.path("total_cards").asInt();
 
-                        System.out.println("Magic API [" + category + "]: Page " + page +
+                        logger.info("Magic API [" + category + "]: Page " + page +
                                           " (Total cards in category: " + totalCards + ", Has more: " + hasMore + ")");
 
                         // Safety check: if data array is empty, stop this category
                         JsonNode dataArray = jsonResponse.path("data");
                         if (dataArray.isArray() && dataArray.size() == 0) {
-                            System.out.println("Magic API [" + category + "]: Page " + page + " has empty data array, moving to next category");
+                            logger.info("Magic API [" + category + "]: Page " + page + " has empty data array, moving to next category");
                             return Mono.empty();
                         }
 
@@ -1184,7 +1188,7 @@ public class TCGApiClient {
                                 .then(hasMore ? fetchMagicCardsFromPageByCategory(category, page + 1, progress) : Mono.empty());
 
                     } catch (Exception e) {
-                        System.err.println("Error parsing Magic API response for category " + category + ": " + e.getMessage());
+                        logger.error("Error parsing Magic API response for category " + category + ": " + e.getMessage());
                         return Mono.empty();
                     }
                 });
@@ -1206,7 +1210,7 @@ public class TCGApiClient {
                         progress.setTotalPagesKnown(totalPages);
                         importProgressRepository.save(progress);
 
-                        System.out.println("One Piece API: Page " + currentPage + "/" + totalPages +
+                        logger.info("One Piece API: Page " + currentPage + "/" + totalPages +
                                           " (Total cards: " + totalCards + ", Limit: " + limit + ")");
 
                         // Parse cards from current page
@@ -1221,7 +1225,7 @@ public class TCGApiClient {
                         boolean isLastPage = currentPage >= totalPages;
                         if (demoEnv && currentPage >= maxPagesInDemo) {
                             isLastPage = true;
-                            System.out.println("Demo mode: Limiting import to first " + maxPagesInDemo + " pages (" + (maxPagesInDemo * limit) + " cards max)");
+                            logger.info("Demo mode: Limiting import to first " + maxPagesInDemo + " pages (" + (maxPagesInDemo * limit) + " cards max)");
                         }
 
                         // If this is the last page, mark as complete
@@ -1230,18 +1234,18 @@ public class TCGApiClient {
                             progress.setLastCheckDate(LocalDateTime.now());
                             importProgressRepository.save(progress);
                             int importedCards = demoEnv ? Math.min(totalCards, maxPagesInDemo * limit) : totalCards;
-                            System.out.println("One Piece import completed! " + importedCards + " cards imported." +
+                            logger.info("One Piece import completed! " + importedCards + " cards imported." +
                                              (demoEnv ? " (Limited by demo mode)" : ""));
                             return currentPageCards;
                         }
 
                         // Check if we've reached the max pages limit
                         if (currentPage >= maxPages) {
-                            System.out.println("Reached max pages limit (" + maxPages + "), stopping import");
+                            logger.info("Reached max pages limit (" + maxPages + "), stopping import");
                             progress.setComplete(true);
                             progress.setLastCheckDate(LocalDateTime.now());
                             importProgressRepository.save(progress);
-                            System.out.println("One Piece import completed! Limited to " + (currentPage * limit) + " cards (page limit).");
+                            logger.info("One Piece import completed! Limited to " + (currentPage * limit) + " cards (page limit).");
                             return currentPageCards;
                         }
 
@@ -1251,7 +1255,7 @@ public class TCGApiClient {
                         );
 
                     } catch (Exception e) {
-                        System.err.println("Error parsing One Piece API response: " + e.getMessage());
+                        logger.error("Error parsing One Piece API response: " + e.getMessage());
                         return Flux.empty();
                     }
                 });
@@ -1269,15 +1273,15 @@ public class TCGApiClient {
                     }
                     return response.bodyToMono(String.class);
                 })
-                .doOnNext(response -> System.out.println("Scryfall response received for [" + category + "], length: " + response.length() + ", starts with: " + response.substring(0, Math.min(100, response.length()))))
-                .doOnError(e -> System.out.println("Error in fetchMagicCardsFromAPIByCategory [" + category + "]: " + e.getMessage() + ", type: " + e.getClass().getSimpleName()))
+                .doOnNext(response -> logger.info("Scryfall response received for [" + category + "], length: " + response.length() + ", starts with: " + response.substring(0, Math.min(100, response.length()))))
+                .doOnError(e -> logger.info("Error in fetchMagicCardsFromAPIByCategory [" + category + "]: " + e.getMessage() + ", type: " + e.getClass().getSimpleName()))
                 .delayElement(getScryfallRateLimitDelay()); // Scryfall: max 10 requests/second
     }
 
     private Mono<String> fetchOnePieceCardsFromAPI(int page) {
         // Use the API endpoint directly
         String url = "https://apitcg.com/api/one-piece/cards?page=" + page + "&limit=100";
-        System.out.println("Making One Piece API request to: " + url);
+        logger.info("Making One Piece API request to: " + url);
 
         // One Piece TCG API: Use correct endpoint with limit parameter (max 100 per page)
         WebClient.RequestHeadersSpec<?> request = onePieceWebClient.get()
@@ -1286,9 +1290,9 @@ public class TCGApiClient {
         // Add API key header if available
         if (onePieceApiKey != null && !onePieceApiKey.isEmpty()) {
             request = request.header("x-api-key", onePieceApiKey);
-            System.out.println("Added API key header to One Piece request");
+            logger.info("Added API key header to One Piece request");
         } else {
-            System.out.println("No onepiece.api.key configured in application.properties");
+            logger.info("No onepiece.api.key configured in application.properties");
         }
 
         // Handle redirects manually but simply - max 1 redirect to prevent loops
@@ -1297,7 +1301,7 @@ public class TCGApiClient {
                 // Get redirect location
                 String location = response.headers().header("Location").stream().findFirst().orElse(null);
                 if (location != null && !location.equals(url)) {
-                    System.out.println("Following redirect to: " + location);
+                    logger.info("Following redirect to: " + location);
                     // Make second request to redirect location (only once to prevent loops)
                     WebClient.RequestHeadersSpec<?> redirectRequest = onePieceWebClient.get().uri(location);
                     if (onePieceApiKey != null && !onePieceApiKey.isEmpty()) {
@@ -1305,15 +1309,15 @@ public class TCGApiClient {
                     }
                     return redirectRequest.retrieve().bodyToMono(String.class);
                 } else if (location != null && location.equals(url)) {
-                    System.out.println("Redirect location same as original URL, skipping to prevent loop: " + location);
+                    logger.info("Redirect location same as original URL, skipping to prevent loop: " + location);
                 }
             }
             // For direct responses or when redirect location is same as original, return the body
             return response.bodyToMono(String.class);
         })
         .delayElement(getRateLimitDelay()) // Conservative rate limiting since not documented
-        .doOnNext(body -> System.out.println("One Piece API response (first 200 chars): " + body.substring(0, Math.min(200, body.length()))))
-        .doOnError(error -> System.out.println("One Piece API request failed: " + error.getMessage()));
+        .doOnNext(body -> logger.info("One Piece API response (first 200 chars): " + body.substring(0, Math.min(200, body.length()))))
+        .doOnError(error -> logger.info("One Piece API request failed: " + error.getMessage()));
     }
 
     private Mono<Void> parseMagicCards(String jsonResponse) {
@@ -1330,34 +1334,34 @@ public class TCGApiClient {
                     }
                 }
 
-                System.out.println("Parsed " + templates.size() + " Magic card templates from API response");
+                logger.info("Parsed " + templates.size() + " Magic card templates from API response");
 
                 if (!templates.isEmpty()) {
                     // Save templates in smaller batches to reduce memory usage and database load
                     final int BATCH_SIZE = 50;
-                    System.out.println("Saving " + templates.size() + " Magic card templates in batches of " + BATCH_SIZE);
+                    logger.info("Saving " + templates.size() + " Magic card templates in batches of " + BATCH_SIZE);
 
                     for (int i = 0; i < templates.size(); i += BATCH_SIZE) {
                         int endIndex = Math.min(i + BATCH_SIZE, templates.size());
                         List<CardTemplate> batch = templates.subList(i, endIndex);
-                        System.out.println("Saving batch " + (i / BATCH_SIZE + 1) + "/" +
+                        logger.info("Saving batch " + (i / BATCH_SIZE + 1) + "/" +
                                           ((templates.size() + BATCH_SIZE - 1) / BATCH_SIZE) +
                                           " (" + batch.size() + " templates)");
                         cardTemplateRepository.saveAll(batch);
                     }
 
-                    System.out.println("Successfully saved all " + templates.size() + " Magic card templates");
+                    logger.info("Successfully saved all " + templates.size() + " Magic card templates");
                 }
 
                 return null;
             } catch (Exception e) {
-                System.err.println("Error parsing Magic cards: " + e.getMessage());
+                logger.error("Error parsing Magic cards: " + e.getMessage());
                 throw e;
             }
         })
         .subscribeOn(Schedulers.boundedElastic())
-        .doOnSuccess(v -> System.out.println("Magic card template processing completed"))
-        .doOnError(e -> System.err.println("Error in Magic card template processing: " + e.getMessage()))
+        .doOnSuccess(v -> logger.info("Magic card template processing completed"))
+        .doOnError(e -> logger.error("Error in Magic card template processing: " + e.getMessage()))
         .then();
     }
 
@@ -1374,26 +1378,26 @@ public class TCGApiClient {
                 }
             }
 
-            System.out.println("Parsed " + templates.size() + " One Piece card templates from API response");
+            logger.info("Parsed " + templates.size() + " One Piece card templates from API response");
 
             if (!templates.isEmpty()) {
                 // Save templates in smaller batches to reduce memory usage and database load
                 final int BATCH_SIZE = 50;
-                System.out.println("Saving " + templates.size() + " One Piece card templates in batches of " + BATCH_SIZE);
+                logger.info("Saving " + templates.size() + " One Piece card templates in batches of " + BATCH_SIZE);
 
                 for (int i = 0; i < templates.size(); i += BATCH_SIZE) {
                     int endIndex = Math.min(i + BATCH_SIZE, templates.size());
                     List<CardTemplate> batch = templates.subList(i, endIndex);
-                    System.out.println("Saving batch " + (i / BATCH_SIZE + 1) + "/" +
+                    logger.info("Saving batch " + (i / BATCH_SIZE + 1) + "/" +
                                       ((templates.size() + BATCH_SIZE - 1) / BATCH_SIZE) +
                                       " (" + batch.size() + " templates)");
                     cardTemplateRepository.saveAll(batch);
                 }
 
-                System.out.println("Successfully saved all " + templates.size() + " One Piece card templates");
+                logger.info("Successfully saved all " + templates.size() + " One Piece card templates");
             }
         } catch (Exception e) {
-            System.err.println("Error parsing One Piece cards: " + e.getMessage());
+            logger.error("Error parsing One Piece cards: " + e.getMessage());
         }
 
         return Flux.empty(); // Return empty since we're saving templates, not cards
@@ -1451,7 +1455,7 @@ public class TCGApiClient {
 
             return template;
         } catch (Exception e) {
-            System.err.println("Error parsing individual Magic card template: " + e.getMessage());
+            logger.error("Error parsing individual Magic card template: " + e.getMessage());
             return null;
         }
     }
@@ -1625,7 +1629,7 @@ public class TCGApiClient {
 
             return template;
         } catch (Exception e) {
-            System.err.println("Error parsing One Piece card template: " + e.getMessage());
+            logger.error("Error parsing One Piece card template: " + e.getMessage());
             return null;
         }
     }

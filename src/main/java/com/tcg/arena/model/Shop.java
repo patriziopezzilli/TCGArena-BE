@@ -48,6 +48,10 @@ public class Shop {
     private String twitterUrl;
     private String email;
 
+    // Shop photo as base64 string
+    @Column(columnDefinition = "TEXT")
+    private String photoBase64;
+
     // TCG Types supported (stored as comma-separated string)
     // e.g., "POKEMON,MAGIC,YUGIOH,ONE_PIECE,DRAGON_BALL,LORCANA"
     @Column(length = 500)
@@ -115,6 +119,9 @@ public class Shop {
 
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
+
+    public String getPhotoBase64() { return photoBase64; }
+    public void setPhotoBase64(String photoBase64) { this.photoBase64 = photoBase64; }
 
     public List<ShopInventory> getInventory() { return inventory; }
     public void setInventory(List<ShopInventory> inventory) { this.inventory = inventory; }

@@ -13,6 +13,8 @@ import com.tcg.arena.security.JwtUserDetailsService;
 import com.tcg.arena.service.DeckService;
 import com.tcg.arena.service.ShopService;
 import com.tcg.arena.service.UserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -30,6 +32,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/auth")
 public class JwtAuthenticationController {
+
+    private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationController.class);
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -88,15 +92,14 @@ public class JwtAuthenticationController {
             user.setFavoriteTCGTypes(registerRequest.getFavoriteGames());
         }
 
-        System.out.println("DEBUG: Registering user: " + user.getUsername());
-        System.out.println("DEBUG: Original password length: "
-                + (user.getPassword() != null ? user.getPassword().length() : "null"));
+        logger.debug("Registering user: {}", user.getUsername());
+        logger.debug("Original password length: {}", user.getPassword() != null ? user.getPassword().length() : "null");
         String encodedPassword = passwordEncoder.encode(user.getPassword());
-        System.out.println("DEBUG: Encoded password: " + encodedPassword);
+        logger.debug("Encoded password: {}", encodedPassword);
         user.setPassword(encodedPassword);
         
         User savedUser = userService.saveUser(user);
-        System.out.println("DEBUG: User saved with password: " + savedUser.getPassword());
+        logger.debug("User saved with ID: {}", savedUser.getId());
 
         // Create starter decks for favorite TCG types
         if (registerRequest.getFavoriteGames() != null && !registerRequest.getFavoriteGames().isEmpty()) {
@@ -188,15 +191,15 @@ public class JwtAuthenticationController {
 
     private void authenticate(String username, String password) throws Exception {
         try {
-            System.out.println("DEBUG: Attempting to authenticate user: " + username);
-            System.out.println("DEBUG: Password length: " + (password != null ? password.length() : "null"));
+            logger.debug("Attempting to authenticate user: {}", username);
+            logger.debug("Password length: {}", password != null ? password.length() : "null");
             authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(username, password));
-            System.out.println("DEBUG: Authentication successful for user: " + username);
+            logger.debug("Authentication successful for user: {}", username);
         } catch (DisabledException e) {
-            System.out.println("DEBUG: User disabled: " + username);
+            logger.debug("User disabled: {}", username);
             throw new Exception("USER_DISABLED", e);
         } catch (BadCredentialsException e) {
-            System.out.println("DEBUG: Bad credentials for user: " + username);
+            logger.debug("Bad credentials for user: {}", username);
             throw new Exception("INVALID_CREDENTIALS", e);
         }
     }

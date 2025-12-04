@@ -7,6 +7,8 @@ import com.tcg.arena.repository.CardTemplateRepository;
 import com.tcg.arena.repository.DeckCardRepository;
 import com.tcg.arena.repository.DeckRepository;
 import com.tcg.arena.repository.UserCardRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +18,8 @@ import java.util.Optional;
 
 @Service
 public class DeckService {
+    private static final Logger logger = LoggerFactory.getLogger(DeckService.class);
+
     @Autowired
     private DeckRepository deckRepository;
 
@@ -406,7 +410,7 @@ public class DeckService {
             }
         } catch (Exception e) {
             // Log error but don't fail the DeckCard update
-            System.err.println("Error syncing DeckCard to UserCard: " + e.getMessage());
+            logger.error("Error syncing DeckCard to UserCard: {}", e.getMessage());
         }
     }
 
@@ -434,7 +438,7 @@ public class DeckService {
             collectionDeck.setIsPublic(false);
             deckRepository.save(collectionDeck);
             
-            System.out.println("Created collection deck for user " + userId + ": " + collectionDeck.getName());
+            logger.info("Created collection deck for user {}: {}", userId, collectionDeck.getName());
             
             // Create "Wishlist" deck
             Deck wishlistDeck = new Deck();
@@ -448,7 +452,7 @@ public class DeckService {
             wishlistDeck.setIsPublic(false);
             deckRepository.save(wishlistDeck);
             
-            System.out.println("Created wishlist deck for user " + userId + ": " + wishlistDeck.getName());
+            logger.info("Created wishlist deck for user {}: {}", userId, wishlistDeck.getName());
         }
     }
 }

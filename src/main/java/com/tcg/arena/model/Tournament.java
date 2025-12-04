@@ -43,7 +43,7 @@ public class Tournament {
     private Double entryFee;
 
     @Column(nullable = false)
-    private Double prizePool;
+    private String prizePool;
 
     @Column(nullable = false)
     private Long organizerId;
@@ -85,8 +85,8 @@ public class Tournament {
     public Double getEntryFee() { return entryFee; }
     public void setEntryFee(Double entryFee) { this.entryFee = entryFee; }
 
-    public Double getPrizePool() { return prizePool; }
-    public void setPrizePool(Double prizePool) { this.prizePool = prizePool; }
+    public String getPrizePool() { return prizePool; }
+    public void setPrizePool(String prizePool) { this.prizePool = prizePool; }
 
     public Long getOrganizerId() { return organizerId; }
     public void setOrganizerId(Long organizerId) { this.organizerId = organizerId; }

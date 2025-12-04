@@ -208,6 +208,14 @@ public class CustomerRequestService {
         
         CustomerRequest customerRequest = getRequest(requestId);
         
+        // Check if request is in a terminal state (cannot send messages)
+        if (customerRequest.getStatus() == CustomerRequest.RequestStatus.COMPLETED ||
+            customerRequest.getStatus() == CustomerRequest.RequestStatus.REJECTED ||
+            customerRequest.getStatus() == CustomerRequest.RequestStatus.CANCELLED) {
+            throw new IllegalStateException("Cannot send messages to a " + 
+                customerRequest.getStatus().name().toLowerCase() + " request");
+        }
+        
         Long senderIdLong = Long.valueOf(senderId);
         
         // Verify authorization

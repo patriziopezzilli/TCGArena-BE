@@ -5,6 +5,8 @@ import com.tcg.arena.model.Notification;
 import com.tcg.arena.model.ShopSubscription;
 import com.tcg.arena.repository.DeviceTokenRepository;
 import com.tcg.arena.repository.NotificationRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -13,6 +15,8 @@ import java.util.List;
 
 @Service
 public class NotificationService {
+
+    private static final Logger logger = LoggerFactory.getLogger(NotificationService.class);
 
     @Autowired
     private NotificationRepository notificationRepository;
@@ -82,7 +86,7 @@ public class NotificationService {
             try {
                 firebaseMessagingService.sendPushNotification(deviceToken.getToken(), title, message);
             } catch (Exception e) {
-                System.err.println("Failed to send push notification to device " + deviceToken.getToken() + ": " + e.getMessage());
+                logger.error("Failed to send push notification to device {}: {}", deviceToken.getToken(), e.getMessage());
             }
         }
     }
@@ -101,7 +105,7 @@ public class NotificationService {
                 try {
                     firebaseMessagingService.sendPushNotification(deviceToken.getToken(), title, message);
                 } catch (Exception e) {
-                    System.err.println("Failed to send push notification to device " + deviceToken.getToken() + ": " + e.getMessage());
+                    logger.error("Failed to send push notification to device {}: {}", deviceToken.getToken(), e.getMessage());
                 }
             }
         }
