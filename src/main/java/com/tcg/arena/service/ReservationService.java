@@ -1,9 +1,12 @@
 package com.tcg.arena.service;
 
 import com.tcg.arena.dto.ReservationDTO.*;
+import com.tcg.arena.model.User;
 import com.tcg.arena.model.InventoryCard;
 import com.tcg.arena.model.Reservation;
 import com.tcg.arena.repository.ReservationRepository;
+import com.tcg.arena.service.InventoryCardService;
+import com.tcg.arena.service.UserService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -25,24 +28,28 @@ public class ReservationService {
     
     private final ReservationRepository reservationRepository;
     private final InventoryCardService inventoryCardService;
+    private final UserService userService;
     
     private static final int RESERVATION_DURATION_MINUTES = 30;
     
     public ReservationService(ReservationRepository reservationRepository, 
-                             InventoryCardService inventoryCardService) {
+                             InventoryCardService inventoryCardService,
+                             UserService userService) {
         this.reservationRepository = reservationRepository;
         this.inventoryCardService = inventoryCardService;
+        this.userService = userService;
     }
     
-    /**
-     * Create a new reservation
-     */
     @Transactional
     public ReservationResponse createReservation(
-        String userId,
+        String username,
         CreateReservationRequest request
     ) {
-        log.info("Creating reservation for user: {} card: {}", userId, request.getCardId());
+        log.info("Creating reservation for user: {} card: {}", username, request.getCardId());
+        
+        // Get user by username
+        User user = userService.getUserByUsername(username)
+            .orElseThrow(() -> new RuntimeException("User not found"));
         
         // Get inventory card and validate availability
         InventoryCard inventoryCard = inventoryCardService.getInventoryCard(request.getCardId());
@@ -54,7 +61,7 @@ public class ReservationService {
         // Create reservation
         Reservation reservation = new Reservation();
         reservation.setCardId(request.getCardId());
-        reservation.setUserId(Long.valueOf(userId));
+        reservation.setUserId(user.getId());
         reservation.setMerchantId(inventoryCard.getShopId());
         reservation.setStatus(Reservation.ReservationStatus.PENDING);
         reservation.setQrCode(UUID.randomUUID().toString());
@@ -76,14 +83,18 @@ public class ReservationService {
      */
     @Transactional(readOnly = true)
     public ReservationListResponse getUserReservations(
-        String userId,
+        String username,
         int page,
         int size
     ) {
-        log.info("Getting reservations for user: {}", userId);
+        log.info("Getting reservations for user: {}", username);
+        
+        // Get user by username
+        User user = userService.getUserByUsername(username)
+            .orElseThrow(() -> new RuntimeException("User not found"));
         
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<Reservation> reservationPage = reservationRepository.findByUserId(Long.valueOf(userId), pageable);
+        Page<Reservation> reservationPage = reservationRepository.findByUserId(user.getId(), pageable);
         
         return new ReservationListResponse(
             reservationPage.getContent(),
@@ -201,18 +212,20 @@ public class ReservationService {
      */
     @Transactional
     public ReservationResponse cancelReservation(
-        String userId,
+        String username,
         String reservationId
     ) {
-        log.info("Cancelling reservation: {} by user: {}", reservationId, userId);
+        log.info("Cancelling reservation: {} by user: {}", reservationId, username);
+        
+        // Get user by username
+        User user = userService.getUserByUsername(username)
+            .orElseThrow(() -> new RuntimeException("User not found"));
         
         Reservation reservation = reservationRepository.findById(reservationId)
             .orElseThrow(() -> new RuntimeException("Reservation not found"));
         
-        Long userIdLong = Long.valueOf(userId);
-        
         // Verify user
-        if (!reservation.getUserId().equals(userIdLong)) {
+        if (!reservation.getUserId().equals(user.getId())) {
             throw new RuntimeException("Unauthorized");
         }
         

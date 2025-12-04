@@ -25,20 +25,16 @@ public class ReservationController {
         this.reservationService = reservationService;
     }
     
-    /**
-     * Create a new reservation (Player)
-     * POST /api/reservations
-     */
     @PostMapping
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<ReservationResponse> createReservation(
         Authentication authentication,
         @Valid @RequestBody CreateReservationRequest request
     ) {
-        String userId = authentication.getName();
-        log.info("POST /api/reservations - user: {}, card: {}", userId, request.getCardId());
+        String username = authentication.getName();
+        log.info("POST /api/reservations - user: {}, card: {}", username, request.getCardId());
         
-        ReservationResponse response = reservationService.createReservation(userId, request);
+        ReservationResponse response = reservationService.createReservation(username, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
     
@@ -53,10 +49,10 @@ public class ReservationController {
         @RequestParam(defaultValue = "0") int page,
         @RequestParam(defaultValue = "20") int size
     ) {
-        String userId = authentication.getName();
-        log.info("GET /api/reservations/my - user: {}", userId);
+        String username = authentication.getName();
+        log.info("GET /api/reservations/my - user: {}", username);
         
-        ReservationListResponse response = reservationService.getUserReservations(userId, page, size);
+        ReservationListResponse response = reservationService.getUserReservations(username, page, size);
         return ResponseEntity.ok(response);
     }
     
@@ -129,10 +125,10 @@ public class ReservationController {
         Authentication authentication,
         @PathVariable String id
     ) {
-        String userId = authentication.getName();
-        log.info("POST /api/reservations/{}/cancel - user: {}", id, userId);
+        String username = authentication.getName();
+        log.info("POST /api/reservations/{}/cancel - user: {}", id, username);
         
-        ReservationResponse response = reservationService.cancelReservation(userId, id);
+        ReservationResponse response = reservationService.cancelReservation(username, id);
         return ResponseEntity.ok(response);
     }
     
