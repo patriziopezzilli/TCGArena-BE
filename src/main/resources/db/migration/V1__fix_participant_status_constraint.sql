@@ -1,0 +1,1 @@
+ALTER TABLE tournament_participants DROP CONSTRAINT IF EXISTS tournament_participants_status_check;

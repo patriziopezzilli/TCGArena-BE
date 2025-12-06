@@ -4,8 +4,8 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "rewards")
-public class Reward {
+@Table(name = "partners")
+public class Partner {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -16,10 +16,9 @@ public class Reward {
     @Column(length = 1000)
     private String description;
 
-    @Column(nullable = false)
-    private Integer costPoints;
+    private String logoUrl;
 
-    private String imageUrl;
+    private String websiteUrl;
 
     @Column(nullable = false)
     private Boolean isActive = true;
@@ -27,13 +26,10 @@ public class Reward {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
-    @ManyToOne
-    @JoinColumn(name = "partner_id")
-    private Partner partner;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = true)
-    private RewardType type = RewardType.PHYSICAL;
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
 
     // Getters and Setters
     public Long getId() {
@@ -60,20 +56,20 @@ public class Reward {
         this.description = description;
     }
 
-    public Integer getCostPoints() {
-        return costPoints;
+    public String getLogoUrl() {
+        return logoUrl;
     }
 
-    public void setCostPoints(Integer costPoints) {
-        this.costPoints = costPoints;
+    public void setLogoUrl(String logoUrl) {
+        this.logoUrl = logoUrl;
     }
 
-    public String getImageUrl() {
-        return imageUrl;
+    public String getWebsiteUrl() {
+        return websiteUrl;
     }
 
-    public void setImageUrl(String imageUrl) {
-        this.imageUrl = imageUrl;
+    public void setWebsiteUrl(String websiteUrl) {
+        this.websiteUrl = websiteUrl;
     }
 
     public Boolean getIsActive() {
@@ -90,21 +86,5 @@ public class Reward {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
-    }
-
-    public Partner getPartner() {
-        return partner;
-    }
-
-    public void setPartner(Partner partner) {
-        this.partner = partner;
-    }
-
-    public RewardType getType() {
-        return type != null ? type : RewardType.PHYSICAL;
-    }
-
-    public void setType(RewardType type) {
-        this.type = type;
     }
 }

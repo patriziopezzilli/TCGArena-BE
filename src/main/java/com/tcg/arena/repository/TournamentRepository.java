@@ -12,10 +12,17 @@ import java.util.List;
 
 @Repository
 public interface TournamentRepository extends JpaRepository<Tournament, Long> {
-    @Query("SELECT t FROM Tournament t WHERE t.startDate > :now ORDER BY t.startDate")
-    List<Tournament> findUpcomingTournaments(@Param("now") LocalDateTime now);
+    @Query("SELECT t FROM Tournament t WHERE t.startDate > :now OR (t.endDate >= :fiveHoursAgo) ORDER BY t.startDate")
+    List<Tournament> findUpcomingTournaments(@Param("now") LocalDateTime now, @Param("fiveHoursAgo") LocalDateTime fiveHoursAgo);
+
+    @Query("SELECT t FROM Tournament t WHERE t.endDate < :fiveHoursAgo ORDER BY t.endDate DESC")
+    List<Tournament> findPastTournaments(@Param("fiveHoursAgo") LocalDateTime fiveHoursAgo);
 
     List<Tournament> findAllByOrderByStartDateDesc();
+
+    List<Tournament> findAllByOrderByStartDateAsc();
+
     List<Tournament> findByStatus(TournamentStatus status);
+
     List<Tournament> findByOrganizerId(Long organizerId);
 }

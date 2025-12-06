@@ -92,8 +92,13 @@ public class DeckService {
     }
 
     public Deck createDeck(String name, TCGType tcgType, DeckType deckType, Long ownerId) {
+        return createDeck(name, null, tcgType, deckType, ownerId);
+    }
+
+    public Deck createDeck(String name, String description, TCGType tcgType, DeckType deckType, Long ownerId) {
         Deck deck = new Deck();
         deck.setName(name);
+        deck.setDescription(description);
         deck.setTcgType(tcgType);
         deck.setDeckType(deckType != null ? deckType : DeckType.LISTA);
         deck.setOwnerId(ownerId);
@@ -168,19 +173,21 @@ public class DeckService {
         deckCard.setCardName(template.getName());
         deckCard.setCardImageUrl(template.getImageUrl());
         deckCard.setCondition(CardCondition.MINT); // Default condition
-        
-        // Check if user has this card in their personal collection and copy grading info
+
+        // Check if user has this card in their personal collection and copy grading
+        // info
         List<UserCard> userCards = userCardRepository.findByCardTemplateId(templateId);
         UserCard existingUserCard = userCards.stream()
                 .filter(uc -> uc.getOwner().getId().equals(userId))
                 .findFirst()
                 .orElse(null);
-        
+
         if (existingUserCard != null) {
             // Copy grading information from user's personal collection
             deckCard.setIsGraded(existingUserCard.getIsGraded());
             deckCard.setGradeService(existingUserCard.getGradeService());
-            deckCard.setGrade(existingUserCard.getGradeScore() != null ? existingUserCard.getGradeScore().toString() : null);
+            deckCard.setGrade(
+                    existingUserCard.getGradeScore() != null ? existingUserCard.getGradeScore().toString() : null);
             deckCard.setCondition(existingUserCard.getCondition()); // Also copy condition
             deckCard.setNationality(existingUserCard.getNationality()); // Copy nationality
         } else {
@@ -290,7 +297,7 @@ public class DeckService {
             deckCard.setCondition(updateDTO.getCondition());
             hasChanges = true;
         }
-        
+
         // Handle grading fields - if isGraded is provided, update all grading fields
         if (updateDTO.getIsGraded() != null) {
             deckCard.setIsGraded(updateDTO.getIsGraded());
@@ -375,9 +382,9 @@ public class DeckService {
             // Find the corresponding UserCard
             List<UserCard> userCards = userCardRepository.findByCardTemplateId(cardTemplateId);
             UserCard userCard = userCards.stream()
-                .filter(uc -> uc.getOwner().getId().equals(userId))
-                .findFirst()
-                .orElse(null);
+                    .filter(uc -> uc.getOwner().getId().equals(userId))
+                    .findFirst()
+                    .orElse(null);
 
             if (userCard != null) {
                 boolean hasChanges = false;
@@ -428,7 +435,8 @@ public class DeckService {
     /**
      * Creates starter decks for a new user based on their favorite TCG types
      * Creates "Collezione" and "Wishlist" decks for each favorite TCG
-     * @param userId The ID of the user
+     * 
+     * @param userId           The ID of the user
      * @param favoriteTCGTypes List of favorite TCG types
      */
     public void createStarterDecksForUser(Long userId, List<TCGType> favoriteTCGTypes) {
@@ -448,9 +456,9 @@ public class DeckService {
             collectionDeck.setDateModified(LocalDateTime.now());
             collectionDeck.setIsPublic(false);
             deckRepository.save(collectionDeck);
-            
+
             logger.info("Created collection deck for user {}: {}", userId, collectionDeck.getName());
-            
+
             // Create "Wishlist" deck
             Deck wishlistDeck = new Deck();
             wishlistDeck.setOwnerId(userId);
@@ -462,7 +470,7 @@ public class DeckService {
             wishlistDeck.setDateModified(LocalDateTime.now());
             wishlistDeck.setIsPublic(false);
             deckRepository.save(wishlistDeck);
-            
+
             logger.info("Created wishlist deck for user {}: {}", userId, wishlistDeck.getName());
         }
     }

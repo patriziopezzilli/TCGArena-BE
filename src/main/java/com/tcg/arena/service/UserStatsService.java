@@ -93,8 +93,8 @@ public class UserStatsService {
 
         int total = participants.size();
         int wins = (int) participants.stream()
-            .filter(p -> p.getPlacement() != null && p.getPlacement() == 1)
-            .count();
+                .filter(p -> p.getPlacement() != null && p.getPlacement() == 1)
+                .count();
         int losses = total - wins; // All tournaments except wins are losses
 
         return Map.of("total", total, "wins", wins, "losses", losses);
@@ -104,8 +104,8 @@ public class UserStatsService {
         // Count decks by TCG type
         var decks = deckRepository.findByOwnerIdOrderByDateCreatedDesc(user.getId());
         var typeCount = decks.stream()
-            .filter(d -> d.getTcgType() != null)
-            .collect(Collectors.groupingBy(Deck::getTcgType, Collectors.counting()));
+                .filter(d -> d.getTcgType() != null)
+                .collect(Collectors.groupingBy(Deck::getTcgType, Collectors.counting()));
 
         if (typeCount.isEmpty()) {
             return user.getFavoriteGame(); // fallback to user's preference
@@ -113,9 +113,9 @@ public class UserStatsService {
 
         // Return the most common TCG type
         return typeCount.entrySet().stream()
-            .max(Map.Entry.comparingByValue())
-            .map(Map.Entry::getKey)
-            .orElse(user.getFavoriteGame());
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse(user.getFavoriteGame());
     }
 
     @Cacheable(value = "leaderboard", key = "'overall_' + #limit")
@@ -126,6 +126,16 @@ public class UserStatsService {
     @Cacheable(value = "leaderboard", key = "'active_' + #limit")
     public List<UserStats> getActivePlayersLeaderboard(int limit) {
         return userStatsRepository.findActivePlayersByWinRate(limit);
+    }
+
+    @Cacheable(value = "leaderboard", key = "'collection_' + #limit")
+    public List<UserStats> getTopCollectors(int limit) {
+        return userStatsRepository.findTopCollectors(limit);
+    }
+
+    @Cacheable(value = "leaderboard", key = "'tournament_' + #limit")
+    public List<UserStats> getTopTournamentPlayers(int limit) {
+        return userStatsRepository.findTopTournamentPlayers(limit);
     }
 
     @CacheEvict(value = "leaderboard", allEntries = true)

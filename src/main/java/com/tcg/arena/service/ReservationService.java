@@ -4,6 +4,8 @@ import com.tcg.arena.dto.ReservationDTO.*;
 import com.tcg.arena.model.User;
 import com.tcg.arena.model.InventoryCard;
 import com.tcg.arena.model.Reservation;
+import com.tcg.arena.model.Shop;
+import com.tcg.arena.repository.ShopRepository;
 import com.tcg.arena.repository.ReservationRepository;
 import com.tcg.arena.service.InventoryCardService;
 import com.tcg.arena.service.UserService;
@@ -29,15 +31,16 @@ public class ReservationService {
     private final ReservationRepository reservationRepository;
     private final InventoryCardService inventoryCardService;
     private final UserService userService;
-    
-    private static final int RESERVATION_DURATION_MINUTES = 30;
+    private final ShopRepository shopRepository;
     
     public ReservationService(ReservationRepository reservationRepository, 
                              InventoryCardService inventoryCardService,
-                             UserService userService) {
+                             UserService userService,
+                             ShopRepository shopRepository) {
         this.reservationRepository = reservationRepository;
         this.inventoryCardService = inventoryCardService;
         this.userService = userService;
+        this.shopRepository = shopRepository;
     }
     
     @Transactional
@@ -58,6 +61,13 @@ public class ReservationService {
             throw new RuntimeException("Insufficient quantity available");
         }
         
+        // Get shop to retrieve reservation duration setting
+        Shop shop = shopRepository.findById(inventoryCard.getShopId())
+            .orElseThrow(() -> new RuntimeException("Shop not found"));
+        
+        int reservationDurationMinutes = shop.getReservationDurationMinutes() != null ? 
+            shop.getReservationDurationMinutes() : 30; // Default to 30 minutes if not set
+        
         // Create reservation
         Reservation reservation = new Reservation();
         reservation.setCardId(request.getCardId());
@@ -65,7 +75,7 @@ public class ReservationService {
         reservation.setMerchantId(inventoryCard.getShopId());
         reservation.setStatus(Reservation.ReservationStatus.PENDING);
         reservation.setQrCode(UUID.randomUUID().toString());
-        reservation.setExpiresAt(LocalDateTime.now().plusMinutes(RESERVATION_DURATION_MINUTES));
+        reservation.setExpiresAt(LocalDateTime.now().plusMinutes(reservationDurationMinutes));
         
         // Decrease inventory quantity
         inventoryCardService.updateQuantity(request.getCardId(), -request.getQuantity());
@@ -74,7 +84,7 @@ public class ReservationService {
         
         return new ReservationResponse(
             saved,
-            "Reservation created successfully. Please complete pickup within 30 minutes."
+            String.format("Reservation created successfully. Please complete pickup within %d minutes.", reservationDurationMinutes)
         );
     }
     
@@ -87,17 +97,75 @@ public class ReservationService {
         int page,
         int size
     ) {
-        log.info("Getting reservations for user: {}", username);
+        return getUserReservations(username, null, page, size);
+    }
+    
+    public ReservationListResponse getUserReservations(
+        String username,
+        Long shopId,
+        int page,
+        int size
+    ) {
+        log.info("Getting reservations for user: {} with shop filter: {}", username, shopId);
         
         // Get user by username
         User user = userService.getUserByUsername(username)
             .orElseThrow(() -> new RuntimeException("User not found"));
         
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<Reservation> reservationPage = reservationRepository.findByUserId(user.getId(), pageable);
+        Page<Reservation> reservationPage;
+        
+        if (shopId != null) {
+            // Filter by both user and shop
+            reservationPage = reservationRepository.findByUserIdAndMerchantId(user.getId(), shopId, pageable);
+        } else {
+            // Get all user's reservations
+            reservationPage = reservationRepository.findByUserId(user.getId(), pageable);
+        }
+        
+        // Convert to DTOs
+        List<ReservationSummaryDTO> reservationDTOs = reservationPage.getContent().stream()
+            .map(ReservationSummaryDTO::new)
+            .toList();
         
         return new ReservationListResponse(
-            reservationPage.getContent(),
+            reservationDTOs,
+            (int) reservationPage.getTotalElements(),
+            page,
+            size
+        );
+    }
+    
+    /**
+     * Get reservations by card ID (for availability checking)
+     */
+    @Transactional(readOnly = true)
+    public ReservationListResponse getReservationsByCardId(
+        String cardId,
+        String merchantId,
+        int page,
+        int size
+    ) {
+        log.info("Getting reservations for card: {}, merchant: {}", cardId, merchantId);
+        
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<Reservation> reservationPage;
+        
+        if (merchantId != null && !merchantId.isEmpty()) {
+            // Filter by both cardId and merchantId
+            reservationPage = reservationRepository.findByCardIdAndMerchantId(cardId, Long.parseLong(merchantId), pageable);
+        } else {
+            // Filter only by cardId
+            reservationPage = reservationRepository.findByCardId(cardId, pageable);
+        }
+        
+        // Convert to DTOs
+        List<ReservationSummaryDTO> reservationDTOs = reservationPage.getContent().stream()
+            .map(ReservationSummaryDTO::new)
+            .toList();
+        
+        return new ReservationListResponse(
+            reservationDTOs,
             (int) reservationPage.getTotalElements(),
             page,
             size
@@ -109,24 +177,29 @@ public class ReservationService {
      */
     @Transactional(readOnly = true)
     public ReservationListResponse getMerchantReservations(
-        String merchantId,
+        Long shopId,
         Reservation.ReservationStatus status,
         int page,
         int size
     ) {
-        log.info("Getting reservations for merchant: {} with status: {}", merchantId, status);
+        log.info("Getting reservations for shop: {} with status: {}", shopId, status);
         
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
         Page<Reservation> reservationPage;
         
         if (status == null) {
-            reservationPage = reservationRepository.findByMerchantId(Long.valueOf(merchantId), pageable);
+            reservationPage = reservationRepository.findByMerchantId(shopId, pageable);
         } else {
-            reservationPage = reservationRepository.findByMerchantIdAndStatus(Long.valueOf(merchantId), status, pageable);
+            reservationPage = reservationRepository.findByMerchantIdAndStatus(shopId, status, pageable);
         }
         
+        // Convert to DTOs
+        List<ReservationSummaryDTO> reservationDTOs = reservationPage.getContent().stream()
+            .map(ReservationSummaryDTO::new)
+            .toList();
+        
         return new ReservationListResponse(
-            reservationPage.getContent(),
+            reservationDTOs,
             (int) reservationPage.getTotalElements(),
             page,
             size
@@ -138,7 +211,7 @@ public class ReservationService {
      */
     @Transactional
     public ReservationResponse validateReservation(
-        String merchantId,
+        Long shopId,
         ValidateReservationRequest request
     ) {
         log.info("Validating reservation with QR code: {}", request.getQrCode());
@@ -146,10 +219,8 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findByQrCode(request.getQrCode())
             .orElseThrow(() -> new RuntimeException("Invalid QR code"));
         
-        Long merchantIdLong = Long.valueOf(merchantId);
-        
         // Verify merchant
-        if (!reservation.getMerchantId().equals(merchantIdLong)) {
+        if (!reservation.getMerchantId().equals(shopId)) {
             throw new RuntimeException("Unauthorized: This reservation belongs to a different shop");
         }
         
@@ -169,13 +240,48 @@ public class ReservationService {
             "Reservation validated successfully"
         );
     }
-    
+
+    /**
+     * Validate reservation by ID (for manual confirmation)
+     */
+    @Transactional
+    public ReservationResponse validateReservationById(
+        String reservationId,
+        Long shopId
+    ) {
+        log.info("Validating reservation by ID: {}", reservationId);
+
+        Reservation reservation = reservationRepository.findById(reservationId)
+            .orElseThrow(() -> new RuntimeException("Reservation not found"));
+
+        // Verify merchant
+        if (!reservation.getMerchantId().equals(shopId)) {
+            throw new RuntimeException("Unauthorized: This reservation belongs to a different shop");
+        }
+
+        // Verify can be validated
+        if (!reservation.canBeValidated()) {
+            throw new RuntimeException("Reservation cannot be validated (status: " + reservation.getStatus() + ")");
+        }
+
+        // Update status
+        reservation.setStatus(Reservation.ReservationStatus.VALIDATED);
+        reservation.setValidatedAt(LocalDateTime.now());
+
+        Reservation saved = reservationRepository.save(reservation);
+
+        return new ReservationResponse(
+            saved,
+            "Reservation validated successfully"
+        );
+    }
+
     /**
      * Complete pickup
      */
     @Transactional
     public ReservationResponse completePickup(
-        String merchantId,
+        Long shopId,
         String reservationId
     ) {
         log.info("Completing pickup for reservation: {}", reservationId);
@@ -183,10 +289,8 @@ public class ReservationService {
         Reservation reservation = reservationRepository.findById(reservationId)
             .orElseThrow(() -> new RuntimeException("Reservation not found"));
         
-        Long merchantIdLong = Long.valueOf(merchantId);
-        
         // Verify merchant
-        if (!reservation.getMerchantId().equals(merchantIdLong)) {
+        if (!reservation.getMerchantId().equals(shopId)) {
             throw new RuntimeException("Unauthorized");
         }
         

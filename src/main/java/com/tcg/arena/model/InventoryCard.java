@@ -1,6 +1,7 @@
 package com.tcg.arena.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -18,6 +19,7 @@ import java.util.Objects;
     @Index(name = "idx_card_template_id", columnList = "card_template_id"),
     @Index(name = "idx_condition", columnList = "condition")
 })
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class InventoryCard {
     
     @Id

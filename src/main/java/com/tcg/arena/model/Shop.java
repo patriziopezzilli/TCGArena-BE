@@ -1,11 +1,13 @@
 package com.tcg.arena.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Table(name = "shops")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Shop {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -61,6 +63,10 @@ public class Shop {
     // e.g., "BUY_CARDS,SELL_CARDS,TRADE,TOURNAMENTS,CARD_GRADING,PREORDERS,SEALED_PRODUCTS,ACCESSORIES,PLAY_AREA,EVENTS"
     @Column(length = 1000)
     private String services;
+
+    // Reservation settings
+    @Column(name = "reservation_duration_minutes", nullable = false)
+    private Integer reservationDurationMinutes = 30; // Default 30 minutes
 
     @OneToMany(mappedBy = "shopId", cascade = CascadeType.ALL)
     private List<ShopInventory> inventory = new ArrayList<>();
@@ -131,6 +137,11 @@ public class Shop {
 
     public String getServices() { return services; }
     public void setServices(String services) { this.services = services; }
+
+    public Integer getReservationDurationMinutes() { return reservationDurationMinutes; }
+    public void setReservationDurationMinutes(Integer reservationDurationMinutes) { 
+        this.reservationDurationMinutes = reservationDurationMinutes; 
+    }
 
     // Helper methods to convert comma-separated strings to/from Lists
     public List<String> getTcgTypesList() {

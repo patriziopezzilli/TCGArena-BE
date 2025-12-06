@@ -1,5 +1,6 @@
 package com.tcg.arena.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -8,6 +9,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "users")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -22,6 +24,7 @@ public class User {
     @Column(nullable = false)
     private String displayName;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @Column(nullable = false)
     private String password;
 
@@ -35,6 +38,9 @@ public class User {
 
     @Column(nullable = false)
     private Boolean isMerchant = false;
+
+    @Column(nullable = false)
+    private Boolean isAdmin = false;
 
     private Long shopId;
 
@@ -124,6 +130,14 @@ public class User {
 
     public void setIsMerchant(Boolean isMerchant) {
         this.isMerchant = isMerchant;
+    }
+
+    public Boolean getIsAdmin() {
+        return isAdmin;
+    }
+
+    public void setIsAdmin(Boolean isAdmin) {
+        this.isAdmin = isAdmin;
     }
 
     public Long getShopId() {

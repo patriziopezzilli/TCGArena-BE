@@ -32,6 +32,10 @@ public class RewardService {
         return rewardRepository.findByIsActiveTrue();
     }
 
+    public List<Reward> getRewardsByPartner(Long partnerId) {
+        return rewardRepository.findByPartnerId(partnerId);
+    }
+
     public Optional<Reward> getRewardById(Long id) {
         return rewardRepository.findById(id);
     }
@@ -67,8 +71,8 @@ public class RewardService {
 
                 // Log activity
                 userActivityService.logActivity(userId,
-                    com.tcg.arena.model.ActivityType.REWARD_REDEEMED,
-                    "Redeemed reward: " + reward.getName());
+                        com.tcg.arena.model.ActivityType.REWARD_REDEEMED,
+                        "Redeemed reward: " + reward.getName());
 
                 return true;
             }
@@ -93,8 +97,8 @@ public class RewardService {
 
             // Log activity
             userActivityService.logActivity(userId,
-                com.tcg.arena.model.ActivityType.POINTS_EARNED,
-                "Earned " + points + " points: " + description);
+                    com.tcg.arena.model.ActivityType.POINTS_EARNED,
+                    "Earned " + points + " points: " + description);
         }
     }
 

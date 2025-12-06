@@ -39,6 +39,9 @@ public class Tournament {
     @Column(nullable = false)
     private Integer maxParticipants;
 
+    @Transient
+    private Integer currentParticipants;
+
     @Column(nullable = false)
     private Double entryFee;
 
@@ -51,49 +54,137 @@ public class Tournament {
     @Embedded
     private TournamentLocation location;
 
+    private Long winnerId; // Quick access to winner's user ID
+
     @OneToMany(mappedBy = "tournamentId", cascade = CascadeType.ALL)
     private List<TournamentParticipant> participants = new ArrayList<>();
 
     // Getters and Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getTitle() { return title; }
-    public void setTitle(String title) { this.title = title; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
+    public String getTitle() {
+        return title;
+    }
 
-    public TCGType getTcgType() { return tcgType; }
-    public void setTcgType(TCGType tcgType) { this.tcgType = tcgType; }
+    public void setTitle(String title) {
+        this.title = title;
+    }
 
-    public TournamentType getType() { return type; }
-    public void setType(TournamentType type) { this.type = type; }
+    public String getDescription() {
+        return description;
+    }
 
-    public TournamentStatus getStatus() { return status; }
-    public void setStatus(TournamentStatus status) { this.status = status; }
+    public void setDescription(String description) {
+        this.description = description;
+    }
 
-    public LocalDateTime getStartDate() { return startDate; }
-    public void setStartDate(LocalDateTime startDate) { this.startDate = startDate; }
+    public TCGType getTcgType() {
+        return tcgType;
+    }
 
-    public LocalDateTime getEndDate() { return endDate; }
-    public void setEndDate(LocalDateTime endDate) { this.endDate = endDate; }
+    public void setTcgType(TCGType tcgType) {
+        this.tcgType = tcgType;
+    }
 
-    public Integer getMaxParticipants() { return maxParticipants; }
-    public void setMaxParticipants(Integer maxParticipants) { this.maxParticipants = maxParticipants; }
+    public TournamentType getType() {
+        return type;
+    }
 
-    public Double getEntryFee() { return entryFee; }
-    public void setEntryFee(Double entryFee) { this.entryFee = entryFee; }
+    public void setType(TournamentType type) {
+        this.type = type;
+    }
 
-    public String getPrizePool() { return prizePool; }
-    public void setPrizePool(String prizePool) { this.prizePool = prizePool; }
+    public TournamentStatus getStatus() {
+        return status;
+    }
 
-    public Long getOrganizerId() { return organizerId; }
-    public void setOrganizerId(Long organizerId) { this.organizerId = organizerId; }
+    public void setStatus(TournamentStatus status) {
+        this.status = status;
+    }
 
-    public TournamentLocation getLocation() { return location; }
-    public void setLocation(TournamentLocation location) { this.location = location; }
+    public LocalDateTime getStartDate() {
+        return startDate;
+    }
 
-    public List<TournamentParticipant> getParticipants() { return participants; }
-    public void setParticipants(List<TournamentParticipant> participants) { this.participants = participants; }
+    public void setStartDate(LocalDateTime startDate) {
+        this.startDate = startDate;
+    }
+
+    public LocalDateTime getEndDate() {
+        return endDate;
+    }
+
+    public void setEndDate(LocalDateTime endDate) {
+        this.endDate = endDate;
+    }
+
+    public Integer getMaxParticipants() {
+        return maxParticipants;
+    }
+
+    public void setMaxParticipants(Integer maxParticipants) {
+        this.maxParticipants = maxParticipants;
+    }
+
+    public Integer getCurrentParticipants() {
+        return currentParticipants;
+    }
+
+    public void setCurrentParticipants(Integer currentParticipants) {
+        this.currentParticipants = currentParticipants;
+    }
+
+    public Double getEntryFee() {
+        return entryFee;
+    }
+
+    public void setEntryFee(Double entryFee) {
+        this.entryFee = entryFee;
+    }
+
+    public String getPrizePool() {
+        return prizePool;
+    }
+
+    public void setPrizePool(String prizePool) {
+        this.prizePool = prizePool;
+    }
+
+    public Long getOrganizerId() {
+        return organizerId;
+    }
+
+    public void setOrganizerId(Long organizerId) {
+        this.organizerId = organizerId;
+    }
+
+    public TournamentLocation getLocation() {
+        return location;
+    }
+
+    public void setLocation(TournamentLocation location) {
+        this.location = location;
+    }
+
+    public Long getWinnerId() {
+        return winnerId;
+    }
+
+    public void setWinnerId(Long winnerId) {
+        this.winnerId = winnerId;
+    }
+
+    public List<TournamentParticipant> getParticipants() {
+        return participants;
+    }
+
+    public void setParticipants(List<TournamentParticipant> participants) {
+        this.participants = participants;
+    }
 }

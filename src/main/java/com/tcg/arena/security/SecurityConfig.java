@@ -60,31 +60,35 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .csrf(csrf -> csrf.disable())
-            .authorizeHttpRequests(authz -> authz
-                // Waiting list endpoints (public) - MUST BE FIRST
-                .requestMatchers("/api/waiting-list/join").permitAll()
-                .requestMatchers("/api/waiting-list/**").permitAll()
-                // Public endpoints - no authentication required
-                .requestMatchers("/api/auth/**", "/api/public/**", "/api/admin/**", "/health", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                // Public GET endpoints for browsing content
-                .requestMatchers("GET", "/api/cards/**").permitAll()
-                .requestMatchers("GET", "/api/tournaments/**").permitAll()
-                .requestMatchers("/api/shops/**").permitAll()
-                .requestMatchers("GET", "/api/expansions/**").permitAll()
-                .requestMatchers("GET", "/api/sets/**").permitAll()
-                .requestMatchers("GET", "/api/decks/public").permitAll()
-                .requestMatchers("GET", "/api/users").permitAll()
-                .requestMatchers("GET", "/api/users/leaderboard").permitAll()
-                .requestMatchers("GET", "/api/users/*/stats").permitAll()
-                .requestMatchers("GET", "/api/requests").permitAll()
-                .requestMatchers("GET", "/api/rewards").permitAll()
-                .requestMatchers("GET", "/api/achievements").permitAll()
-                // All other requests require authentication
-                .anyRequest().authenticated()
-            )
-            .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(authz -> authz
+                        // Waiting list endpoints (public) - MUST BE FIRST
+                        .requestMatchers("/api/waiting-list/join").permitAll()
+                        .requestMatchers("/api/waiting-list/**").permitAll()
+                        // Public endpoints - no authentication required
+                        .requestMatchers("/api/auth/**", "/api/public/**", "/api/admin/**", "/health", "/swagger-ui/**",
+                                "/v3/api-docs/**")
+                        .permitAll()
+                        // Public GET endpoints for browsing content
+                        .requestMatchers("GET", "/api/cards/**").permitAll()
+                        .requestMatchers("GET", "/api/tournaments/**").permitAll()
+                        .requestMatchers("/api/shops/**").permitAll()
+                        .requestMatchers("GET", "/api/expansions/**").permitAll()
+                        .requestMatchers("GET", "/api/sets/**").permitAll()
+                        .requestMatchers("GET", "/api/decks/public").permitAll()
+                        .requestMatchers("GET", "/api/users").permitAll()
+                        .requestMatchers("GET", "/api/users/leaderboard/**").permitAll()
+                        .requestMatchers("GET", "/api/users/*/stats").permitAll()
+                        .requestMatchers("GET", "/api/requests").permitAll()
+                        .requestMatchers("/api/rewards/points").authenticated()
+                        .requestMatchers("/api/rewards/history").authenticated()
+                        .requestMatchers("/api/rewards/*/redeem").authenticated()
+                        .requestMatchers("GET", "/api/rewards/**").permitAll()
+                        .requestMatchers("GET", "/api/achievements").permitAll()
+                        // All other requests require authentication
+                        .anyRequest().authenticated())
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(jwtAuthenticationEntryPoint))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
         http.addFilterBefore(jwtRequestFilter, UsernamePasswordAuthenticationFilter.class);
 

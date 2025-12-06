@@ -189,6 +189,40 @@ public class JwtAuthenticationController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/create-admin")
+    public ResponseEntity<?> createAdminUser(@RequestBody Map<String, String> adminRequest) throws Exception {
+        String username = adminRequest.get("username");
+        String password = adminRequest.get("password");
+        String email = adminRequest.get("email");
+
+        if (username == null || password == null || email == null) {
+            return ResponseEntity.badRequest().body("Username, password, and email are required");
+        }
+
+        if (userService.getUserByUsername(username).isPresent()) {
+            return ResponseEntity.badRequest().body("Username already exists");
+        }
+
+        // Create admin user
+        User adminUser = new User();
+        adminUser.setUsername(username);
+        adminUser.setEmail(email);
+        adminUser.setDisplayName(username);
+        adminUser.setPassword(passwordEncoder.encode(password));
+        adminUser.setDateJoined(LocalDateTime.now());
+        adminUser.setIsAdmin(true);
+        adminUser.setIsMerchant(false);
+        adminUser.setPoints(0);
+
+        User savedUser = userService.saveUser(adminUser);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "Admin user created successfully");
+        response.put("user", savedUser);
+
+        return ResponseEntity.ok(response);
+    }
+
     private void authenticate(String username, String password) throws Exception {
         try {
             logger.debug("Attempting to authenticate user: {}", username);

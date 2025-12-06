@@ -51,8 +51,33 @@ public class ShopService {
             shop.setWebsiteUrl(shopDetails.getWebsiteUrl());
             shop.setType(shopDetails.getType());
             shop.setIsVerified(shopDetails.getIsVerified());
+            shop.setReservationDurationMinutes(shopDetails.getReservationDurationMinutes());
             return shopRepository.save(shop);
         });
+    }
+
+    /**
+     * Update reservation duration setting for a shop
+     */
+    public Optional<Shop> updateReservationDuration(Long shopId, Integer durationMinutes) {
+        if (durationMinutes == null || durationMinutes < 1 || durationMinutes > 1440) { // Max 24 hours
+            throw new IllegalArgumentException("Reservation duration must be between 1 and 1440 minutes");
+        }
+        
+        return shopRepository.findById(shopId).map(shop -> {
+            shop.setReservationDurationMinutes(durationMinutes);
+            return shopRepository.save(shop);
+        });
+    }
+
+    /**
+     * Get reservation duration for a shop
+     */
+    public Integer getReservationDuration(Long shopId) {
+        return shopRepository.findById(shopId)
+            .map(shop -> shop.getReservationDurationMinutes() != null ? 
+                 shop.getReservationDurationMinutes() : 30)
+            .orElse(30); // Default to 30 minutes if shop not found
     }
 
     public boolean deleteShop(Long id) {

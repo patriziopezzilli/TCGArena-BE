@@ -27,4 +27,10 @@ public interface UserStatsRepository extends JpaRepository<UserStats, Long> {
 
     @Query("SELECT us FROM UserStats us WHERE us.totalTournaments > 0 ORDER BY us.winRate DESC, us.totalWins DESC")
     List<UserStats> findActivePlayersByWinRate(@Param("limit") int limit);
+
+    @Query("SELECT us FROM UserStats us ORDER BY us.totalCards DESC")
+    List<UserStats> findTopCollectors(@Param("limit") int limit);
+
+    @Query("SELECT us FROM UserStats us ORDER BY us.totalTournaments DESC, us.totalWins DESC")
+    List<UserStats> findTopTournamentPlayers(@Param("limit") int limit);
 }

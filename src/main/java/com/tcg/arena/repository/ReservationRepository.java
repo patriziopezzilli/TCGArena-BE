@@ -23,21 +23,62 @@ public interface ReservationRepository extends JpaRepository<Reservation, String
     /**
      * Find all reservations for a user
      */
+    @Query("""
+        SELECT DISTINCT r FROM Reservation r
+        LEFT JOIN FETCH r.user
+        LEFT JOIN FETCH r.card c
+        LEFT JOIN FETCH c.cardTemplate
+        LEFT JOIN FETCH c.cardTemplate.expansion
+        LEFT JOIN FETCH r.shop
+        WHERE r.userId = :userId
+        """)
     Page<Reservation> findByUserId(Long userId, Pageable pageable);
     
     /**
      * Find all reservations for a merchant
      */
+    @Query("""
+        SELECT DISTINCT r FROM Reservation r
+        LEFT JOIN FETCH r.user
+        LEFT JOIN FETCH r.card c
+        LEFT JOIN FETCH c.cardTemplate
+        LEFT JOIN FETCH c.cardTemplate.expansion
+        LEFT JOIN FETCH r.shop
+        WHERE r.merchantId = :merchantId
+        """)
     Page<Reservation> findByMerchantId(Long merchantId, Pageable pageable);
     
     /**
      * Find reservations by status
      */
+    @Query("""
+        SELECT DISTINCT r FROM Reservation r
+        LEFT JOIN FETCH r.user
+        LEFT JOIN FETCH r.card c
+        LEFT JOIN FETCH c.cardTemplate
+        LEFT JOIN FETCH c.cardTemplate.expansion
+        LEFT JOIN FETCH r.shop
+        WHERE r.merchantId = :merchantId AND r.status = :status
+        """)
     Page<Reservation> findByMerchantIdAndStatus(
         Long merchantId, 
         Reservation.ReservationStatus status, 
         Pageable pageable
     );
+    
+    /**
+     * Find reservations by user and merchant
+     */
+    @Query("""
+        SELECT DISTINCT r FROM Reservation r
+        LEFT JOIN FETCH r.user
+        LEFT JOIN FETCH r.card c
+        LEFT JOIN FETCH c.cardTemplate
+        LEFT JOIN FETCH c.cardTemplate.expansion
+        LEFT JOIN FETCH r.shop
+        WHERE r.userId = :userId AND r.merchantId = :merchantId
+        """)
+    Page<Reservation> findByUserIdAndMerchantId(Long userId, Long merchantId, Pageable pageable);
     
     /**
      * Find active reservations (pending or validated)
@@ -77,6 +118,34 @@ public interface ReservationRepository extends JpaRepository<Reservation, String
      * Count reservations by card
      */
     long countByCardIdAndStatusIn(String cardId, List<Reservation.ReservationStatus> statuses);
+    
+    /**
+     * Find reservations by card ID
+     */
+    @Query("""
+        SELECT DISTINCT r FROM Reservation r
+        LEFT JOIN FETCH r.user
+        LEFT JOIN FETCH r.card c
+        LEFT JOIN FETCH c.cardTemplate
+        LEFT JOIN FETCH c.cardTemplate.expansion
+        LEFT JOIN FETCH r.shop
+        WHERE r.cardId = :cardId
+        """)
+    Page<Reservation> findByCardId(String cardId, Pageable pageable);
+    
+    /**
+     * Find reservations by card ID and merchant ID
+     */
+    @Query("""
+        SELECT DISTINCT r FROM Reservation r
+        LEFT JOIN FETCH r.user
+        LEFT JOIN FETCH r.card c
+        LEFT JOIN FETCH c.cardTemplate
+        LEFT JOIN FETCH c.cardTemplate.expansion
+        LEFT JOIN FETCH r.shop
+        WHERE r.cardId = :cardId AND r.merchantId = :merchantId
+        """)
+    Page<Reservation> findByCardIdAndMerchantId(String cardId, Long merchantId, Pageable pageable);
     
     /**
      * Find reservations expiring soon

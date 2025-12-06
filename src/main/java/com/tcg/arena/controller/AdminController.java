@@ -126,7 +126,7 @@ public class AdminController {
     @Operation(summary = "Get shop statistics", description = "Returns statistics about shops (total, active, pending, verified)")
     public ResponseEntity<?> getShopStats() {
         List<Shop> allShops = shopService.getAllShopsIncludingInactive();
-        
+
         long total = allShops.size();
         long active = allShops.stream().filter(Shop::getActive).count();
         long pending = allShops.stream().filter(shop -> !shop.getActive()).count();
@@ -156,22 +156,38 @@ public class AdminController {
         Shop existingShop = shopOpt.get();
 
         // Update all fields (admin has full control)
-        if (updatedShop.getName() != null) existingShop.setName(updatedShop.getName());
-        if (updatedShop.getDescription() != null) existingShop.setDescription(updatedShop.getDescription());
-        if (updatedShop.getAddress() != null) existingShop.setAddress(updatedShop.getAddress());
-        if (updatedShop.getLatitude() != null) existingShop.setLatitude(updatedShop.getLatitude());
-        if (updatedShop.getLongitude() != null) existingShop.setLongitude(updatedShop.getLongitude());
-        if (updatedShop.getPhoneNumber() != null) existingShop.setPhoneNumber(updatedShop.getPhoneNumber());
-        if (updatedShop.getWebsiteUrl() != null) existingShop.setWebsiteUrl(updatedShop.getWebsiteUrl());
-        if (updatedShop.getOpeningHours() != null) existingShop.setOpeningHours(updatedShop.getOpeningHours());
-        if (updatedShop.getOpeningDays() != null) existingShop.setOpeningDays(updatedShop.getOpeningDays());
-        if (updatedShop.getInstagramUrl() != null) existingShop.setInstagramUrl(updatedShop.getInstagramUrl());
-        if (updatedShop.getFacebookUrl() != null) existingShop.setFacebookUrl(updatedShop.getFacebookUrl());
-        if (updatedShop.getTwitterUrl() != null) existingShop.setTwitterUrl(updatedShop.getTwitterUrl());
-        if (updatedShop.getEmail() != null) existingShop.setEmail(updatedShop.getEmail());
-        if (updatedShop.getType() != null) existingShop.setType(updatedShop.getType());
-        if (updatedShop.getActive() != null) existingShop.setActive(updatedShop.getActive());
-        if (updatedShop.getIsVerified() != null) existingShop.setIsVerified(updatedShop.getIsVerified());
+        if (updatedShop.getName() != null)
+            existingShop.setName(updatedShop.getName());
+        if (updatedShop.getDescription() != null)
+            existingShop.setDescription(updatedShop.getDescription());
+        if (updatedShop.getAddress() != null)
+            existingShop.setAddress(updatedShop.getAddress());
+        if (updatedShop.getLatitude() != null)
+            existingShop.setLatitude(updatedShop.getLatitude());
+        if (updatedShop.getLongitude() != null)
+            existingShop.setLongitude(updatedShop.getLongitude());
+        if (updatedShop.getPhoneNumber() != null)
+            existingShop.setPhoneNumber(updatedShop.getPhoneNumber());
+        if (updatedShop.getWebsiteUrl() != null)
+            existingShop.setWebsiteUrl(updatedShop.getWebsiteUrl());
+        if (updatedShop.getOpeningHours() != null)
+            existingShop.setOpeningHours(updatedShop.getOpeningHours());
+        if (updatedShop.getOpeningDays() != null)
+            existingShop.setOpeningDays(updatedShop.getOpeningDays());
+        if (updatedShop.getInstagramUrl() != null)
+            existingShop.setInstagramUrl(updatedShop.getInstagramUrl());
+        if (updatedShop.getFacebookUrl() != null)
+            existingShop.setFacebookUrl(updatedShop.getFacebookUrl());
+        if (updatedShop.getTwitterUrl() != null)
+            existingShop.setTwitterUrl(updatedShop.getTwitterUrl());
+        if (updatedShop.getEmail() != null)
+            existingShop.setEmail(updatedShop.getEmail());
+        if (updatedShop.getType() != null)
+            existingShop.setType(updatedShop.getType());
+        if (updatedShop.getActive() != null)
+            existingShop.setActive(updatedShop.getActive());
+        if (updatedShop.getIsVerified() != null)
+            existingShop.setIsVerified(updatedShop.getIsVerified());
 
         Shop saved = shopService.saveShop(existingShop);
 
@@ -199,7 +215,7 @@ public class AdminController {
             reward.setIsActive(true);
         }
         Reward saved = rewardService.saveReward(reward);
-        
+
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
         response.put("message", "Reward created successfully");
@@ -221,11 +237,20 @@ public class AdminController {
         }
 
         Reward existingReward = rewardOpt.get();
-        if (updatedReward.getName() != null) existingReward.setName(updatedReward.getName());
-        if (updatedReward.getDescription() != null) existingReward.setDescription(updatedReward.getDescription());
-        if (updatedReward.getCostPoints() != null) existingReward.setCostPoints(updatedReward.getCostPoints());
-        if (updatedReward.getImageUrl() != null) existingReward.setImageUrl(updatedReward.getImageUrl());
-        if (updatedReward.getIsActive() != null) existingReward.setIsActive(updatedReward.getIsActive());
+        if (updatedReward.getName() != null)
+            existingReward.setName(updatedReward.getName());
+        if (updatedReward.getDescription() != null)
+            existingReward.setDescription(updatedReward.getDescription());
+        if (updatedReward.getCostPoints() != null)
+            existingReward.setCostPoints(updatedReward.getCostPoints());
+        if (updatedReward.getImageUrl() != null)
+            existingReward.setImageUrl(updatedReward.getImageUrl());
+        if (updatedReward.getIsActive() != null)
+            existingReward.setIsActive(updatedReward.getIsActive());
+        // Update partner - allow setting to null to remove association
+        existingReward.setPartner(updatedReward.getPartner());
+        if (updatedReward.getType() != null)
+            existingReward.setType(updatedReward.getType());
 
         Reward saved = rewardService.saveReward(existingReward);
 
@@ -276,7 +301,7 @@ public class AdminController {
             achievement.setIsActive(true);
         }
         Achievement saved = achievementService.saveAchievement(achievement);
-        
+
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
         response.put("message", "Achievement created successfully");
@@ -298,12 +323,18 @@ public class AdminController {
         }
 
         Achievement existingAchievement = achievementOpt.get();
-        if (updatedAchievement.getName() != null) existingAchievement.setName(updatedAchievement.getName());
-        if (updatedAchievement.getDescription() != null) existingAchievement.setDescription(updatedAchievement.getDescription());
-        if (updatedAchievement.getIconUrl() != null) existingAchievement.setIconUrl(updatedAchievement.getIconUrl());
-        if (updatedAchievement.getCriteria() != null) existingAchievement.setCriteria(updatedAchievement.getCriteria());
-        if (updatedAchievement.getPointsReward() != null) existingAchievement.setPointsReward(updatedAchievement.getPointsReward());
-        if (updatedAchievement.getIsActive() != null) existingAchievement.setIsActive(updatedAchievement.getIsActive());
+        if (updatedAchievement.getName() != null)
+            existingAchievement.setName(updatedAchievement.getName());
+        if (updatedAchievement.getDescription() != null)
+            existingAchievement.setDescription(updatedAchievement.getDescription());
+        if (updatedAchievement.getIconUrl() != null)
+            existingAchievement.setIconUrl(updatedAchievement.getIconUrl());
+        if (updatedAchievement.getCriteria() != null)
+            existingAchievement.setCriteria(updatedAchievement.getCriteria());
+        if (updatedAchievement.getPointsReward() != null)
+            existingAchievement.setPointsReward(updatedAchievement.getPointsReward());
+        if (updatedAchievement.getIsActive() != null)
+            existingAchievement.setIsActive(updatedAchievement.getIsActive());
 
         Achievement saved = achievementService.saveAchievement(existingAchievement);
 
@@ -344,8 +375,8 @@ public class AdminController {
     @PreAuthorize("permitAll()")
     @Operation(summary = "Trigger batch import for specific TCG type", description = "Starts a batch job to import cards for the specified TCG type")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Batch import triggered successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid TCG type provided")
+            @ApiResponse(responseCode = "200", description = "Batch import triggered successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid TCG type provided")
     })
     public ResponseEntity<String> triggerBatchImport(
             @Parameter(description = "TCG type to import (POKEMON, MAGIC, YUGIOH, etc.)") @PathVariable TCGType tcgType,
@@ -359,11 +390,13 @@ public class AdminController {
             } else if (endIndex == -99) {
                 message = "Batch import triggered successfully for " + tcgType + " starting from index " + startIndex;
             } else {
-                message = "Batch import triggered successfully for " + tcgType + " from index " + startIndex + " to " + endIndex;
+                message = "Batch import triggered successfully for " + tcgType + " from index " + startIndex + " to "
+                        + endIndex;
             }
             return ResponseEntity.ok(message);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to trigger batch import: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("Failed to trigger batch import: " + e.getMessage());
         }
     }
 }

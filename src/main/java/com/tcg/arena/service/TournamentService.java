@@ -5,10 +5,15 @@ import com.tcg.arena.repository.TournamentParticipantRepository;
 import com.tcg.arena.repository.TournamentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import com.tcg.arena.repository.UserRepository;
+import com.tcg.arena.dto.ManualRegistrationRequest;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
+import java.util.Arrays;
 
 @Service
 public class TournamentService {
@@ -18,36 +23,105 @@ public class TournamentService {
     @Autowired
     private TournamentParticipantRepository participantRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     public List<Tournament> getAllTournaments() {
-        return tournamentRepository.findAllByOrderByStartDateDesc();
+        List<Tournament> tournaments = tournamentRepository.findAllByOrderByStartDateAsc();
+        populateParticipantCounts(tournaments);
+        return tournaments;
+    }
+
+    private void populateParticipantCounts(List<Tournament> tournaments) {
+        for (Tournament tournament : tournaments) {
+            long participantCount = participantRepository.countByTournamentIdAndStatusIn(
+                    tournament.getId(),
+                    Arrays.asList(ParticipantStatus.REGISTERED, ParticipantStatus.CHECKED_IN));
+            tournament.setCurrentParticipants((int) participantCount);
+        }
     }
 
     public Optional<Tournament> getTournamentById(Long id) {
-        return tournamentRepository.findById(id);
+        Optional<Tournament> tournamentOpt = tournamentRepository.findById(id);
+        if (tournamentOpt.isPresent()) {
+            Tournament tournament = tournamentOpt.get();
+            long participantCount = participantRepository.countByTournamentIdAndStatusIn(
+                    tournament.getId(),
+                    Arrays.asList(ParticipantStatus.REGISTERED, ParticipantStatus.CHECKED_IN));
+            tournament.setCurrentParticipants((int) participantCount);
+        }
+        return tournamentOpt;
     }
 
     public List<Tournament> getUpcomingTournaments() {
-        return tournamentRepository.findUpcomingTournaments(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime fiveHoursAgo = now.minusHours(5);
+        List<Tournament> tournaments = tournamentRepository.findUpcomingTournaments(now, fiveHoursAgo);
+        if (tournaments.isEmpty()) {
+            return getAllTournaments();
+        }
+        populateParticipantCounts(tournaments);
+        return tournaments;
+    }
+
+    public List<Tournament> getPastTournaments() {
+        LocalDateTime fiveHoursAgo = LocalDateTime.now().minusHours(5);
+        List<Tournament> tournaments = tournamentRepository.findPastTournaments(fiveHoursAgo);
+        populateParticipantCounts(tournaments);
+        return tournaments;
     }
 
     public List<Tournament> getNearbyTournaments(double latitude, double longitude, double radiusKm) {
-        List<Tournament> allTournaments = tournamentRepository.findUpcomingTournaments(LocalDateTime.now());
-        return allTournaments.stream()
-            .filter(tournament -> {
-                if (tournament.getLocation() == null) return false;
-                // Check if latitude and longitude are not null before using them
-                Double lat = tournament.getLocation().getLatitude();
-                Double lon = tournament.getLocation().getLongitude();
-                if (lat == null || lon == null) return false;
-                
-                double distance = calculateDistance(
-                    latitude, longitude,
-                    lat,
-                    lon
-                );
-                return distance <= radiusKm;
-            })
-            .toList();
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime fiveHoursAgo = now.minusHours(5);
+        List<Tournament> allTournaments = tournamentRepository.findUpcomingTournaments(now, fiveHoursAgo);
+
+        // First, try to find tournaments within the specified radius
+        List<Tournament> nearbyTournaments = allTournaments.stream()
+                .filter(tournament -> {
+                    if (tournament.getLocation() == null)
+                        return false;
+                    // Check if latitude and longitude are not null before using them
+                    Double lat = tournament.getLocation().getLatitude();
+                    Double lon = tournament.getLocation().getLongitude();
+                    if (lat == null || lon == null)
+                        return false;
+
+                    double distance = calculateDistance(
+                            latitude, longitude,
+                            lat,
+                            lon);
+                    return distance <= radiusKm;
+                })
+                .toList();
+
+        // If no tournaments are found within radius, return all tournaments sorted by
+        // distance
+        if (nearbyTournaments.isEmpty()) {
+            return allTournaments.stream()
+                    .sorted((t1, t2) -> {
+                        // Handle null coordinates by putting them at the end
+                        Double lat1 = t1.getLocation() != null ? t1.getLocation().getLatitude() : null;
+                        Double lon1 = t1.getLocation() != null ? t1.getLocation().getLongitude() : null;
+                        Double lat2 = t2.getLocation() != null ? t2.getLocation().getLatitude() : null;
+                        Double lon2 = t2.getLocation() != null ? t2.getLocation().getLongitude() : null;
+
+                        if (lat1 == null || lon1 == null)
+                            return 1; // t1 goes after t2
+                        if (lat2 == null || lon2 == null)
+                            return -1; // t1 goes before t2
+
+                        double dist1 = calculateDistance(latitude, longitude, lat1, lon1);
+                        double dist2 = calculateDistance(latitude, longitude, lat2, lon2);
+                        return Double.compare(dist1, dist2);
+                    })
+                    .toList();
+        }
+
+        return nearbyTournaments;
     }
 
     public Tournament saveTournament(Tournament tournament) {
@@ -56,24 +130,37 @@ public class TournamentService {
 
     public TournamentParticipant registerForTournament(Long tournamentId, Long userId) {
         Tournament tournament = tournamentRepository.findById(tournamentId)
-            .orElseThrow(() -> new RuntimeException("Tournament not found"));
+                .orElseThrow(() -> new RuntimeException("Tournament not found"));
+
+        // Block registrations when tournament is locked
+        if (tournament.getStatus() == TournamentStatus.IN_PROGRESS) {
+            throw new RuntimeException("Tournament has already started. Registrations are closed.");
+        }
+        if (tournament.getStatus() == TournamentStatus.COMPLETED) {
+            throw new RuntimeException("Tournament has already ended. Registrations are closed.");
+        }
+        if (tournament.getStatus() == TournamentStatus.CANCELLED) {
+            throw new RuntimeException("Tournament has been cancelled.");
+        }
 
         // Check if user is already registered
         Optional<TournamentParticipant> existingParticipant = participantRepository
-            .findByTournamentIdAndUserId(tournamentId, userId);
+                .findByTournamentIdAndUserId(tournamentId, userId);
 
         if (existingParticipant.isPresent()) {
             throw new RuntimeException("User is already registered for this tournament");
         }
 
-        // Count current registered participants
-        long registeredCount = participantRepository.countByTournamentIdAndStatus(
-            tournamentId, ParticipantStatus.REGISTERED);
+        // Count current registered participants (including checked-in)
+        long registeredCount = participantRepository.countByTournamentIdAndStatusIn(
+                tournamentId,
+                Arrays.asList(ParticipantStatus.REGISTERED, ParticipantStatus.CHECKED_IN));
 
         TournamentParticipant participant = new TournamentParticipant();
         participant.setTournamentId(tournamentId);
         participant.setUserId(userId);
         participant.setRegistrationDate(LocalDateTime.now());
+        participant.setCheckInCode(UUID.randomUUID().toString()); // Generate unique check-in code
 
         // Determine status based on available slots
         if (registeredCount < tournament.getMaxParticipants()) {
@@ -85,9 +172,48 @@ public class TournamentService {
         return participantRepository.save(participant);
     }
 
+    public TournamentParticipant registerManualParticipant(Long tournamentId, ManualRegistrationRequest request) {
+        User user = new User();
+        String baseName = (request.getFirstName() + " " + request.getLastName()).trim();
+        if (baseName.isEmpty())
+            baseName = "Guest";
+
+        user.setDisplayName(baseName);
+
+        // Generate unique username/email for guest
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        String uuid = UUID.randomUUID().toString().substring(0, 8);
+        user.setUsername("guest_" + timestamp + "_" + uuid);
+        user.setEmail("guest_" + timestamp + "_" + uuid + "@tcgarena.local");
+        user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+        user.setDateJoined(LocalDateTime.now());
+        user.setIsPremium(false);
+        user.setIsMerchant(false);
+        user.setPoints(0);
+
+        user = userRepository.save(user);
+
+        return registerForTournament(tournamentId, user.getId());
+    }
+
+    public TournamentParticipant addExistingParticipant(Long tournamentId, String userIdentifier) {
+        // Find user by email or username
+        Optional<User> userOpt = userRepository.findByEmail(userIdentifier);
+        if (!userOpt.isPresent()) {
+            userOpt = userRepository.findByUsername(userIdentifier);
+        }
+
+        if (!userOpt.isPresent()) {
+            throw new RuntimeException("User not found with email or username: " + userIdentifier);
+        }
+
+        User user = userOpt.get();
+        return registerForTournament(tournamentId, user.getId());
+    }
+
     public boolean unregisterFromTournament(Long tournamentId, Long userId) {
         Optional<TournamentParticipant> participant = participantRepository
-            .findByTournamentIdAndUserId(tournamentId, userId);
+                .findByTournamentIdAndUserId(tournamentId, userId);
 
         if (participant.isPresent()) {
             participantRepository.delete(participant.get());
@@ -105,8 +231,8 @@ public class TournamentService {
 
     private void promoteFromWaitingList(Long tournamentId) {
         List<TournamentParticipant> waitingList = participantRepository
-            .findByTournamentIdAndStatusOrderByRegistrationDateAsc(
-                tournamentId, ParticipantStatus.WAITING_LIST);
+                .findByTournamentIdAndStatusOrderByRegistrationDateAsc(
+                        tournamentId, ParticipantStatus.WAITING_LIST);
 
         if (!waitingList.isEmpty()) {
             TournamentParticipant promoted = waitingList.get(0);
@@ -121,12 +247,12 @@ public class TournamentService {
 
     public List<TournamentParticipant> getRegisteredParticipants(Long tournamentId) {
         return participantRepository.findByTournamentIdAndStatus(
-            tournamentId, ParticipantStatus.REGISTERED);
+                tournamentId, ParticipantStatus.REGISTERED);
     }
 
     public List<TournamentParticipant> getWaitingList(Long tournamentId) {
         return participantRepository.findByTournamentIdAndStatus(
-            tournamentId, ParticipantStatus.WAITING_LIST);
+                tournamentId, ParticipantStatus.WAITING_LIST);
     }
 
     public Optional<Tournament> updateTournament(Long id, Tournament tournamentDetails) {
@@ -159,10 +285,356 @@ public class TournamentService {
         double latDistance = Math.toRadians(lat2 - lat1);
         double lonDistance = Math.toRadians(lon2 - lon1);
         double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
-            + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
-            * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                        * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         double distance = R * c;
         return distance;
+    }
+
+    // Check-in methods
+    public TournamentParticipant checkInParticipant(String checkInCode) {
+        TournamentParticipant participant = participantRepository.findByCheckInCode(checkInCode)
+                .orElseThrow(() -> new RuntimeException("Invalid check-in code"));
+
+        // Check if tournament allows check-in (1 hour before start)
+        Tournament tournament = tournamentRepository.findById(participant.getTournamentId())
+                .orElseThrow(() -> new RuntimeException("Tournament not found"));
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime checkInStartTime = tournament.getStartDate().minusHours(1);
+        LocalDateTime checkInEndTime = tournament.getStartDate().plusMinutes(30); // Allow check-in up to 30 minutes
+                                                                                  // after start
+
+        if (now.isBefore(checkInStartTime)) {
+            throw new RuntimeException("Check-in not available yet. Check-in opens 1 hour before tournament start.");
+        }
+
+        if (now.isAfter(checkInEndTime)) {
+            throw new RuntimeException("Check-in closed. Check-in period has ended.");
+        }
+
+        // Check if participant is registered
+        if (participant.getStatus() != ParticipantStatus.REGISTERED) {
+            throw new RuntimeException("Only registered participants can check-in");
+        }
+
+        // Check if already checked in
+        if (participant.getCheckedInAt() != null) {
+            throw new RuntimeException("Participant already checked in");
+        }
+
+        // Perform check-in
+        participant.setCheckedInAt(now);
+        participant.setStatus(ParticipantStatus.CHECKED_IN);
+
+        return participantRepository.save(participant);
+    }
+
+    public TournamentParticipant selfCheckIn(Long tournamentId, Long userId) {
+        TournamentParticipant participant = participantRepository.findByTournamentIdAndUserId(tournamentId, userId)
+                .orElseThrow(() -> new RuntimeException("You are not registered for this tournament"));
+
+        // Check if tournament allows check-in (1 hour before until 30 min after start)
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new RuntimeException("Tournament not found"));
+
+        // Block check-ins when tournament is locked
+        if (tournament.getStatus() == TournamentStatus.IN_PROGRESS) {
+            throw new RuntimeException("Tournament has already started. Check-ins are closed.");
+        }
+        if (tournament.getStatus() == TournamentStatus.COMPLETED) {
+            throw new RuntimeException("Tournament has already ended.");
+        }
+        if (tournament.getStatus() == TournamentStatus.CANCELLED) {
+            throw new RuntimeException("Tournament has been cancelled.");
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime checkInStartTime = tournament.getStartDate().minusHours(1);
+        LocalDateTime checkInEndTime = tournament.getStartDate().plusMinutes(30);
+
+        if (now.isBefore(checkInStartTime)) {
+            throw new RuntimeException("Check-in not available yet. Check-in opens 1 hour before tournament start.");
+        }
+
+        if (now.isAfter(checkInEndTime)) {
+            throw new RuntimeException("Check-in closed. Check-in period has ended.");
+        }
+
+        // Check if participant is registered
+        if (participant.getStatus() != ParticipantStatus.REGISTERED) {
+            throw new RuntimeException("Only registered participants can check-in");
+        }
+
+        // Check if already checked in
+        if (participant.getCheckedInAt() != null) {
+            throw new RuntimeException("You are already checked in");
+        }
+
+        // Perform check-in
+        participant.setCheckedInAt(now);
+        participant.setStatus(ParticipantStatus.CHECKED_IN);
+
+        return participantRepository.save(participant);
+    }
+
+    public List<TournamentParticipant> getParticipantsWithUserDetails(Long tournamentId) {
+        return participantRepository.findByTournamentIdWithUserDetails(tournamentId);
+    }
+
+    /**
+     * Start a tournament - changes status to IN_PROGRESS and freezes
+     * registrations/check-ins
+     */
+    public Tournament startTournament(Long tournamentId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new RuntimeException("Tournament not found"));
+
+        // Validate tournament can be started
+        if (tournament.getStatus() == TournamentStatus.IN_PROGRESS) {
+            throw new RuntimeException("Tournament is already in progress");
+        }
+        if (tournament.getStatus() == TournamentStatus.COMPLETED) {
+            throw new RuntimeException("Tournament is already completed");
+        }
+        if (tournament.getStatus() == TournamentStatus.CANCELLED) {
+            throw new RuntimeException("Tournament is cancelled");
+        }
+
+        // Get all registered participants to notify
+        List<TournamentParticipant> participants = participantRepository.findByTournamentIdAndStatusIn(
+                tournamentId,
+                Arrays.asList(ParticipantStatus.REGISTERED, ParticipantStatus.CHECKED_IN,
+                        ParticipantStatus.WAITING_LIST));
+
+        // Change status to IN_PROGRESS
+        tournament.setStatus(TournamentStatus.IN_PROGRESS);
+        Tournament savedTournament = tournamentRepository.save(tournament);
+
+        // TODO: Send push notifications to all participants
+        for (TournamentParticipant participant : participants) {
+            sendTournamentStartedNotification(participant, tournament);
+        }
+
+        return savedTournament;
+    }
+
+    /**
+     * Remove a participant from a tournament (merchant action)
+     */
+    public void removeParticipant(Long tournamentId, Long participantId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new RuntimeException("Tournament not found"));
+
+        TournamentParticipant participant = participantRepository.findById(participantId)
+                .orElseThrow(() -> new RuntimeException("Participant not found"));
+
+        if (!participant.getTournamentId().equals(tournamentId)) {
+            throw new RuntimeException("Participant does not belong to this tournament");
+        }
+
+        // Store participant status before deletion for promotion logic
+        ParticipantStatus previousStatus = participant.getStatus();
+
+        // Send notification before deletion
+        sendParticipantRemovedNotification(participant, tournament);
+
+        // Delete participant
+        participantRepository.delete(participant);
+
+        // If participant was registered/checked-in, promote from waiting list
+        if (previousStatus == ParticipantStatus.REGISTERED || previousStatus == ParticipantStatus.CHECKED_IN) {
+            promoteFromWaitingList(tournamentId);
+        }
+    }
+
+    /**
+     * Placeholder for sending tournament started notification
+     * TODO: Implement actual push notification service
+     */
+    private void sendTournamentStartedNotification(TournamentParticipant participant, Tournament tournament) {
+        // TODO: Implement push notification
+        System.out.println("[NOTIFICATION PLACEHOLDER] Tournament started notification for user "
+                + participant.getUserId() + " - Tournament: " + tournament.getTitle());
+
+        // Get user to check for device token
+        Optional<User> userOpt = userRepository.findById(participant.getUserId());
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            String deviceToken = user.getDeviceToken();
+            if (deviceToken != null && !deviceToken.isEmpty()) {
+                // TODO: Send actual push notification
+                // pushNotificationService.send(deviceToken, "Tournament Started!",
+                // "The tournament '" + tournament.getTitle() + "' has started! Head to the
+                // venue now.");
+                System.out.println("[NOTIFICATION PLACEHOLDER] Would send push to device: "
+                        + deviceToken.substring(0, 10) + "...");
+            }
+        }
+    }
+
+    /**
+     * Placeholder for sending participant removed notification
+     * TODO: Implement actual push notification service
+     */
+    private void sendParticipantRemovedNotification(TournamentParticipant participant, Tournament tournament) {
+        // TODO: Implement push notification
+        System.out.println("[NOTIFICATION PLACEHOLDER] Participant removed notification for user "
+                + participant.getUserId() + " - Tournament: " + tournament.getTitle());
+
+        // Get user to check for device token
+        Optional<User> userOpt = userRepository.findById(participant.getUserId());
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            String deviceToken = user.getDeviceToken();
+            if (deviceToken != null && !deviceToken.isEmpty()) {
+                // TODO: Send actual push notification
+                // pushNotificationService.send(deviceToken, "Tournament Update",
+                // "You have been removed from the tournament '" + tournament.getTitle() + "'.
+                // Contact the organizer for more information.");
+                System.out.println("[NOTIFICATION PLACEHOLDER] Would send push to device: "
+                        + deviceToken.substring(0, 10) + "...");
+            }
+        }
+    }
+
+    /**
+     * Complete a tournament and set placements for winners
+     * 
+     * @param tournamentId Tournament to complete
+     * @param placements   List of PlacementDTO with participantId and placement (1,
+     *                     2, 3)
+     */
+    public Tournament completeTournament(Long tournamentId, List<PlacementDTO> placements) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new RuntimeException("Tournament not found"));
+
+        // Validate tournament can be completed
+        if (tournament.getStatus() == TournamentStatus.COMPLETED) {
+            throw new RuntimeException("Tournament is already completed");
+        }
+        if (tournament.getStatus() == TournamentStatus.CANCELLED) {
+            throw new RuntimeException("Tournament is cancelled");
+        }
+
+        // Points per placement
+        final int FIRST_PLACE_POINTS = 100;
+        final int SECOND_PLACE_POINTS = 50;
+        final int THIRD_PLACE_POINTS = 25;
+
+        // Process placements
+        for (PlacementDTO placement : placements) {
+            TournamentParticipant participant = participantRepository.findById(placement.getParticipantId())
+                    .orElseThrow(() -> new RuntimeException("Participant not found: " + placement.getParticipantId()));
+
+            if (!participant.getTournamentId().equals(tournamentId)) {
+                throw new RuntimeException("Participant does not belong to this tournament");
+            }
+
+            // Set placement
+            participant.setPlacement(placement.getPlacement());
+            participantRepository.save(participant);
+
+            // Award points based on placement
+            int pointsToAward = 0;
+            String placementText = "";
+            switch (placement.getPlacement()) {
+                case 1:
+                    pointsToAward = FIRST_PLACE_POINTS;
+                    placementText = "1st place 🥇";
+                    break;
+                case 2:
+                    pointsToAward = SECOND_PLACE_POINTS;
+                    placementText = "2nd place 🥈";
+                    break;
+                case 3:
+                    pointsToAward = THIRD_PLACE_POINTS;
+                    placementText = "3rd place 🥉";
+                    break;
+            }
+
+            if (pointsToAward > 0) {
+                // Update user points
+                Optional<User> userOpt = userRepository.findById(participant.getUserId());
+                if (userOpt.isPresent()) {
+                    User user = userOpt.get();
+                    user.setPoints(user.getPoints() + pointsToAward);
+                    userRepository.save(user);
+
+                    // Send notification to winner
+                    sendWinnerNotification(participant, tournament, placementText, pointsToAward);
+                }
+            }
+        }
+
+        // Change status to COMPLETED
+        tournament.setStatus(TournamentStatus.COMPLETED);
+
+        // Set winnerId if we have a 1st place
+        Optional<PlacementDTO> firstPlace = placements.stream()
+                .filter(p -> p.getPlacement() == 1)
+                .findFirst();
+        if (firstPlace.isPresent()) {
+            TournamentParticipant winner = participantRepository.findById(firstPlace.get().getParticipantId())
+                    .orElse(null);
+            if (winner != null) {
+                tournament.setWinnerId(winner.getUserId());
+            }
+        }
+
+        return tournamentRepository.save(tournament);
+    }
+
+    /**
+     * Placeholder for sending winner notification
+     */
+    private void sendWinnerNotification(TournamentParticipant participant, Tournament tournament, String placementText,
+            int pointsAwarded) {
+        System.out.println("[NOTIFICATION PLACEHOLDER] Winner notification for user "
+                + participant.getUserId() + " - " + placementText + " in tournament: " + tournament.getTitle()
+                + " (+" + pointsAwarded + " points)");
+
+        Optional<User> userOpt = userRepository.findById(participant.getUserId());
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            String deviceToken = user.getDeviceToken();
+            if (deviceToken != null && !deviceToken.isEmpty()) {
+                System.out.println("[NOTIFICATION PLACEHOLDER] Would send push to device: "
+                        + deviceToken.substring(0, Math.min(10, deviceToken.length())) + "...");
+            }
+        }
+    }
+
+    /**
+     * DTO for placement data
+     */
+    public static class PlacementDTO {
+        private Long participantId;
+        private Integer placement;
+
+        public PlacementDTO() {
+        }
+
+        public PlacementDTO(Long participantId, Integer placement) {
+            this.participantId = participantId;
+            this.placement = placement;
+        }
+
+        public Long getParticipantId() {
+            return participantId;
+        }
+
+        public void setParticipantId(Long participantId) {
+            this.participantId = participantId;
+        }
+
+        public Integer getPlacement() {
+            return placement;
+        }
+
+        public void setPlacement(Integer placement) {
+            this.placement = placement;
+        }
     }
 }

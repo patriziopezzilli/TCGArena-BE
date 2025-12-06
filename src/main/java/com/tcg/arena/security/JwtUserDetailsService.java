@@ -29,6 +29,7 @@ public class JwtUserDetailsService implements UserDetailsService {
 
         logger.debug("Loading user from DB: {}", username);
         logger.debug("User isMerchant: {}", user.getIsMerchant());
+        logger.debug("User isAdmin: {}", user.getIsAdmin());
 
         // Assign roles based on user type
         List<SimpleGrantedAuthority> authorities = new ArrayList<>();
@@ -36,6 +37,10 @@ public class JwtUserDetailsService implements UserDetailsService {
         
         if (user.getIsMerchant() != null && user.getIsMerchant()) {
             authorities.add(new SimpleGrantedAuthority("ROLE_MERCHANT"));
+        }
+
+        if (user.getIsAdmin() != null && user.getIsAdmin()) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_ADMIN"));
         }
 
         return new org.springframework.security.core.userdetails.User(

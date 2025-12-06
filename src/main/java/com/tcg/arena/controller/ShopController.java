@@ -131,4 +131,53 @@ public class ShopController {
         Long count = subscriptionService.getSubscriberCount(shopId);
         return ResponseEntity.ok(Map.of("count", count));
     }
+
+    // Reservation Settings Endpoints
+
+    @GetMapping("/{shopId}/reservation-settings")
+    @Operation(summary = "Get reservation settings", description = "Gets the reservation settings for a shop")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully retrieved reservation settings"),
+        @ApiResponse(responseCode = "404", description = "Shop not found")
+    })
+    public ResponseEntity<Map<String, Object>> getReservationSettings(@Parameter(description = "ID of the shop") @PathVariable Long shopId) {
+        Integer duration = shopService.getReservationDuration(shopId);
+        return ResponseEntity.ok(Map.of(
+            "reservationDurationMinutes", duration,
+            "defaultDurationMinutes", 30
+        ));
+    }
+
+    @PutMapping("/{shopId}/reservation-settings")
+    @Operation(summary = "Update reservation settings", description = "Updates the reservation settings for a shop")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Successfully updated reservation settings"),
+        @ApiResponse(responseCode = "400", description = "Invalid duration value"),
+        @ApiResponse(responseCode = "404", description = "Shop not found")
+    })
+    public ResponseEntity<Map<String, Object>> updateReservationSettings(
+            @Parameter(description = "ID of the shop") @PathVariable Long shopId,
+            @RequestBody Map<String, Integer> settings) {
+        
+        Integer durationMinutes = settings.get("reservationDurationMinutes");
+        if (durationMinutes == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "reservationDurationMinutes is required"));
+        }
+        
+        try {
+            Shop updatedShop = shopService.updateReservationDuration(shopId, durationMinutes)
+                .orElse(null);
+            
+            if (updatedShop == null) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            return ResponseEntity.ok(Map.of(
+                "message", "Reservation settings updated successfully",
+                "reservationDurationMinutes", updatedShop.getReservationDurationMinutes()
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 }
