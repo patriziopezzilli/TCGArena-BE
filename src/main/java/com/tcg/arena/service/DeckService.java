@@ -38,6 +38,9 @@ public class DeckService {
     @Autowired
     private UserActivityService userActivityService;
 
+    @Autowired
+    private RewardService rewardService;
+
     public List<Deck> getAllDecks() {
         return deckRepository.findAll();
     }
@@ -107,6 +110,19 @@ public class DeckService {
         Deck savedDeck = deckRepository.save(deck);
 
         userActivityService.logActivity(ownerId, ActivityType.DECK_CREATED, "Created new deck: " + name);
+
+        // Award points for deck creation (+50 for first deck, +10 for additional)
+        // Only for LISTA type decks (not system Collection/Wishlist decks)
+        if (deckType == DeckType.LISTA) {
+            List<Deck> userDecks = deckRepository.findByOwnerIdOrderByDateCreatedDesc(ownerId);
+            long userListaDecks = userDecks.stream().filter(d -> d.getDeckType() == DeckType.LISTA).count();
+
+            if (userListaDecks == 1) {
+                rewardService.earnPoints(ownerId, 50, "First deck created: " + name);
+            } else {
+                rewardService.earnPoints(ownerId, 10, "Deck created: " + name);
+            }
+        }
 
         return savedDeck;
     }
@@ -204,6 +220,11 @@ public class DeckService {
         // Log deck update activity
         userActivityService.logActivity(userId, ActivityType.DECK_UPDATED,
                 "Added 1x " + template.getName() + " to deck '" + deck.getName() + "'");
+
+        // Award points for adding to wishlist (+2 points)
+        if (deck.getName() != null && deck.getName().toLowerCase().contains("wishlist")) {
+            rewardService.earnPoints(userId, 2, "Card added to wishlist: " + template.getName());
+        }
 
         return savedDeck;
     }

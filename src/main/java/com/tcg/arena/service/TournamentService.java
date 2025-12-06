@@ -29,6 +29,9 @@ public class TournamentService {
     @Autowired
     private PasswordEncoder passwordEncoder;
 
+    @Autowired
+    private RewardService rewardService;
+
     public List<Tournament> getAllTournaments() {
         List<Tournament> tournaments = tournamentRepository.findAllByOrderByStartDateAsc();
         populateParticipantCounts(tournaments);
@@ -169,7 +172,12 @@ public class TournamentService {
             participant.setStatus(ParticipantStatus.WAITING_LIST);
         }
 
-        return participantRepository.save(participant);
+        TournamentParticipant savedParticipant = participantRepository.save(participant);
+
+        // Award points for registration (+15 points)
+        rewardService.earnPoints(userId, 15, "Tournament registration: " + tournament.getTitle());
+
+        return savedParticipant;
     }
 
     public TournamentParticipant registerManualParticipant(Long tournamentId, ManualRegistrationRequest request) {
@@ -216,6 +224,7 @@ public class TournamentService {
                 .findByTournamentIdAndUserId(tournamentId, userId);
 
         if (participant.isPresent()) {
+            Long participantUserId = participant.get().getUserId();
             participantRepository.delete(participant.get());
 
             // If the participant was registered and there are people on waiting list,
@@ -223,6 +232,11 @@ public class TournamentService {
             if (participant.get().getStatus() == ParticipantStatus.REGISTERED) {
                 promoteFromWaitingList(tournamentId);
             }
+
+            // Deduct points for cancellation (-10 points)
+            Tournament tournament = tournamentRepository.findById(tournamentId).orElse(null);
+            String tournamentName = tournament != null ? tournament.getTitle() : "Tournament";
+            rewardService.earnPoints(participantUserId, -10, "Tournament cancellation: " + tournamentName);
 
             return true;
         }
@@ -376,7 +390,12 @@ public class TournamentService {
         participant.setCheckedInAt(now);
         participant.setStatus(ParticipantStatus.CHECKED_IN);
 
-        return participantRepository.save(participant);
+        TournamentParticipant savedParticipant = participantRepository.save(participant);
+
+        // Award points for check-in (+25 points)
+        rewardService.earnPoints(userId, 25, "Tournament check-in: " + tournament.getTitle());
+
+        return savedParticipant;
     }
 
     public List<TournamentParticipant> getParticipantsWithUserDetails(Long tournamentId) {
