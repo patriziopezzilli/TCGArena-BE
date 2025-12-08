@@ -143,13 +143,26 @@ public class TournamentController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successfully registered for tournament"),
             @ApiResponse(responseCode = "400", description = "User already registered or tournament not found"),
-            @ApiResponse(responseCode = "401", description = "User not authenticated")
+            @ApiResponse(responseCode = "401", description = "User not authenticated"),
+            @ApiResponse(responseCode = "403", description = "Cannot register for ranked tournaments")
     })
-    public ResponseEntity<TournamentParticipant> registerForTournament(
+    public ResponseEntity<?> registerForTournament(
             @Parameter(description = "Unique identifier of the tournament") @PathVariable Long tournamentId) {
         Optional<User> currentUser = userService.getCurrentUser();
         if (currentUser.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+
+        // Check if tournament is ranked - registration not allowed
+        Optional<Tournament> tournamentOpt = tournamentService.getTournamentById(tournamentId);
+        if (tournamentOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("Tournament not found");
+        }
+
+        Tournament tournament = tournamentOpt.get();
+        if (Boolean.TRUE.equals(tournament.getIsRanked())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body("Questo è un torneo ufficiale. L'iscrizione deve avvenire tramite l'app dedicata.");
         }
 
         try {
@@ -157,7 +170,7 @@ public class TournamentController {
                     currentUser.get().getId());
             return ResponseEntity.ok(participant);
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 

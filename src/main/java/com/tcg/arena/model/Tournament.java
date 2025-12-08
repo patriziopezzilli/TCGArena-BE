@@ -23,7 +23,6 @@ public class Tournament {
     private TCGType tcgType;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private TournamentType type;
 
     @Enumerated(EnumType.STRING)
@@ -33,19 +32,15 @@ public class Tournament {
     @Column(nullable = false)
     private LocalDateTime startDate;
 
-    @Column(nullable = false)
     private LocalDateTime endDate;
 
-    @Column(nullable = false)
     private Integer maxParticipants;
 
     @Transient
     private Integer currentParticipants;
 
-    @Column(nullable = false)
     private Double entryFee;
 
-    @Column(nullable = false)
     private String prizePool;
 
     @Column(nullable = false)
@@ -55,6 +50,13 @@ public class Tournament {
     private TournamentLocation location;
 
     private Long winnerId; // Quick access to winner's user ID
+
+    // Ranked/Official tournament fields
+    @Column(nullable = false)
+    private Boolean isRanked = false; // True = official tournament (no in-app registration)
+
+    @Column(length = 500)
+    private String externalRegistrationUrl; // URL for external registration (e.g., Pokemon Companion)
 
     @OneToMany(mappedBy = "tournamentId", cascade = CascadeType.ALL)
     private List<TournamentParticipant> participants = new ArrayList<>();
@@ -186,5 +188,21 @@ public class Tournament {
 
     public void setParticipants(List<TournamentParticipant> participants) {
         this.participants = participants;
+    }
+
+    public Boolean getIsRanked() {
+        return isRanked != null ? isRanked : false;
+    }
+
+    public void setIsRanked(Boolean isRanked) {
+        this.isRanked = isRanked;
+    }
+
+    public String getExternalRegistrationUrl() {
+        return externalRegistrationUrl;
+    }
+
+    public void setExternalRegistrationUrl(String externalRegistrationUrl) {
+        this.externalRegistrationUrl = externalRegistrationUrl;
     }
 }

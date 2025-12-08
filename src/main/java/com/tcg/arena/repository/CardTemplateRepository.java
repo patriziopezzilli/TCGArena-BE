@@ -57,4 +57,17 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
         @Modifying
         @Query("DELETE FROM CardTemplate c WHERE c.tcgType = :tcgType")
         void deleteByTcgType(@Param("tcgType") TCGType tcgType);
+
+        /**
+         * Find card templates for bulk import - matches by name (LIKE), setCode
+         * (exact), and tcgType (exact)
+         */
+        @Query("SELECT c FROM CardTemplate c WHERE " +
+                        "LOWER(c.name) LIKE LOWER(CONCAT('%', :cardName, '%')) AND " +
+                        "c.setCode = :setCode AND " +
+                        "c.tcgType = :tcgType")
+        List<CardTemplate> findByNameLikeAndSetCodeAndTcgType(
+                        @Param("cardName") String cardName,
+                        @Param("setCode") String setCode,
+                        @Param("tcgType") String tcgType);
 }
