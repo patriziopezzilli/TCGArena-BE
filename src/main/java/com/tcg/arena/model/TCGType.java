@@ -1,19 +1,51 @@
 package com.tcg.arena.model;
 
 public enum TCGType {
-    POKEMON("Pokemon"),
-    ONE_PIECE("One Piece"),
-    MAGIC("Magic: The Gathering"),
-    YUGIOH("Yu-Gi-Oh!"),
-    DIGIMON("Digimon");
+    POKEMON("Pokemon", "Era", "Set", true, true),
+    ONE_PIECE("One Piece", null, "Set", false, true),
+    MAGIC("Magic: The Gathering", "Block", "Set", true, true),
+    YUGIOH("Yu-Gi-Oh!", null, "Set", false, true),
+    DIGIMON("Digimon", null, "Booster Set", false, true),
+    DRAGON_BALL_SUPER("Dragon Ball Super", null, "Set", false, true),
+    DRAGON_BALL_FUSION("Dragon Ball Fusion World", null, "Set", false, true),
+    FLESH_AND_BLOOD("Flesh and Blood", null, "Set", false, false),
+    LORCANA("Lorcana", null, "Set", true, false);
 
     private final String displayName;
+    private final String level1Label; // Era, Block, etc. (null for flat hierarchy)
+    private final String level2Label; // Set, Booster Set, etc.
+    private final boolean hasRotation;
+    private final boolean usesBanlist;
 
-    TCGType(String displayName) {
+    TCGType(String displayName, String level1Label, String level2Label, boolean hasRotation, boolean usesBanlist) {
         this.displayName = displayName;
+        this.level1Label = level1Label;
+        this.level2Label = level2Label;
+        this.hasRotation = hasRotation;
+        this.usesBanlist = usesBanlist;
     }
 
     public String getDisplayName() {
         return displayName;
+    }
+
+    public String getLevel1Label() {
+        return level1Label;
+    }
+
+    public String getLevel2Label() {
+        return level2Label;
+    }
+
+    public boolean hasRotation() {
+        return hasRotation;
+    }
+
+    public boolean usesBanlist() {
+        return usesBanlist;
+    }
+
+    public boolean hasHierarchy() {
+        return level1Label != null;
     }
 }

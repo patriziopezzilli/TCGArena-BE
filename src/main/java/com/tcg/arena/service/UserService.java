@@ -1,6 +1,8 @@
 package com.tcg.arena.service;
 
+import com.tcg.arena.dto.UserWithStatsDTO;
 import com.tcg.arena.model.User;
+import com.tcg.arena.model.UserStats;
 import com.tcg.arena.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -9,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class UserService {
@@ -22,15 +25,45 @@ public class UserService {
     @Autowired
     private UserActivityService userActivityService;
 
+    @Autowired
+    private UserStatsService userStatsService;
+
     public List<User> getAllUsers() {
         return userRepository.findAllByOrderByDateJoinedDesc();
     }
 
+    /**
+     * Get all users with their stats embedded for display in lists/leaderboards
+     */
+    public List<UserWithStatsDTO> getAllUsersWithStats() {
+        List<User> users = userRepository.findAllByOrderByDateJoinedDesc();
+        return users.stream()
+                .map(user -> {
+                    UserStats stats = userStatsService.getOrCreateUserStats(user);
+                    return UserWithStatsDTO.fromUserAndStats(user, stats);
+                })
+                .collect(Collectors.toList());
+    }
+
     public List<User> getLeaderboard() {
         return userRepository.findAll().stream()
-            .sorted((u1, u2) -> Integer.compare(u2.getPoints(), u1.getPoints()))
-            .limit(50)
-            .collect(java.util.stream.Collectors.toList());
+                .sorted((u1, u2) -> Integer.compare(u2.getPoints(), u1.getPoints()))
+                .limit(50)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
+     * Get leaderboard with stats - sorted by points, includes full stats
+     */
+    public List<UserWithStatsDTO> getLeaderboardWithStats() {
+        return userRepository.findAll().stream()
+                .sorted((u1, u2) -> Integer.compare(u2.getPoints(), u1.getPoints()))
+                .limit(50)
+                .map(user -> {
+                    UserStats stats = userStatsService.getOrCreateUserStats(user);
+                    return UserWithStatsDTO.fromUserAndStats(user, stats);
+                })
+                .collect(Collectors.toList());
     }
 
     public Optional<User> getUserById(Long id) {
@@ -58,8 +91,8 @@ public class UserService {
 
         // Log user registration activity
         userActivityService.logActivity(savedUser.getId(),
-            com.tcg.arena.model.ActivityType.USER_REGISTERED,
-            "Joined TCG Arena");
+                com.tcg.arena.model.ActivityType.USER_REGISTERED,
+                "Joined TCG Arena");
 
         // Migrate existing decks to have default deck type
         deckService.migrateExistingDecksToDefaultType();
@@ -80,8 +113,8 @@ public class UserService {
 
             // Log profile update activity
             userActivityService.logActivity(id,
-                com.tcg.arena.model.ActivityType.USER_PROFILE_UPDATED,
-                "Updated profile information");
+                    com.tcg.arena.model.ActivityType.USER_PROFILE_UPDATED,
+                    "Updated profile information");
 
             return updatedUser;
         });

@@ -21,6 +21,11 @@ public class Expansion {
 
     private String imageUrl;
 
+    // Product type classification for cross-TCG filtering
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = true)
+    private ProductType productType;
+
     @OneToMany(mappedBy = "expansion", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<TCGSet> sets = new ArrayList<>();
 
@@ -28,16 +33,16 @@ public class Expansion {
     @Transient
     public LocalDateTime getReleaseDate() {
         return sets.stream()
-            .map(TCGSet::getReleaseDate)
-            .max(LocalDateTime::compareTo)
-            .orElse(LocalDateTime.now());
+                .map(TCGSet::getReleaseDate)
+                .max(LocalDateTime::compareTo)
+                .orElse(LocalDateTime.now());
     }
 
     @Transient
     public int getCardCount() {
         return sets.stream()
-            .mapToInt(TCGSet::getCardCount)
-            .sum();
+                .mapToInt(TCGSet::getCardCount)
+                .sum();
     }
 
     // Getters and Setters
@@ -71,6 +76,14 @@ public class Expansion {
 
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
+    }
+
+    public ProductType getProductType() {
+        return productType;
+    }
+
+    public void setProductType(ProductType productType) {
+        this.productType = productType;
     }
 
     public List<TCGSet> getSets() {

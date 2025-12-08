@@ -55,33 +55,35 @@ class TCGCardReader implements ItemReader<CardTemplate> {
         this.tcgApiClient = tcgApiClient;
         this.startIndex = startIndex;
         this.endIndex = endIndex;
-        logger.info("TCGCardReader initialized with tcgTypeParam: {}, startIndex: {}, endIndex: {}", tcgTypeParam, startIndex, endIndex);
+        logger.info("TCGCardReader initialized with tcgTypeParam: {}, startIndex: {}, endIndex: {}", tcgTypeParam,
+                startIndex, endIndex);
         initializeTcgTypes(tcgTypeParam);
     }
 
     private void initializeTcgTypes(String param) {
         logger.info("Initializing TCG types with parameter: '{}'", param);
-        
+
         if (param != null && !param.trim().isEmpty()) {
             try {
                 specificTcgType = TCGType.valueOf(param.trim());
-                tcgTypes = new TCGType[]{specificTcgType};
+                tcgTypes = new TCGType[] { specificTcgType };
                 logger.info("Initialized with specific TCG type: {}", specificTcgType);
             } catch (IllegalArgumentException e) {
-                logger.warn("Invalid TCG type: '{}', falling back to all types. Valid types: {}", param, java.util.Arrays.toString(TCGType.values()));
-                tcgTypes = new TCGType[]{TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE};
+                logger.warn("Invalid TCG type: '{}', falling back to all types. Valid types: {}", param,
+                        java.util.Arrays.toString(TCGType.values()));
+                tcgTypes = new TCGType[] { TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE };
             }
         } else {
             logger.info("No specific TCG type provided, importing all types");
-            tcgTypes = new TCGType[]{TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE};
+            tcgTypes = new TCGType[] { TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE };
         }
-        
+
         // Final safety check
         if (tcgTypes == null || tcgTypes.length == 0) {
             logger.error("CRITICAL: TCG types array is null or empty, forcing default values");
-            tcgTypes = new TCGType[]{TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE};
+            tcgTypes = new TCGType[] { TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE };
         }
-        
+
         logger.info("Final TCG types configuration: {}", java.util.Arrays.toString(tcgTypes));
     }
 
@@ -90,9 +92,9 @@ class TCGCardReader implements ItemReader<CardTemplate> {
         // Safety check: ensure tcgTypes is initialized
         if (tcgTypes == null) {
             logger.warn("tcgTypes was null, initializing with all types");
-            tcgTypes = new TCGType[]{TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE};
+            tcgTypes = new TCGType[] { TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE };
         }
-        
+
         if (!initialized) {
             logger.info("Initializing card iterator for batch processing...");
             initializeCardIterator();
@@ -124,7 +126,7 @@ class TCGCardReader implements ItemReader<CardTemplate> {
             cardIterator = Collections.emptyIterator();
             return;
         }
-        
+
         if (currentTcgIndex >= tcgTypes.length) {
             cardIterator = null;
             return;
@@ -134,7 +136,8 @@ class TCGCardReader implements ItemReader<CardTemplate> {
         logger.info("Starting import for {} cards...", currentTcg);
 
         // NOTE: We no longer clear existing CardTemplates to preserve data
-        // The processor() method will handle updates for existing cards and only add new ones
+        // The processor() method will handle updates for existing cards and only add
+        // new ones
         logger.info("Importing {} cards (updating existing and adding new ones)", currentTcg);
 
         List<CardTemplate> cards = null;
@@ -144,7 +147,8 @@ class TCGCardReader implements ItemReader<CardTemplate> {
             switch (currentTcg) {
                 case POKEMON:
                     logger.info("Starting Pokemon card fetch...");
-                    tcgApiClient.fetchPokemonCards(startIndex, endIndex).block(); // Saves directly, no need to collect cards
+                    tcgApiClient.fetchPokemonCards(startIndex, endIndex).block(); // Saves directly, no need to collect
+                                                                                  // cards
                     logger.info("Pokemon cards imported successfully");
                     rawCards = new ArrayList<>(); // Empty list since cards are already saved
                     break;
@@ -168,6 +172,11 @@ class TCGCardReader implements ItemReader<CardTemplate> {
                     logger.warn("Yu-Gi-Oh card import not implemented yet");
                     rawCards = new ArrayList<>();
                     break;
+                default:
+                    // Handle other TCG types (Dragon Ball, Flesh and Blood, Lorcana, etc.)
+                    logger.warn("{} card import not implemented yet", currentTcg.getDisplayName());
+                    rawCards = new ArrayList<>();
+                    break;
             }
 
             // Convert Card to CardTemplate
@@ -184,7 +193,8 @@ class TCGCardReader implements ItemReader<CardTemplate> {
                     template.setImageUrl(card.getImageUrl());
                     template.setDescription(card.getDescription());
                     template.setManaCost(card.getManaCost());
-                    template.setDateCreated(card.getDateAdded() != null ? card.getDateAdded() : java.time.LocalDateTime.now());
+                    template.setDateCreated(
+                            card.getDateAdded() != null ? card.getDateAdded() : java.time.LocalDateTime.now());
                     return template;
                 }).collect(java.util.stream.Collectors.toList());
                 logger.info("Conversion completed: {} CardTemplates created", cards.size());
@@ -219,8 +229,8 @@ public class BatchConfiguration {
     }
 
     @Bean
-    public Step step1(JobRepository jobRepository, PlatformTransactionManager transactionManager, 
-                      @Qualifier("tcgCardReader") ItemReader<CardTemplate> reader) {
+    public Step step1(JobRepository jobRepository, PlatformTransactionManager transactionManager,
+            @Qualifier("tcgCardReader") ItemReader<CardTemplate> reader) {
         return new StepBuilder("step1", jobRepository)
                 .<CardTemplate, CardTemplate>chunk(10, transactionManager) // Process 10 cards at a time
                 .reader(reader)
@@ -268,7 +278,8 @@ public class BatchConfiguration {
                 card.setExpansion(expansion);
             }
 
-            // Check if card template already exists to avoid duplicates (efficient database query)
+            // Check if card template already exists to avoid duplicates (efficient database
+            // query)
             List<CardTemplate> existingCards = cardTemplateRepository.findByNameAndSetCodeAndCardNumber(
                     card.getName(), card.getSetCode(), card.getCardNumber());
 

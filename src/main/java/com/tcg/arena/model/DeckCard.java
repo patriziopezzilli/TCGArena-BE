@@ -1,6 +1,7 @@
 package com.tcg.arena.model;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 
@@ -16,7 +17,7 @@ public class DeckCard {
     @JsonBackReference
     private Deck deck;
 
-    @Column(nullable = false)
+    @Column(name = "card_id", nullable = false)
     @JsonProperty("card_id")
     private Long cardId;
 
@@ -50,6 +51,14 @@ public class DeckCard {
     @Enumerated(EnumType.STRING)
     @Column(nullable = true)
     private CardNationality nationality;
+
+    // Relation to CardTemplate for derived fields (rarity, set_name)
+    // References CardTemplate by matching cardId field to CardTemplate.id
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "card_id", referencedColumnName = "id", insertable = false, updatable = false)
+    @JsonIgnore
+    private CardTemplate cardTemplate;
+
     public Long getId() {
         return id;
     }
@@ -144,5 +153,31 @@ public class DeckCard {
 
     public void setNationality(CardNationality nationality) {
         this.nationality = nationality;
+    }
+
+    public CardTemplate getCardTemplate() {
+        return cardTemplate;
+    }
+
+    public void setCardTemplate(CardTemplate cardTemplate) {
+        this.cardTemplate = cardTemplate;
+    }
+
+    // Derived from CardTemplate
+    @JsonProperty("rarity")
+    public String getRarity() {
+        if (cardTemplate != null && cardTemplate.getRarity() != null) {
+            return cardTemplate.getRarity().name();
+        }
+        return null;
+    }
+
+    // Derived from CardTemplate's expansion
+    @JsonProperty("set_name")
+    public String getSetName() {
+        if (cardTemplate != null && cardTemplate.getExpansion() != null) {
+            return cardTemplate.getExpansion().getTitle();
+        }
+        return null;
     }
 }

@@ -81,7 +81,13 @@ public class Card {
     }
 
     public String getImageUrl() {
-        return cardTemplate != null ? cardTemplate.getImageUrl() : null;
+        String url = cardTemplate != null ? cardTemplate.getImageUrl() : null;
+
+        if(url == null) {
+            url = "https://tcgplayer-cdn.tcgplayer.com/product/"+ this.getCardTemplate().getTcgplayerId() + "_in_1000x1000.jpg";
+        }
+
+        return url;
     }
 
     public Double getMarketPrice() {

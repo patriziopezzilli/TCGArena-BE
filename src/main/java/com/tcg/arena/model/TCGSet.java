@@ -33,6 +33,17 @@ public class TCGSet {
     @JsonIgnore
     private Expansion expansion;
 
+    // Product type classification for filtering
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = true)
+    private ProductType productType;
+
+    // Parent set for sub-sets (e.g., Shiny Vault is a sub-set of Hidden Fates)
+    @ManyToOne
+    @JoinColumn(name = "parent_set_id")
+    @JsonIgnore
+    private TCGSet parentSet;
+
     // Getters and Setters
     public Long getId() {
         return id;
@@ -96,5 +107,21 @@ public class TCGSet {
 
     public void setExpansion(Expansion expansion) {
         this.expansion = expansion;
+    }
+
+    public ProductType getProductType() {
+        return productType;
+    }
+
+    public void setProductType(ProductType productType) {
+        this.productType = productType;
+    }
+
+    public TCGSet getParentSet() {
+        return parentSet;
+    }
+
+    public void setParentSet(TCGSet parentSet) {
+        this.parentSet = parentSet;
     }
 }

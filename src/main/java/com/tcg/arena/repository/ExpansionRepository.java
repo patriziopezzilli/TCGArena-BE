@@ -13,10 +13,14 @@ import java.util.Optional;
 @Repository
 public interface ExpansionRepository extends JpaRepository<Expansion, Long> {
     List<Expansion> findByTcgType(TCGType tcgType);
+
     Expansion findByTitle(String title);
 
     @Query("SELECT e FROM Expansion e LEFT JOIN FETCH e.sets WHERE e.id = :id")
     Optional<Expansion> findByIdWithSets(@Param("id") Long id);
+
+    @Query("SELECT DISTINCT e FROM Expansion e LEFT JOIN FETCH e.sets")
+    List<Expansion> findAllWithSets();
 
     @Query("SELECT e FROM Expansion e LEFT JOIN e.sets s GROUP BY e ORDER BY MAX(s.releaseDate) DESC")
     List<Expansion> findAllByOrderByReleaseDateDesc();

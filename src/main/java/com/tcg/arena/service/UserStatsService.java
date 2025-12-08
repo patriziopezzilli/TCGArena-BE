@@ -5,7 +5,6 @@ import com.tcg.arena.model.UserStats;
 import com.tcg.arena.model.TCGType;
 import com.tcg.arena.model.Deck;
 import com.tcg.arena.repository.UserStatsRepository;
-import com.tcg.arena.repository.UserCardRepository;
 import com.tcg.arena.repository.DeckRepository;
 import com.tcg.arena.repository.TournamentParticipantRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,8 +24,6 @@ public class UserStatsService {
     @Autowired
     private UserStatsRepository userStatsRepository;
 
-    @Autowired
-    private UserCardRepository userCardRepository;
 
     @Autowired
     private DeckRepository deckRepository;
@@ -59,8 +56,13 @@ public class UserStatsService {
     private UserStats updateUserStats(UserStats stats) {
         User user = stats.getUser();
 
-        // Calculate total cards
-        int totalCards = userCardRepository.findByOwnerId(user.getId()).size();
+
+        // Calculate total cards in all decks (sum of DeckCard quantities)
+        List<Deck> userDecks = deckRepository.findByOwnerIdOrderByDateCreatedDesc(user.getId());
+        int totalCards = userDecks.stream()
+            .flatMap(deck -> deck.getCards().stream())
+            .mapToInt(deckCard -> deckCard.getQuantity() != null ? deckCard.getQuantity() : 0)
+            .sum();
         stats.setTotalCards(totalCards);
 
         // Calculate total decks

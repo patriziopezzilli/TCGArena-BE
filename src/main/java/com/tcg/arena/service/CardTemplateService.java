@@ -57,17 +57,38 @@ public class CardTemplateService {
     }
 
     public List<CardTemplate> searchCardTemplates(String query) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+
+        // Smart search: Check for "Name Number" pattern
+        String[] parts = query.trim().split("\\s+");
+        if (parts.length >= 2) {
+            // Try to treat the last part as a card number
+            String potentialNumber = parts[parts.length - 1];
+            // Reconstruct the name part (everything except last token)
+            String potentialName = query.substring(0, query.lastIndexOf(potentialNumber)).trim();
+
+            if (!potentialName.isEmpty()) {
+                List<CardTemplate> smartResults = cardTemplateRepository.searchByNameAndCardNumber(potentialName,
+                        potentialNumber);
+                if (!smartResults.isEmpty()) {
+                    return smartResults;
+                }
+            }
+        }
+
+        // Fallback to standard search
         return cardTemplateRepository.searchByNameOrSetCode(query);
     }
 
     public Page<CardTemplate> searchCardTemplatesWithFilters(
-        String tcgType,
-        Long expansionId,
-        String setCode,
-        String rarity,
-        String searchQuery,
-        Pageable pageable
-    ) {
+            String tcgType,
+            Long expansionId,
+            String setCode,
+            String rarity,
+            String searchQuery,
+            Pageable pageable) {
         return cardTemplateRepository.findWithFilters(tcgType, expansionId, setCode, rarity, searchQuery, pageable);
     }
 

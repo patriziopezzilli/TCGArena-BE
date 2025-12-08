@@ -22,9 +22,11 @@ public class ExpansionService {
     @Autowired
     private ExpansionRepository expansionRepository;
 
-    @Cacheable(value = CacheConfig.EXPANSIONS_CACHE, key = "'all'")
+    // Removed cache to avoid LazyInitializationException with detached entities
     public List<Expansion> getAllExpansions() {
-        return expansionRepository.findAllByOrderByReleaseDateDesc();
+        return expansionRepository.findAllWithSets().stream()
+                .sorted((e1, e2) -> e2.getReleaseDate().compareTo(e1.getReleaseDate()))
+                .collect(Collectors.toList());
     }
 
     public Optional<Expansion> getExpansionById(Long id) {
@@ -34,8 +36,8 @@ public class ExpansionService {
     @Cacheable(value = CacheConfig.EXPANSIONS_CACHE, key = "'tcgType_' + #tcgType.name()")
     public List<Expansion> getExpansionsByTcgType(TCGType tcgType) {
         return expansionRepository.findByTcgType(tcgType).stream()
-            .sorted((e1, e2) -> e2.getReleaseDate().compareTo(e1.getReleaseDate()))
-            .collect(Collectors.toList());
+                .sorted((e1, e2) -> e2.getReleaseDate().compareTo(e1.getReleaseDate()))
+                .collect(Collectors.toList());
     }
 
     public List<Expansion> getRecentExpansions() {
@@ -43,9 +45,11 @@ public class ExpansionService {
         return getRecentExpansions(5);
     }
 
-    @Cacheable(value = CacheConfig.RECENT_EXPANSIONS_CACHE, key = "'limit_' + #limit")
+    // Removed cache to avoid LazyInitializationException
     public List<Expansion> getRecentExpansions(int limit) {
-        return expansionRepository.findAllByOrderByReleaseDateDesc().stream().limit(limit).collect(Collectors.toList());
+        return expansionRepository.findAllWithSets().stream()
+                .sorted((e1, e2) -> e2.getReleaseDate().compareTo(e1.getReleaseDate()))
+                .limit(limit).collect(Collectors.toList());
     }
 
     public List<TCGSet> getSetsByExpansionId(Long id) {
@@ -73,9 +77,9 @@ public class ExpansionService {
         return false;
     }
 
-    @Cacheable(value = CacheConfig.EXPANSIONS_CACHE, key = "'stats'")
+    // Removed cache to avoid LazyInitializationException
     public List<TCGStatsDTO> getTCGStatistics() {
-        List<Expansion> allExpansions = expansionRepository.findAllByOrderByReleaseDateDesc();
+        List<Expansion> allExpansions = expansionRepository.findAllWithSets();
 
         Map<TCGType, TCGStatsDTO> statsMap = new HashMap<>();
 
@@ -91,8 +95,8 @@ public class ExpansionService {
                 stats.setExpansions(stats.getExpansions() + 1);
                 stats.setSets(stats.getSets() + expansion.getSets().size());
                 stats.setCards(stats.getCards() + expansion.getSets().stream()
-                    .mapToInt(set -> set.getCardCount() != null ? set.getCardCount() : 0)
-                    .sum());
+                        .mapToInt(set -> set.getCardCount() != null ? set.getCardCount() : 0)
+                        .sum());
             }
         }
 
