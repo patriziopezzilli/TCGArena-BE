@@ -275,4 +275,21 @@ public class UserController {
                         return ResponseEntity.ok(user.getFavoriteTCGTypes());
                 }).orElse(ResponseEntity.notFound().build());
         }
+
+        @PutMapping("/{id}/privacy")
+        @Operation(summary = "Update user privacy setting", description = "Updates whether the user profile is hidden from Discover section")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Privacy setting updated successfully"),
+                        @ApiResponse(responseCode = "404", description = "User not found")
+        })
+        public ResponseEntity<java.util.Map<String, Boolean>> updatePrivacy(
+                        @Parameter(description = "Unique identifier of the user") @PathVariable Long id,
+                        @Parameter(description = "Privacy setting") @RequestBody java.util.Map<String, Boolean> request) {
+                return userService.getUserById(id).map(user -> {
+                        Boolean isPrivate = request.getOrDefault("isPrivate", false);
+                        user.setIsPrivate(isPrivate);
+                        userRepository.save(user);
+                        return ResponseEntity.ok(java.util.Map.of("isPrivate", user.getIsPrivate()));
+                }).orElse(ResponseEntity.notFound().build());
+        }
 }

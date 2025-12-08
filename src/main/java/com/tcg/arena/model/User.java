@@ -9,7 +9,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "users")
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -41,6 +41,9 @@ public class User {
 
     @Column(nullable = false)
     private Boolean isAdmin = false;
+
+    @Column(nullable = false)
+    private Boolean isPrivate = false; // If true, hide from Discover section
 
     private Long shopId;
 
@@ -138,6 +141,14 @@ public class User {
 
     public void setIsAdmin(Boolean isAdmin) {
         this.isAdmin = isAdmin;
+    }
+
+    public Boolean getIsPrivate() {
+        return isPrivate != null ? isPrivate : false;
+    }
+
+    public void setIsPrivate(Boolean isPrivate) {
+        this.isPrivate = isPrivate;
     }
 
     public Long getShopId() {
