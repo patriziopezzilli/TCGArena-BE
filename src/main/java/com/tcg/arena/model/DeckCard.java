@@ -57,6 +57,7 @@ public class DeckCard {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "card_id", referencedColumnName = "id", insertable = false, updatable = false)
     @JsonIgnore
+    @org.hibernate.annotations.NotFound(action = org.hibernate.annotations.NotFoundAction.IGNORE)
     private CardTemplate cardTemplate;
 
     public Long getId() {

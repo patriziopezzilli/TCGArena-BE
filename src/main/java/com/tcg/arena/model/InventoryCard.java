@@ -15,68 +15,69 @@ import java.util.Objects;
  */
 @Entity
 @Table(name = "inventory_cards", indexes = {
-    @Index(name = "idx_shop_id", columnList = "shop_id"),
-    @Index(name = "idx_card_template_id", columnList = "card_template_id"),
-    @Index(name = "idx_condition", columnList = "condition")
+        @Index(name = "idx_shop_id", columnList = "shop_id"),
+        @Index(name = "idx_card_template_id", columnList = "card_template_id"),
+        @Index(name = "idx_condition", columnList = "condition")
 })
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class InventoryCard {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
-    
+
     @Column(name = "card_template_id", nullable = false)
     @JsonProperty("card_template_id")
     private Long cardTemplateId;
-    
+
     @Column(name = "shop_id", nullable = false)
     @JsonProperty("shop_id")
     private Long shopId;
-    
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private CardCondition condition;
-    
+
     @Column(nullable = false)
     private Double price;
-    
+
     @Column(nullable = false)
     private Integer quantity = 0;
-    
+
     @Column(length = 1000)
     private String notes;
-    
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = true)
     private CardNationality nationality;
     @Column(name = "created_at", nullable = false, updatable = false)
     @JsonProperty("created_at")
     private LocalDateTime createdAt;
-    
+
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     @JsonProperty("updated_at")
     private LocalDateTime updatedAt;
-    
+
     // Relationships - will be populated via joins
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "card_template_id", insertable = false, updatable = false)
     @JsonProperty("card_template")
+    @org.hibernate.annotations.NotFound(action = org.hibernate.annotations.NotFoundAction.IGNORE)
     private CardTemplate cardTemplate;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "shop_id", insertable = false, updatable = false)
     @JsonIgnore
     private Shop shop;
-    
+
     // Constructors
     public InventoryCard() {
     }
-    
-    public InventoryCard(String id, Long cardTemplateId, Long shopId, CardCondition condition, 
-                        Double price, Integer quantity, String notes, LocalDateTime createdAt, 
-                        LocalDateTime updatedAt) {
+
+    public InventoryCard(String id, Long cardTemplateId, Long shopId, CardCondition condition,
+            Double price, Integer quantity, String notes, LocalDateTime createdAt,
+            LocalDateTime updatedAt) {
         this.id = id;
         this.cardTemplateId = cardTemplateId;
         this.shopId = shopId;
@@ -152,52 +153,54 @@ public class InventoryCard {
     public void setNationality(CardNationality nationality) {
         this.nationality = nationality;
     }
-    
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }
-    
+
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
-    
+
     public LocalDateTime getUpdatedAt() {
         return updatedAt;
     }
-    
+
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
-    
+
     public CardTemplate getCardTemplate() {
         return cardTemplate;
     }
-    
+
     public void setCardTemplate(CardTemplate cardTemplate) {
         this.cardTemplate = cardTemplate;
     }
-    
+
     public Shop getShop() {
         return shop;
     }
-    
+
     public void setShop(Shop shop) {
         this.shop = shop;
     }
-    
+
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o)
+            return true;
+        if (o == null || getClass() != o.getClass())
+            return false;
         InventoryCard that = (InventoryCard) o;
         return Objects.equals(id, that.id);
     }
-    
+
     @Override
     public int hashCode() {
         return Objects.hash(id);
     }
-    
+
     @Override
     public String toString() {
         return "InventoryCard{" +
@@ -212,7 +215,7 @@ public class InventoryCard {
                 ", updatedAt=" + updatedAt +
                 '}';
     }
-    
+
     public enum CardCondition {
         MINT,
         NEAR_MINT,
@@ -221,7 +224,7 @@ public class InventoryCard {
         LIGHT_PLAYED,
         PLAYED,
         POOR;
-        
+
         public String getDisplayName() {
             return switch (this) {
                 case MINT -> "Mint (M)";
@@ -233,7 +236,7 @@ public class InventoryCard {
                 case POOR -> "Poor (P)";
             };
         }
-        
+
         public String getColor() {
             return switch (this) {
                 case MINT, NEAR_MINT -> "green";

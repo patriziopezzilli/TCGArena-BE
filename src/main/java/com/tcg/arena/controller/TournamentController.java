@@ -470,20 +470,16 @@ public class TournamentController {
     }
 
     @GetMapping("/{tournamentId}/updates")
-    @Operation(summary = "Get tournament updates", description = "Get all live updates for a tournament (only participants or organizer)")
+    @Operation(summary = "Get tournament updates", description = "Get all live updates for a tournament (public - client should verify access)")
     public ResponseEntity<?> getTournamentUpdates(@PathVariable Long tournamentId) {
-        Optional<User> currentUser = userService.getCurrentUser();
-        if (currentUser.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Devi essere autenticato");
-        }
-
         try {
-            List<com.tcg.arena.model.TournamentUpdate> updates = tournamentService.getTournamentUpdates(
-                    tournamentId,
-                    currentUser.get().getId());
+            // Public endpoint - returns all updates for the tournament
+            // Client apps should verify if user is participant before showing
+            List<com.tcg.arena.model.TournamentUpdate> updates = tournamentService
+                    .getTournamentUpdatesPublic(tournamentId);
             return ResponseEntity.ok(updates);
         } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 

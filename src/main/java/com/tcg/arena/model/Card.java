@@ -12,6 +12,7 @@ public class Card {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "card_template_id", nullable = false)
+    @org.hibernate.annotations.NotFound(action = org.hibernate.annotations.NotFoundAction.IGNORE)
     private CardTemplate cardTemplate;
 
     @Enumerated(EnumType.STRING)
@@ -83,8 +84,9 @@ public class Card {
     public String getImageUrl() {
         String url = cardTemplate != null ? cardTemplate.getImageUrl() : null;
 
-        if(url == null) {
-            url = "https://tcgplayer-cdn.tcgplayer.com/product/"+ this.getCardTemplate().getTcgplayerId() + "_in_1000x1000.jpg";
+        if (url == null) {
+            url = "https://tcgplayer-cdn.tcgplayer.com/product/" + this.getCardTemplate().getTcgplayerId()
+                    + "_in_1000x1000.jpg";
         }
 
         return url;

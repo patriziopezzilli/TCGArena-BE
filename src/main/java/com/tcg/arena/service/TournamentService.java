@@ -793,6 +793,18 @@ public class TournamentService {
     }
 
     /**
+     * Get all updates for a tournament (PUBLIC - no authentication check)
+     * Client apps should verify if user is participant before showing
+     */
+    public List<TournamentUpdate> getTournamentUpdatesPublic(Long tournamentId) {
+        // Verify tournament exists
+        tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new RuntimeException("Torneo non trovato"));
+
+        return tournamentUpdateRepository.findByTournamentIdOrderByCreatedAtDesc(tournamentId);
+    }
+
+    /**
      * Delete an update (only organizer can do this)
      */
     public void deleteTournamentUpdate(Long tournamentId, Long updateId, Long userId) {

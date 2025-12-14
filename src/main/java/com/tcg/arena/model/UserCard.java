@@ -12,6 +12,7 @@ public class UserCard {
 
     @ManyToOne
     @JoinColumn(name = "card_template_id", nullable = false)
+    @org.hibernate.annotations.NotFound(action = org.hibernate.annotations.NotFoundAction.IGNORE)
     private CardTemplate cardTemplate;
 
     @ManyToOne
@@ -42,6 +43,7 @@ public class UserCard {
     @Enumerated(EnumType.STRING)
     @Column(nullable = true)
     private CardNationality nationality;
+
     public Long getId() {
         return id;
     }

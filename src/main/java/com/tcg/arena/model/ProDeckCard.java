@@ -16,6 +16,7 @@ public class ProDeckCard {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "card_template_id", nullable = false)
+    @org.hibernate.annotations.NotFound(action = org.hibernate.annotations.NotFoundAction.IGNORE)
     private CardTemplate cardTemplate;
 
     @Column(nullable = false)
@@ -25,7 +26,8 @@ public class ProDeckCard {
     private String section; // "main" or "sideboard"
 
     // Constructors
-    public ProDeckCard() {}
+    public ProDeckCard() {
+    }
 
     public ProDeckCard(ProDeck proDeck, CardTemplate cardTemplate, Integer quantity, String section) {
         this.proDeck = proDeck;
