@@ -9,4 +9,10 @@ import java.util.List;
 @Repository
 public interface RewardTransactionRepository extends JpaRepository<RewardTransaction, Long> {
     List<RewardTransaction> findByUserIdOrderByTimestampDesc(Long userId);
+
+    // Admin methods
+    List<RewardTransaction> findAllByOrderByTimestampDesc();
+
+    List<RewardTransaction> findByRewardIdIsNotNullAndStatusIn(
+            List<RewardTransaction.RewardFulfillmentStatus> statuses);
 }

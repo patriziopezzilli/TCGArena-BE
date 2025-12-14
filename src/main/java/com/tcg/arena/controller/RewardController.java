@@ -134,4 +134,38 @@ public class RewardController {
     public Reward createReward(@RequestBody Reward reward) {
         return rewardService.saveReward(reward);
     }
+
+    // ========== ADMIN: Reward Transactions (Fulfillment) Management ==========
+
+    @GetMapping("/admin/transactions")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Get all reward transactions", description = "Retrieves all reward transactions for admin management")
+    public List<RewardTransaction> getAllTransactions() {
+        return rewardService.getAllRewardTransactions();
+    }
+
+    @GetMapping("/admin/transactions/pending")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Get pending reward fulfillments", description = "Retrieves reward transactions that need fulfillment (pending/processing)")
+    public List<RewardTransaction> getPendingFulfillments() {
+        return rewardService.getPendingFulfillments();
+    }
+
+    @PutMapping("/admin/transactions/{transactionId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update reward transaction", description = "Updates status, voucher code, or tracking number for a reward transaction")
+    public ResponseEntity<RewardTransaction> updateTransaction(
+            @PathVariable Long transactionId,
+            @RequestBody Map<String, Object> updates) {
+        try {
+            RewardTransaction updated = rewardService.updateTransaction(
+                    transactionId,
+                    (String) updates.get("status"),
+                    (String) updates.get("voucherCode"),
+                    (String) updates.get("trackingNumber"));
+            return ResponseEntity.ok(updated);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }

@@ -110,4 +110,35 @@ public class RewardService {
         Optional<User> user = userRepository.findById(userId);
         return user.map(User::getPoints).orElse(0);
     }
+
+    // ========== ADMIN: Transaction Management Methods ==========
+
+    public List<RewardTransaction> getAllRewardTransactions() {
+        return transactionRepository.findAllByOrderByTimestampDesc();
+    }
+
+    public List<RewardTransaction> getPendingFulfillments() {
+        return transactionRepository.findByRewardIdIsNotNullAndStatusIn(
+                List.of(
+                        RewardTransaction.RewardFulfillmentStatus.PENDING,
+                        RewardTransaction.RewardFulfillmentStatus.PROCESSING));
+    }
+
+    public RewardTransaction updateTransaction(Long transactionId, String status, String voucherCode,
+            String trackingNumber) {
+        RewardTransaction transaction = transactionRepository.findById(transactionId)
+                .orElseThrow(() -> new RuntimeException("Transaction not found"));
+
+        if (status != null && !status.isEmpty()) {
+            transaction.setStatus(RewardTransaction.RewardFulfillmentStatus.valueOf(status));
+        }
+        if (voucherCode != null) {
+            transaction.setVoucherCode(voucherCode);
+        }
+        if (trackingNumber != null) {
+            transaction.setTrackingNumber(trackingNumber);
+        }
+
+        return transactionRepository.save(transaction);
+    }
 }
