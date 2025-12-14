@@ -601,14 +601,13 @@ public class TournamentService {
             }
 
             if (pointsToAward > 0) {
-                // Update user points
+                // Award points using rewardService to properly track the transaction
+                rewardService.earnPoints(participant.getUserId(), pointsToAward,
+                        placementText + " in tournament: " + tournament.getTitle());
+
+                // Send notification to winner
                 Optional<User> userOpt = userRepository.findById(participant.getUserId());
                 if (userOpt.isPresent()) {
-                    User user = userOpt.get();
-                    user.setPoints(user.getPoints() + pointsToAward);
-                    userRepository.save(user);
-
-                    // Send notification to winner
                     sendWinnerNotification(participant, tournament, placementText, pointsToAward);
                 }
             }
