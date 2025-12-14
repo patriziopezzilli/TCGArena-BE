@@ -1,14 +1,18 @@
 package com.tcg.arena.service;
 
 import com.tcg.arena.config.CacheConfig;
+import com.tcg.arena.model.CardTemplate;
 import com.tcg.arena.model.Expansion;
 import com.tcg.arena.model.TCGSet;
 import com.tcg.arena.model.TCGType;
 import com.tcg.arena.dto.TCGStatsDTO;
+import com.tcg.arena.repository.CardTemplateRepository;
 import com.tcg.arena.repository.ExpansionRepository;
+import com.tcg.arena.repository.TCGSetRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -69,12 +73,66 @@ public class ExpansionService {
         });
     }
 
-    public boolean deleteExpansion(Long id) {
-        if (expansionRepository.existsById(id)) {
-            expansionRepository.deleteById(id);
-            return true;
+    @Autowired
+    private CardTemplateRepository cardTemplateRepository;
+
+    @Autowired
+    private TCGSetRepository tcgSetRepository;
+
+    /**
+     * Get deletion info for an expansion (how many sets and cards would be deleted)
+     */
+    public Map<String, Object> getExpansionDeletionInfo(Long id) {
+        Expansion expansion = expansionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Espansione non trovata"));
+
+        List<CardTemplate> associatedCards = cardTemplateRepository.findByExpansionId(id);
+        int setCount = expansion.getSets() != null ? expansion.getSets().size() : 0;
+
+        Map<String, Object> info = new HashMap<>();
+        info.put("expansionId", id);
+        info.put("expansionTitle", expansion.getTitle());
+        info.put("setCount", setCount);
+        info.put("cardCount", associatedCards.size());
+        info.put("hasAssociatedData", setCount > 0 || !associatedCards.isEmpty());
+
+        return info;
+    }
+
+    /**
+     * Delete expansion with optional cascade
+     * 
+     * @param id    Expansion ID
+     * @param force If true, delete all associated sets and cards
+     */
+    @Transactional
+    public void deleteExpansion(Long id, boolean force) {
+        Expansion expansion = expansionRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Espansione non trovata"));
+
+        List<CardTemplate> associatedCards = cardTemplateRepository.findByExpansionId(id);
+        int setCount = expansion.getSets() != null ? expansion.getSets().size() : 0;
+
+        if (!force && (setCount > 0 || !associatedCards.isEmpty())) {
+            throw new RuntimeException(
+                    "CONFIRM_REQUIRED:" + setCount + ":" + associatedCards.size() + ":" +
+                            "L'espansione '" + expansion.getTitle() + "' contiene " + setCount + " set e " +
+                            associatedCards.size() + " carte. Vuoi eliminarli tutti?");
         }
-        return false;
+
+        if (force) {
+            // Delete all associated card templates first
+            if (!associatedCards.isEmpty()) {
+                cardTemplateRepository.deleteAll(associatedCards);
+            }
+
+            // Delete all associated sets
+            if (expansion.getSets() != null && !expansion.getSets().isEmpty()) {
+                tcgSetRepository.deleteAll(expansion.getSets());
+            }
+        }
+
+        expansionRepository.deleteById(id);
     }
 
     // Removed cache to avoid LazyInitializationException

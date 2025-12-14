@@ -720,4 +720,106 @@ public class TournamentService {
 
         return completedCount;
     }
+
+    // ========== TOURNAMENT UPDATES (LIVE MESSAGES & PHOTOS) ==========
+
+    @Autowired
+    private com.tcg.arena.repository.TournamentUpdateRepository tournamentUpdateRepository;
+
+    /**
+     * Check if a user is a participant of the tournament
+     */
+    public boolean isUserParticipant(Long tournamentId, Long userId) {
+        return participantRepository.findByTournamentIdAndUserId(tournamentId, userId).isPresent();
+    }
+
+    /**
+     * Check if a user is the organizer of the tournament
+     */
+    public boolean isUserOrganizer(Long tournamentId, Long userId) {
+        Optional<Tournament> tournament = tournamentRepository.findById(tournamentId);
+        return tournament.isPresent() && tournament.get().getOrganizerId().equals(userId);
+    }
+
+    /**
+     * Add a new update to a tournament (only organizer can do this)
+     */
+    public TournamentUpdate addTournamentUpdate(Long tournamentId, Long userId, String message, String imageBase64) {
+        // Verify tournament exists
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new RuntimeException("Torneo non trovato"));
+
+        // Verify user is the organizer
+        if (!tournament.getOrganizerId().equals(userId)) {
+            throw new RuntimeException("Solo l'organizzatore può aggiungere aggiornamenti");
+        }
+
+        // Validate content
+        if ((message == null || message.trim().isEmpty()) && (imageBase64 == null || imageBase64.trim().isEmpty())) {
+            throw new RuntimeException("Inserisci un messaggio o un'immagine");
+        }
+
+        // Validate message length
+        if (message != null && message.length() > 2000) {
+            throw new RuntimeException("Il messaggio non può superare i 2000 caratteri");
+        }
+
+        // Validate image size (max ~5MB base64 = ~7MB string)
+        if (imageBase64 != null && imageBase64.length() > 7000000) {
+            throw new RuntimeException("L'immagine è troppo grande (max 5MB)");
+        }
+
+        TournamentUpdate update = new TournamentUpdate(tournamentId, message, imageBase64, userId);
+        return tournamentUpdateRepository.save(update);
+    }
+
+    /**
+     * Get all updates for a tournament (only participants or organizer can see)
+     */
+    public List<TournamentUpdate> getTournamentUpdates(Long tournamentId, Long userId) {
+        // Verify tournament exists
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new RuntimeException("Torneo non trovato"));
+
+        // Verify user is participant or organizer
+        boolean isOrganizer = tournament.getOrganizerId().equals(userId);
+        boolean isParticipant = isUserParticipant(tournamentId, userId);
+
+        if (!isOrganizer && !isParticipant) {
+            throw new RuntimeException("Solo i partecipanti possono vedere gli aggiornamenti");
+        }
+
+        return tournamentUpdateRepository.findByTournamentIdOrderByCreatedAtDesc(tournamentId);
+    }
+
+    /**
+     * Delete an update (only organizer can do this)
+     */
+    public void deleteTournamentUpdate(Long tournamentId, Long updateId, Long userId) {
+        // Verify tournament exists
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new RuntimeException("Torneo non trovato"));
+
+        // Verify user is the organizer
+        if (!tournament.getOrganizerId().equals(userId)) {
+            throw new RuntimeException("Solo l'organizzatore può eliminare gli aggiornamenti");
+        }
+
+        // Verify update exists and belongs to this tournament
+        TournamentUpdate update = tournamentUpdateRepository.findById(updateId)
+                .orElseThrow(() -> new RuntimeException("Aggiornamento non trovato"));
+
+        if (!update.getTournamentId().equals(tournamentId)) {
+            throw new RuntimeException("L'aggiornamento non appartiene a questo torneo");
+        }
+
+        tournamentUpdateRepository.deleteById(updateId);
+    }
+
+    /**
+     * Get update count for a tournament
+     */
+    public int getTournamentUpdateCount(Long tournamentId) {
+        return tournamentUpdateRepository.countByTournamentId(tournamentId);
+    }
 }

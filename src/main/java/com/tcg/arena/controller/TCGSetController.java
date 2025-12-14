@@ -70,10 +70,23 @@ public class TCGSetController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteSet(@PathVariable Long id) {
-        if (tcgSetService.deleteSet(id)) {
+    public ResponseEntity<?> deleteSet(
+            @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "false") boolean force) {
+        try {
+            tcgSetService.deleteSet(id, force);
             return ResponseEntity.noContent().build();
+        } catch (RuntimeException e) {
+            String message = e.getMessage();
+            // Check if confirmation is required
+            if (message != null && message.startsWith("CONFIRM_REQUIRED:")) {
+                String[] parts = message.split(":", 3);
+                return ResponseEntity.status(409).body(java.util.Map.of(
+                        "confirmRequired", true,
+                        "cardCount", Integer.parseInt(parts[1]),
+                        "message", parts[2]));
+            }
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", message));
         }
-        return ResponseEntity.notFound().build();
     }
 }

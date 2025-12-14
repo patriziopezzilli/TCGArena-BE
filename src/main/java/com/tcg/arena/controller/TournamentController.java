@@ -444,4 +444,95 @@ public class TournamentController {
             this.placements = placements;
         }
     }
+
+    // ========== TOURNAMENT UPDATES (LIVE MESSAGES & PHOTOS) ==========
+
+    @PostMapping("/{tournamentId}/updates")
+    @Operation(summary = "Add tournament update", description = "Add a new live update to a tournament (only organizer)")
+    public ResponseEntity<?> addTournamentUpdate(
+            @PathVariable Long tournamentId,
+            @RequestBody TournamentUpdateRequest request) {
+        Optional<User> currentUser = userService.getCurrentUser();
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Devi essere autenticato");
+        }
+
+        try {
+            com.tcg.arena.model.TournamentUpdate update = tournamentService.addTournamentUpdate(
+                    tournamentId,
+                    currentUser.get().getId(),
+                    request.getMessage(),
+                    request.getImageBase64());
+            return ResponseEntity.ok(update);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{tournamentId}/updates")
+    @Operation(summary = "Get tournament updates", description = "Get all live updates for a tournament (only participants or organizer)")
+    public ResponseEntity<?> getTournamentUpdates(@PathVariable Long tournamentId) {
+        Optional<User> currentUser = userService.getCurrentUser();
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Devi essere autenticato");
+        }
+
+        try {
+            List<com.tcg.arena.model.TournamentUpdate> updates = tournamentService.getTournamentUpdates(
+                    tournamentId,
+                    currentUser.get().getId());
+            return ResponseEntity.ok(updates);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @DeleteMapping("/{tournamentId}/updates/{updateId}")
+    @Operation(summary = "Delete tournament update", description = "Delete a live update (only organizer)")
+    public ResponseEntity<?> deleteTournamentUpdate(
+            @PathVariable Long tournamentId,
+            @PathVariable Long updateId) {
+        Optional<User> currentUser = userService.getCurrentUser();
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Devi essere autenticato");
+        }
+
+        try {
+            tournamentService.deleteTournamentUpdate(tournamentId, updateId, currentUser.get().getId());
+            return ResponseEntity.noContent().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/{tournamentId}/updates/count")
+    @Operation(summary = "Get tournament update count", description = "Get the number of updates for a tournament")
+    public ResponseEntity<?> getTournamentUpdateCount(@PathVariable Long tournamentId) {
+        int count = tournamentService.getTournamentUpdateCount(tournamentId);
+        return ResponseEntity.ok(Map.of("count", count));
+    }
+
+    /**
+     * Request DTO for adding a tournament update
+     */
+    public static class TournamentUpdateRequest {
+        private String message;
+        private String imageBase64;
+
+        public String getMessage() {
+            return message;
+        }
+
+        public void setMessage(String message) {
+            this.message = message;
+        }
+
+        public String getImageBase64() {
+            return imageBase64;
+        }
+
+        public void setImageBase64(String imageBase64) {
+            this.imageBase64 = imageBase64;
+        }
+    }
 }

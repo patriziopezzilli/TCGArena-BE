@@ -26,8 +26,8 @@ public class ExpansionController {
     @GetMapping
     public List<ExpansionDTO> getAllExpansions() {
         return expansionService.getAllExpansions().stream()
-            .map(ExpansionDTO::new)
-            .collect(Collectors.toList());
+                .map(ExpansionDTO::new)
+                .collect(Collectors.toList());
     }
 
     @GetMapping("/{id}/cards")
@@ -42,8 +42,8 @@ public class ExpansionController {
     @GetMapping("/recent")
     public List<ExpansionDTO> getRecentExpansions(@RequestParam(defaultValue = "5") int limit) {
         return expansionService.getRecentExpansions(limit).stream()
-            .map(ExpansionDTO::new)
-            .collect(Collectors.toList());
+                .map(ExpansionDTO::new)
+                .collect(Collectors.toList());
     }
 
     @GetMapping("/stats")
@@ -60,15 +60,29 @@ public class ExpansionController {
     @PutMapping("/{id}")
     public ResponseEntity<ExpansionDTO> updateExpansion(@PathVariable Long id, @RequestBody Expansion expansion) {
         return expansionService.updateExpansion(id, expansion)
-            .map(e -> ResponseEntity.ok(new ExpansionDTO(e)))
-            .orElse(ResponseEntity.notFound().build());
+                .map(e -> ResponseEntity.ok(new ExpansionDTO(e)))
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteExpansion(@PathVariable Long id) {
-        if (expansionService.deleteExpansion(id)) {
+    public ResponseEntity<?> deleteExpansion(
+            @PathVariable Long id,
+            @RequestParam(required = false, defaultValue = "false") boolean force) {
+        try {
+            expansionService.deleteExpansion(id, force);
             return ResponseEntity.noContent().build();
+        } catch (RuntimeException e) {
+            String message = e.getMessage();
+            // Check if confirmation is required
+            if (message != null && message.startsWith("CONFIRM_REQUIRED:")) {
+                String[] parts = message.split(":", 4);
+                return ResponseEntity.status(409).body(java.util.Map.of(
+                        "confirmRequired", true,
+                        "setCount", Integer.parseInt(parts[1]),
+                        "cardCount", Integer.parseInt(parts[2]),
+                        "message", parts[3]));
+            }
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", message));
         }
-        return ResponseEntity.notFound().build();
     }
 }
