@@ -288,4 +288,105 @@ public class InventoryBulkImportService {
         inventoryCardService.createInventoryCard(request);
         log.debug("Imported card '{}' (ID: {}) for shop {}", cardTemplate.getName(), cardTemplate.getId(), shopId);
     }
+
+    /**
+     * Bulk add all cards from a specific set
+     */
+    @Transactional
+    public BulkImportResponse bulkAddBySetCode(Long shopId, String setCode, String condition,
+            int quantity, double price, String nationality) {
+        log.info("Starting bulk add by set code '{}' for shop: {}", setCode, shopId);
+
+        List<CardTemplate> templates = cardTemplateRepository.findBySetCode(setCode);
+        return processBulkAdd(shopId, templates, condition, quantity, price, nationality,
+                "set '" + setCode + "'");
+    }
+
+    /**
+     * Bulk add all cards from a specific expansion
+     */
+    @Transactional
+    public BulkImportResponse bulkAddByExpansionId(Long shopId, Long expansionId, String condition,
+            int quantity, double price, String nationality) {
+        log.info("Starting bulk add by expansion {} for shop: {}", expansionId, shopId);
+
+        List<CardTemplate> templates = cardTemplateRepository.findByExpansionId(expansionId);
+        return processBulkAdd(shopId, templates, condition, quantity, price, nationality,
+                "expansion ID " + expansionId);
+    }
+
+    /**
+     * Bulk add specific card templates by their IDs
+     */
+    @Transactional
+    public BulkImportResponse bulkAddByTemplateIds(Long shopId, List<Long> templateIds, String condition,
+            int quantity, double price, String nationality) {
+        log.info("Starting bulk add of {} templates for shop: {}", templateIds.size(), shopId);
+
+        List<CardTemplate> templates = cardTemplateRepository.findAllById(templateIds);
+        return processBulkAdd(shopId, templates, condition, quantity, price, nationality,
+                templateIds.size() + " selected cards");
+    }
+
+    /**
+     * Common method to process bulk add for a list of card templates
+     */
+    private BulkImportResponse processBulkAdd(Long shopId, List<CardTemplate> templates,
+            String condition, int quantity, double price, String nationality, String sourceDesc) {
+
+        if (templates.isEmpty()) {
+            return new BulkImportResponse(0, 0, 1,
+                    List.of("Nessuna carta trovata per " + sourceDesc),
+                    "Nessuna carta trovata");
+        }
+
+        List<String> errors = new ArrayList<>();
+        int successCount = 0;
+
+        CardCondition cardCondition;
+        try {
+            cardCondition = CardCondition.valueOf(condition);
+        } catch (IllegalArgumentException e) {
+            return new BulkImportResponse(0, 0, 1,
+                    List.of("Condizione non valida: " + condition),
+                    "Errore: condizione non valida");
+        }
+
+        CardNationality cardNationality = CardNationality.EN;
+        if (nationality != null && !nationality.isEmpty()) {
+            try {
+                cardNationality = CardNationality.valueOf(nationality);
+            } catch (IllegalArgumentException e) {
+                // Fallback to EN
+            }
+        }
+
+        for (CardTemplate template : templates) {
+            try {
+                CreateInventoryCardRequest request = new CreateInventoryCardRequest();
+                request.setCardTemplateId(template.getId());
+                request.setShopId(shopId);
+                request.setCondition(cardCondition);
+                request.setQuantity(quantity);
+                request.setPrice(price);
+                request.setNationality(cardNationality);
+
+                inventoryCardService.createInventoryCard(request);
+                successCount++;
+            } catch (Exception e) {
+                String error = String.format("Carta '%s': %s", template.getName(), e.getMessage());
+                errors.add(error);
+                log.warn("Error adding card '{}' to inventory: {}", template.getName(), e.getMessage());
+            }
+        }
+
+        String message = successCount == templates.size()
+                ? String.format("Import completato: %d carte aggiunte da %s", successCount, sourceDesc)
+                : String.format("Import completato con %d errori su %d carte", errors.size(), templates.size());
+
+        log.info("Bulk add for shop {} from {}: {} success, {} errors",
+                shopId, sourceDesc, successCount, errors.size());
+
+        return new BulkImportResponse(templates.size(), successCount, errors.size(), errors, message);
+    }
 }

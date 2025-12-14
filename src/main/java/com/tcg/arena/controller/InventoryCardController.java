@@ -194,4 +194,67 @@ public class InventoryCardController {
         List<InventoryCard> lowStock = inventoryCardService.getLowStockItems(Long.valueOf(shopId), threshold);
         return ResponseEntity.ok(lowStock);
     }
+
+    /**
+     * Bulk add all cards from a specific set
+     * POST /api/inventory/bulk-add-by-set
+     */
+    @PostMapping("/bulk-add-by-set")
+    @PreAuthorize("hasRole('MERCHANT')")
+    public ResponseEntity<BulkImportResponse> bulkAddBySet(
+            @Valid @RequestBody BulkAddBySetRequest request) {
+        log.info("POST /api/inventory/bulk-add-by-set - shopId: {}, setCode: {}",
+                request.getShopId(), request.getSetCode());
+
+        BulkImportResponse response = bulkImportService.bulkAddBySetCode(
+                request.getShopId(),
+                request.getSetCode(),
+                request.getCondition(),
+                request.getQuantity(),
+                request.getPrice(),
+                request.getNationality());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Bulk add all cards from a specific expansion
+     * POST /api/inventory/bulk-add-by-expansion
+     */
+    @PostMapping("/bulk-add-by-expansion")
+    @PreAuthorize("hasRole('MERCHANT')")
+    public ResponseEntity<BulkImportResponse> bulkAddByExpansion(
+            @Valid @RequestBody BulkAddByExpansionRequest request) {
+        log.info("POST /api/inventory/bulk-add-by-expansion - shopId: {}, expansionId: {}",
+                request.getShopId(), request.getExpansionId());
+
+        BulkImportResponse response = bulkImportService.bulkAddByExpansionId(
+                request.getShopId(),
+                request.getExpansionId(),
+                request.getCondition(),
+                request.getQuantity(),
+                request.getPrice(),
+                request.getNationality());
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Bulk add specific card templates by IDs
+     * POST /api/inventory/bulk-add-by-templates
+     */
+    @PostMapping("/bulk-add-by-templates")
+    @PreAuthorize("hasRole('MERCHANT')")
+    public ResponseEntity<BulkImportResponse> bulkAddByTemplates(
+            @Valid @RequestBody BulkAddByTemplateIdsRequest request) {
+        log.info("POST /api/inventory/bulk-add-by-templates - shopId: {}, count: {}",
+                request.getShopId(), request.getTemplateIds().size());
+
+        BulkImportResponse response = bulkImportService.bulkAddByTemplateIds(
+                request.getShopId(),
+                request.getTemplateIds(),
+                request.getCondition(),
+                request.getQuantity(),
+                request.getPrice(),
+                request.getNationality());
+        return ResponseEntity.ok(response);
+    }
 }

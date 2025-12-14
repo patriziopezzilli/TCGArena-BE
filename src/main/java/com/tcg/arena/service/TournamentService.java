@@ -17,6 +17,9 @@ import java.util.Arrays;
 
 @Service
 public class TournamentService {
+
+    // Fuso orario italiano per il confronto delle date dei tornei
+    private static final java.time.ZoneId ITALY_ZONE = java.time.ZoneId.of("Europe/Rome");
     @Autowired
     private TournamentRepository tournamentRepository;
 
@@ -309,37 +312,41 @@ public class TournamentService {
     // Check-in methods
     public TournamentParticipant checkInParticipant(String checkInCode) {
         TournamentParticipant participant = participantRepository.findByCheckInCode(checkInCode)
-                .orElseThrow(() -> new RuntimeException("Invalid check-in code"));
+                .orElseThrow(() -> new RuntimeException("Codice check-in non valido"));
 
         // Check if tournament allows check-in (1 hour before start)
         Tournament tournament = tournamentRepository.findById(participant.getTournamentId())
-                .orElseThrow(() -> new RuntimeException("Tournament not found"));
+                .orElseThrow(() -> new RuntimeException("Torneo non trovato"));
 
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime checkInStartTime = tournament.getStartDate().minusHours(1);
-        LocalDateTime checkInEndTime = tournament.getStartDate().plusMinutes(30); // Allow check-in up to 30 minutes
-                                                                                  // after start
+        // Usa ZonedDateTime con fuso orario italiano per il confronto corretto
+        java.time.ZonedDateTime nowItaly = java.time.ZonedDateTime.now(ITALY_ZONE);
+        LocalDateTime tournamentStart = tournament.getStartDate();
+        java.time.ZonedDateTime tournamentStartZoned = tournamentStart.atZone(ITALY_ZONE);
+        java.time.ZonedDateTime checkInStartTime = tournamentStartZoned.minusHours(1);
+        java.time.ZonedDateTime checkInEndTime = tournamentStartZoned.plusMinutes(30);
 
-        if (now.isBefore(checkInStartTime)) {
-            throw new RuntimeException("Check-in not available yet. Check-in opens 1 hour before tournament start.");
+        if (nowItaly.isBefore(checkInStartTime)) {
+            java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm");
+            throw new RuntimeException(
+                    "Check-in non ancora disponibile. Il check-in apre alle " + checkInStartTime.format(formatter));
         }
 
-        if (now.isAfter(checkInEndTime)) {
-            throw new RuntimeException("Check-in closed. Check-in period has ended.");
+        if (nowItaly.isAfter(checkInEndTime)) {
+            throw new RuntimeException("Check-in chiuso. Il periodo di check-in è terminato.");
         }
 
         // Check if participant is registered
         if (participant.getStatus() != ParticipantStatus.REGISTERED) {
-            throw new RuntimeException("Only registered participants can check-in");
+            throw new RuntimeException("Solo i partecipanti registrati possono fare il check-in");
         }
 
         // Check if already checked in
         if (participant.getCheckedInAt() != null) {
-            throw new RuntimeException("Participant already checked in");
+            throw new RuntimeException("Check-in già effettuato");
         }
 
-        // Perform check-in
-        participant.setCheckedInAt(now);
+        // Perform check-in - use Italian time for consistency
+        participant.setCheckedInAt(nowItaly.toLocalDateTime());
         participant.setStatus(ParticipantStatus.CHECKED_IN);
 
         return participantRepository.save(participant);
@@ -364,36 +371,56 @@ public class TournamentService {
             throw new RuntimeException("Tournament has been cancelled.");
         }
 
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime checkInStartTime = tournament.getStartDate().minusHours(1);
-        LocalDateTime checkInEndTime = tournament.getStartDate().plusMinutes(30);
+        // Usa ZonedDateTime con fuso orario italiano per il confronto corretto
+        java.time.ZonedDateTime nowItaly = java.time.ZonedDateTime.now(ITALY_ZONE);
+        LocalDateTime tournamentStart = tournament.getStartDate();
 
-        if (now.isBefore(checkInStartTime)) {
-            throw new RuntimeException("Check-in not available yet. Check-in opens 1 hour before tournament start.");
+        // Interpreta la data del torneo come ora italiana e calcola la finestra di
+        // check-in
+        java.time.ZonedDateTime tournamentStartZoned = tournamentStart.atZone(ITALY_ZONE);
+        java.time.ZonedDateTime checkInStartTime = tournamentStartZoned.minusHours(1);
+        java.time.ZonedDateTime checkInEndTime = tournamentStartZoned.plusMinutes(30);
+
+        // Debug logging
+        System.out.println("[CHECKIN] ========================================");
+        System.out.println("[CHECKIN] Tournament ID: " + tournamentId);
+        System.out.println("[CHECKIN] Current time (Italy): " + nowItaly);
+        System.out.println("[CHECKIN] Tournament start (Italy): " + tournamentStartZoned);
+        System.out.println("[CHECKIN] Check-in window: " + checkInStartTime + " to " + checkInEndTime);
+        System.out.println("[CHECKIN] Within window: "
+                + (!nowItaly.isBefore(checkInStartTime) && !nowItaly.isAfter(checkInEndTime)));
+        System.out.println("[CHECKIN] ========================================");
+
+        if (nowItaly.isBefore(checkInStartTime)) {
+            java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("HH:mm");
+            throw new RuntimeException(
+                    "Check-in non ancora disponibile. Il check-in apre alle " + checkInStartTime.format(formatter));
         }
 
-        if (now.isAfter(checkInEndTime)) {
-            throw new RuntimeException("Check-in closed. Check-in period has ended.");
+        if (nowItaly.isAfter(checkInEndTime)) {
+            throw new RuntimeException("Check-in chiuso. Il periodo di check-in è terminato.");
         }
 
         // Check if participant is registered
         if (participant.getStatus() != ParticipantStatus.REGISTERED) {
-            throw new RuntimeException("Only registered participants can check-in");
+            throw new RuntimeException("Solo i partecipanti registrati possono fare il check-in");
         }
 
         // Check if already checked in
         if (participant.getCheckedInAt() != null) {
-            throw new RuntimeException("You are already checked in");
+            throw new RuntimeException("Hai già effettuato il check-in");
         }
 
-        // Perform check-in
-        participant.setCheckedInAt(now);
+        // Perform check-in - use Italian time for consistency
+        participant.setCheckedInAt(nowItaly.toLocalDateTime());
         participant.setStatus(ParticipantStatus.CHECKED_IN);
 
         TournamentParticipant savedParticipant = participantRepository.save(participant);
 
         // Award points for check-in (+25 points)
         rewardService.earnPoints(userId, 25, "Tournament check-in: " + tournament.getTitle());
+
+        System.out.println("[CHECKIN] ✅ Check-in successful for participant: " + savedParticipant.getId());
 
         return savedParticipant;
     }
@@ -655,5 +682,43 @@ public class TournamentService {
         public void setPlacement(Integer placement) {
             this.placement = placement;
         }
+    }
+
+    /**
+     * Auto-complete expired tournaments.
+     * A tournament is considered expired if:
+     * - Status is UPCOMING, REGISTRATION_OPEN, REGISTRATION_CLOSED, or IN_PROGRESS
+     * - The scheduled start date + 8 hours has passed (assuming max tournament
+     * duration)
+     * 
+     * @return Number of tournaments that were auto-completed
+     */
+    public int autoCompleteExpiredTournaments() {
+        LocalDateTime now = LocalDateTime.now();
+        // Consider a tournament expired if it started more than 8 hours ago
+        LocalDateTime cutoffTime = now.minusHours(8);
+
+        List<Tournament> allTournaments = tournamentRepository.findAll();
+        int completedCount = 0;
+
+        for (Tournament tournament : allTournaments) {
+            // Only process tournaments that are not already completed or cancelled
+            if (tournament.getStatus() == TournamentStatus.COMPLETED ||
+                    tournament.getStatus() == TournamentStatus.CANCELLED) {
+                continue;
+            }
+
+            // Check if tournament's start date is before the cutoff time
+            if (tournament.getStartDate() != null && tournament.getStartDate().isBefore(cutoffTime)) {
+                tournament.setStatus(TournamentStatus.COMPLETED);
+                tournamentRepository.save(tournament);
+                completedCount++;
+                System.out.println("[AUTO-COMPLETE] Tournament '" + tournament.getTitle() +
+                        "' (ID: " + tournament.getId() + ") auto-completed. Start date was: "
+                        + tournament.getStartDate());
+            }
+        }
+
+        return completedCount;
     }
 }

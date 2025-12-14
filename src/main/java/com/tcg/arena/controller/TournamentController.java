@@ -287,16 +287,25 @@ public class TournamentController {
     })
     public ResponseEntity<?> selfCheckIn(
             @Parameter(description = "Unique identifier of the tournament") @PathVariable Long tournamentId) {
+        System.out.println("[CHECKIN] selfCheckIn called for tournamentId: " + tournamentId);
+
         Optional<User> currentUser = userService.getCurrentUser();
         if (currentUser.isEmpty()) {
+            System.out.println("[CHECKIN] User not authenticated");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
 
+        System.out.println(
+                "[CHECKIN] User: " + currentUser.get().getUsername() + " (ID: " + currentUser.get().getId() + ")");
+
         try {
             TournamentParticipant participant = tournamentService.selfCheckIn(tournamentId, currentUser.get().getId());
+            System.out.println("[CHECKIN] Check-in successful for participant: " + participant.getId());
             return ResponseEntity.ok(participant);
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            System.out.println("[CHECKIN] Check-in failed: " + e.getMessage());
+            // Return a proper JSON error response instead of just a string
+            return ResponseEntity.badRequest().body(java.util.Map.of("error", e.getMessage()));
         }
     }
 

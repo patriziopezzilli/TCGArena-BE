@@ -301,4 +301,202 @@ public class InventoryBulkImportDTO {
             this.notes = notes;
         }
     }
+
+    /**
+     * Request for bulk adding all cards from a set
+     */
+    public static class BulkAddBySetRequest {
+        @NotNull
+        private Long shopId;
+        @NotNull
+        private String setCode;
+        @NotNull
+        private String condition;
+        @NotNull
+        private Integer quantity;
+        @NotNull
+        private Double price;
+        private String nationality;
+
+        // Getters and Setters
+        public Long getShopId() {
+            return shopId;
+        }
+
+        public void setShopId(Long shopId) {
+            this.shopId = shopId;
+        }
+
+        public String getSetCode() {
+            return setCode;
+        }
+
+        public void setSetCode(String setCode) {
+            this.setCode = setCode;
+        }
+
+        public String getCondition() {
+            return condition;
+        }
+
+        public void setCondition(String condition) {
+            this.condition = condition;
+        }
+
+        public Integer getQuantity() {
+            return quantity;
+        }
+
+        public void setQuantity(Integer quantity) {
+            this.quantity = quantity;
+        }
+
+        public Double getPrice() {
+            return price;
+        }
+
+        public void setPrice(Double price) {
+            this.price = price;
+        }
+
+        public String getNationality() {
+            return nationality;
+        }
+
+        public void setNationality(String nationality) {
+            this.nationality = nationality;
+        }
+    }
+
+    /**
+     * Request for bulk adding all cards from an expansion
+     */
+    public static class BulkAddByExpansionRequest {
+        @NotNull
+        private Long shopId;
+        @NotNull
+        private Long expansionId;
+        @NotNull
+        private String condition;
+        @NotNull
+        private Integer quantity;
+        @NotNull
+        private Double price;
+        private String nationality;
+
+        // Getters and Setters
+        public Long getShopId() {
+            return shopId;
+        }
+
+        public void setShopId(Long shopId) {
+            this.shopId = shopId;
+        }
+
+        public Long getExpansionId() {
+            return expansionId;
+        }
+
+        public void setExpansionId(Long expansionId) {
+            this.expansionId = expansionId;
+        }
+
+        public String getCondition() {
+            return condition;
+        }
+
+        public void setCondition(String condition) {
+            this.condition = condition;
+        }
+
+        public Integer getQuantity() {
+            return quantity;
+        }
+
+        public void setQuantity(Integer quantity) {
+            this.quantity = quantity;
+        }
+
+        public Double getPrice() {
+            return price;
+        }
+
+        public void setPrice(Double price) {
+            this.price = price;
+        }
+
+        public String getNationality() {
+            return nationality;
+        }
+
+        public void setNationality(String nationality) {
+            this.nationality = nationality;
+        }
+    }
+
+    /**
+     * Request for bulk adding specific card templates by IDs
+     */
+    public static class BulkAddByTemplateIdsRequest {
+        @NotNull
+        private Long shopId;
+        @NotNull
+        private List<Long> templateIds;
+        @NotNull
+        private String condition;
+        @NotNull
+        private Integer quantity;
+        @NotNull
+        private Double price;
+        private String nationality;
+
+        // Getters and Setters
+        public Long getShopId() {
+            return shopId;
+        }
+
+        public void setShopId(Long shopId) {
+            this.shopId = shopId;
+        }
+
+        public List<Long> getTemplateIds() {
+            return templateIds;
+        }
+
+        public void setTemplateIds(List<Long> templateIds) {
+            this.templateIds = templateIds;
+        }
+
+        public String getCondition() {
+            return condition;
+        }
+
+        public void setCondition(String condition) {
+            this.condition = condition;
+        }
+
+        public Integer getQuantity() {
+            return quantity;
+        }
+
+        public void setQuantity(Integer quantity) {
+            this.quantity = quantity;
+        }
+
+        public Double getPrice() {
+            return price;
+        }
+
+        public void setPrice(Double price) {
+            this.price = price;
+        }
+
+        public String getNationality() {
+            return nationality;
+        }
+
+        public void setNationality(String nationality) {
+            this.nationality = nationality;
+        }
+    }
 }
