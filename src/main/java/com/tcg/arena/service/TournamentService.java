@@ -40,6 +40,10 @@ public class TournamentService {
 
     public List<Tournament> getAllTournaments() {
         List<Tournament> tournaments = tournamentRepository.findAllByOrderByStartDateAsc();
+        System.out.println("📋 getAllTournaments: Found " + tournaments.size() + " tournaments");
+        tournaments.forEach(t -> {
+            System.out.println("   - " + t.getTitle() + " | Status: " + t.getStatus() + " | Start: " + t.getStartDate());
+        });
         populateParticipantCounts(tournaments);
         return tournaments;
     }
