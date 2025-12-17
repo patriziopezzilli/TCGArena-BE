@@ -1,6 +1,8 @@
 package com.tcg.arena.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,8 +43,15 @@ public class Shop {
     @Column(nullable = false)
     private Long ownerId;
 
+    @Deprecated // Use openingHoursStructured instead
     private String openingHours; // e.g., "9:00-18:00"
+    
+    @Deprecated // Use openingHoursStructured instead
     private String openingDays; // e.g., "Mon-Fri,Sat"
+
+    // Structured opening hours stored as JSON
+    @Column(columnDefinition = "TEXT")
+    private String openingHoursJson;
 
     // Social media links
     private String instagramUrl;
@@ -113,6 +122,35 @@ public class Shop {
 
     public String getOpeningDays() { return openingDays; }
     public void setOpeningDays(String openingDays) { this.openingDays = openingDays; }
+
+    public String getOpeningHoursJson() { return openingHoursJson; }
+    public void setOpeningHoursJson(String openingHoursJson) { this.openingHoursJson = openingHoursJson; }
+
+    // Helper methods to work with structured opening hours
+    private static final ObjectMapper objectMapper = new ObjectMapper();
+
+    public OpeningHours getOpeningHoursStructured() {
+        if (openingHoursJson == null || openingHoursJson.isEmpty()) {
+            return null;
+        }
+        try {
+            return objectMapper.readValue(openingHoursJson, OpeningHours.class);
+        } catch (JsonProcessingException e) {
+            return null;
+        }
+    }
+
+    public void setOpeningHoursStructured(OpeningHours hours) {
+        if (hours == null) {
+            this.openingHoursJson = null;
+            return;
+        }
+        try {
+            this.openingHoursJson = objectMapper.writeValueAsString(hours);
+        } catch (JsonProcessingException e) {
+            this.openingHoursJson = null;
+        }
+    }
 
     public String getInstagramUrl() { return instagramUrl; }
     public void setInstagramUrl(String instagramUrl) { this.instagramUrl = instagramUrl; }

@@ -1,5 +1,6 @@
 package com.tcg.arena.controller;
 
+import com.tcg.arena.dto.ShopDTO;
 import com.tcg.arena.model.Shop;
 import com.tcg.arena.model.ShopSubscription;
 import com.tcg.arena.model.User;
@@ -16,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/shops")
@@ -30,30 +32,72 @@ public class ShopController {
 
     @GetMapping
     @Operation(summary = "Get all shops", description = "Retrieves all shops")
-    public List<Shop> getAllShops() {
-        return shopService.getAllShops();
+    public List<ShopDTO> getAllShops() {
+        return shopService.getAllShops().stream()
+                .map(ShopDTO::new)
+                .collect(Collectors.toList());
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get shop by ID", description = "Retrieves a specific shop by its ID")
-    public ResponseEntity<Shop> getShopById(@Parameter(description = "ID of the shop") @PathVariable Long id) {
+    public ResponseEntity<ShopDTO> getShopById(@Parameter(description = "ID of the shop") @PathVariable Long id) {
         return shopService.getShopById(id)
+            .map(ShopDTO::new)
             .map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());
     }
 
     @PostMapping
     @Operation(summary = "Create shop", description = "Creates a new shop")
-    public Shop createShop(@RequestBody Shop shop) {
-        return shopService.saveShop(shop);
+    public ShopDTO createShop(@RequestBody ShopDTO shopDTO) {
+        Shop shop = new Shop();
+        updateShopFromDTO(shop, shopDTO);
+        Shop savedShop = shopService.saveShop(shop);
+        return new ShopDTO(savedShop);
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update shop", description = "Updates an existing shop")
-    public ResponseEntity<Shop> updateShop(@Parameter(description = "ID of the shop") @PathVariable Long id, @RequestBody Shop shop) {
-        return shopService.updateShop(id, shop)
-            .map(ResponseEntity::ok)
+    public ResponseEntity<ShopDTO> updateShop(@Parameter(description = "ID of the shop") @PathVariable Long id, @RequestBody ShopDTO shopDTO) {
+        return shopService.getShopById(id)
+            .map(shop -> {
+                updateShopFromDTO(shop, shopDTO);
+                Shop updatedShop = shopService.saveShop(shop);
+                return ResponseEntity.ok(new ShopDTO(updatedShop));
+            })
             .orElse(ResponseEntity.notFound().build());
+    }
+
+    private void updateShopFromDTO(Shop shop, ShopDTO dto) {
+        shop.setName(dto.getName());
+        shop.setDescription(dto.getDescription());
+        shop.setAddress(dto.getAddress());
+        shop.setLatitude(dto.getLatitude());
+        shop.setLongitude(dto.getLongitude());
+        shop.setPhoneNumber(dto.getPhoneNumber());
+        shop.setWebsiteUrl(dto.getWebsiteUrl());
+        shop.setType(dto.getType());
+        shop.setIsVerified(dto.getIsVerified());
+        shop.setActive(dto.getActive());
+        shop.setOwnerId(dto.getOwnerId());
+        
+        // Handle opening hours - prefer structured over legacy
+        if (dto.getOpeningHoursStructured() != null) {
+            shop.setOpeningHoursStructured(dto.getOpeningHoursStructured());
+        } else if (dto.getOpeningHours() != null) {
+            // Legacy support
+            shop.setOpeningHours(dto.getOpeningHours());
+            shop.setOpeningDays(dto.getOpeningDays());
+        }
+        
+        shop.setInstagramUrl(dto.getInstagramUrl());
+        shop.setFacebookUrl(dto.getFacebookUrl());
+        shop.setTwitterUrl(dto.getTwitterUrl());
+        shop.setEmail(dto.getEmail());
+        shop.setPhotoBase64(dto.getPhotoBase64());
+        shop.setTcgTypesList(dto.getTcgTypes());
+        shop.setServicesList(dto.getServices());
+        shop.setReservationDurationMinutes(dto.getReservationDurationMinutes());
     }
 
     @DeleteMapping("/{id}")

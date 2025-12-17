@@ -57,6 +57,14 @@ public class CardTemplateService {
         return cardTemplateRepository.findBySetCode(setCode, pageable);
     }
 
+    public long countCardsBySetCode(String setCode) {
+        return cardTemplateRepository.countBySetCode(setCode);
+    }
+
+    public long countCardsByExpansionId(Long expansionId) {
+        return cardTemplateRepository.countByExpansionId(expansionId);
+    }
+
     public List<CardTemplate> getCardTemplatesByRarity(String rarity) {
         return cardTemplateRepository.findByRarity(rarity);
     }

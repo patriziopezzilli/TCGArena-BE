@@ -33,16 +33,15 @@ public class ExpansionDTO {
         this.imageUrl = expansion.getImageUrl();
         this.sets = expansion.getSets().stream()
             .map(set -> {
-                // Calculate actual card count from database
-                int actualCount = cardTemplateService.getCardTemplatesBySetCode(set.getSetCode(), 
-                    org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE)).getNumberOfElements();
+                // Calculate actual card count from database using COUNT query
+                long actualCount = cardTemplateService.countCardsBySetCode(set.getSetCode());
                 
                 // If no cards by setCode, try by expansion
                 if (actualCount == 0 && set.getExpansion() != null) {
-                    actualCount = cardTemplateService.getCardTemplatesByExpansion(set.getExpansion().getId()).size();
+                    actualCount = cardTemplateService.countCardsByExpansionId(set.getExpansion().getId());
                 }
                 
-                return new TCGSetDTO(set, actualCount);
+                return new TCGSetDTO(set, (int) actualCount);
             })
             .collect(Collectors.toList());
     }

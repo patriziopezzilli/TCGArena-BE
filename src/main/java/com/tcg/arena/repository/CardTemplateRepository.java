@@ -21,6 +21,12 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
 
         Page<CardTemplate> findByExpansionId(Long expansionId, Pageable pageable);
 
+        @Query("SELECT COUNT(c) FROM CardTemplate c WHERE c.setCode = :setCode AND (c.cardNumber IS NOT NULL AND c.cardNumber <> 'N/A' AND c.cardNumber <> '')")
+        long countBySetCode(@Param("setCode") String setCode);
+
+        @Query("SELECT COUNT(c) FROM CardTemplate c WHERE c.expansion.id = :expansionId")
+        long countByExpansionId(@Param("expansionId") Long expansionId);
+
         List<CardTemplate> findByRarity(String rarity);
 
         List<CardTemplate> findBySetCode(String setCode);
