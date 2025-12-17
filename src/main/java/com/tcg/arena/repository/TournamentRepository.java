@@ -25,4 +25,6 @@ public interface TournamentRepository extends JpaRepository<Tournament, Long> {
     List<Tournament> findByStatus(TournamentStatus status);
 
     List<Tournament> findByOrganizerId(Long organizerId);
+    
+    List<Tournament> findByStatusAndOrganizerId(TournamentStatus status, Long organizerId);
 }

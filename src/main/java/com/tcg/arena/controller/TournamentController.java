@@ -32,12 +32,35 @@ public class TournamentController {
     private UserService userService;
 
     @GetMapping
-    @Operation(summary = "Get all tournaments", description = "Retrieves a list of all tournaments")
+    @Operation(summary = "Get all tournaments", description = "Retrieves a list of all tournaments. PENDING_APPROVAL tournaments are visible only to the creator and shop owner.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successfully retrieved list of tournaments")
     })
     public List<Tournament> getAllTournaments() {
-        return tournamentService.getAllTournaments();
+        Optional<User> currentUser = userService.getCurrentUser();
+        List<Tournament> allTournaments = tournamentService.getAllTournaments();
+        
+        // Filter out PENDING_APPROVAL and REJECTED tournaments unless user is creator or organizer
+        if (currentUser.isEmpty()) {
+            // Anonymous user - show only approved tournaments
+            return allTournaments.stream()
+                    .filter(t -> t.getStatus() != com.tcg.arena.model.TournamentStatus.PENDING_APPROVAL 
+                            && t.getStatus() != com.tcg.arena.model.TournamentStatus.REJECTED)
+                    .toList();
+        }
+        
+        Long userId = currentUser.get().getId();
+        return allTournaments.stream()
+                .filter(t -> {
+                    // Show all approved tournaments
+                    if (t.getStatus() != com.tcg.arena.model.TournamentStatus.PENDING_APPROVAL 
+                            && t.getStatus() != com.tcg.arena.model.TournamentStatus.REJECTED) {
+                        return true;
+                    }
+                    // Show pending/rejected only to creator or organizer
+                    return userId.equals(t.getCreatedByUserId()) || userId.equals(t.getOrganizerId());
+                })
+                .toList();
     }
 
     @GetMapping("/{id}")
@@ -54,12 +77,32 @@ public class TournamentController {
     }
 
     @GetMapping("/upcoming")
-    @Operation(summary = "Get upcoming tournaments", description = "Retrieves a list of upcoming tournaments")
+    @Operation(summary = "Get upcoming tournaments", description = "Retrieves a list of upcoming tournaments. PENDING_APPROVAL tournaments are visible only to the creator and shop owner.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successfully retrieved list of upcoming tournaments")
     })
     public List<Tournament> getUpcomingTournaments() {
-        return tournamentService.getUpcomingTournaments();
+        Optional<User> currentUser = userService.getCurrentUser();
+        List<Tournament> upcomingTournaments = tournamentService.getUpcomingTournaments();
+        
+        // Filter based on user permissions (same logic as getAllTournaments)
+        if (currentUser.isEmpty()) {
+            return upcomingTournaments.stream()
+                    .filter(t -> t.getStatus() != com.tcg.arena.model.TournamentStatus.PENDING_APPROVAL 
+                            && t.getStatus() != com.tcg.arena.model.TournamentStatus.REJECTED)
+                    .toList();
+        }
+        
+        Long userId = currentUser.get().getId();
+        return upcomingTournaments.stream()
+                .filter(t -> {
+                    if (t.getStatus() != com.tcg.arena.model.TournamentStatus.PENDING_APPROVAL 
+                            && t.getStatus() != com.tcg.arena.model.TournamentStatus.REJECTED) {
+                        return true;
+                    }
+                    return userId.equals(t.getCreatedByUserId()) || userId.equals(t.getOrganizerId());
+                })
+                .toList();
     }
 
     @GetMapping("/nearby")
@@ -506,6 +549,151 @@ public class TournamentController {
     public ResponseEntity<?> getTournamentUpdateCount(@PathVariable Long tournamentId) {
         int count = tournamentService.getTournamentUpdateCount(tournamentId);
         return ResponseEntity.ok(Map.of("count", count));
+    }
+
+    // ===== TOURNAMENT APPROVAL WORKFLOW ENDPOINTS =====
+
+    @PostMapping("/request")
+    @Operation(summary = "Request a tournament", description = "Allows a customer to request a tournament at a shop. The request needs shop owner approval.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Tournament request created successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid request data"),
+            @ApiResponse(responseCode = "401", description = "User not authenticated")
+    })
+    public ResponseEntity<?> requestTournament(@RequestBody TournamentRequestDTO requestDTO) {
+        Optional<User> currentUser = userService.getCurrentUser();
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Devi essere autenticato"));
+        }
+
+        try {
+            Tournament tournament = tournamentService.createTournamentRequest(requestDTO, currentUser.get().getId());
+            return ResponseEntity.ok(tournament);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{id}/approve")
+    @Operation(summary = "Approve tournament request", description = "Approves a pending tournament request. Only the shop owner can approve.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Tournament approved successfully"),
+            @ApiResponse(responseCode = "403", description = "Not authorized to approve this tournament"),
+            @ApiResponse(responseCode = "404", description = "Tournament not found")
+    })
+    public ResponseEntity<?> approveTournament(@PathVariable Long id) {
+        Optional<User> currentUser = userService.getCurrentUser();
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Devi essere autenticato"));
+        }
+
+        try {
+            Tournament tournament = tournamentService.approveTournament(id, currentUser.get().getId());
+            return ResponseEntity.ok(tournament);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @PutMapping("/{id}/reject")
+    @Operation(summary = "Reject tournament request", description = "Rejects a pending tournament request. Only the shop owner can reject.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Tournament rejected successfully"),
+            @ApiResponse(responseCode = "403", description = "Not authorized to reject this tournament"),
+            @ApiResponse(responseCode = "404", description = "Tournament not found")
+    })
+    public ResponseEntity<?> rejectTournament(
+            @PathVariable Long id,
+            @RequestBody(required = false) TournamentRejectionDTO rejectionDTO) {
+        Optional<User> currentUser = userService.getCurrentUser();
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Devi essere autenticato"));
+        }
+
+        try {
+            String reason = rejectionDTO != null ? rejectionDTO.getReason() : null;
+            Tournament tournament = tournamentService.rejectTournament(id, currentUser.get().getId(), reason);
+            return ResponseEntity.ok(tournament);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    @GetMapping("/pending-requests")
+    @Operation(summary = "Get pending tournament requests", description = "Gets all pending tournament requests for shops owned by the current merchant")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved pending requests"),
+            @ApiResponse(responseCode = "403", description = "Only merchants can access this endpoint")
+    })
+    public ResponseEntity<?> getPendingTournamentRequests() {
+        Optional<User> currentUser = userService.getCurrentUser();
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Devi essere autenticato"));
+        }
+
+        if (!Boolean.TRUE.equals(currentUser.get().getIsMerchant())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Solo i merchant possono accedere a questa risorsa"));
+        }
+
+        List<Tournament> pendingRequests = tournamentService.getPendingTournamentRequestsForMerchant(currentUser.get().getId());
+        return ResponseEntity.ok(pendingRequests);
+    }
+
+    /**
+     * Request DTO for creating a tournament request
+     */
+    public static class TournamentRequestDTO {
+        private String title;
+        private String description;
+        private String tcgType;
+        private String type;
+        private String startDate;
+        private String endDate;
+        private Integer maxParticipants;
+        private Double entryFee;
+        private String prizePool;
+        private Long shopId; // The shop where the tournament is requested
+
+        // Getters and setters
+        public String getTitle() { return title; }
+        public void setTitle(String title) { this.title = title; }
+        
+        public String getDescription() { return description; }
+        public void setDescription(String description) { this.description = description; }
+        
+        public String getTcgType() { return tcgType; }
+        public void setTcgType(String tcgType) { this.tcgType = tcgType; }
+        
+        public String getType() { return type; }
+        public void setType(String type) { this.type = type; }
+        
+        public String getStartDate() { return startDate; }
+        public void setStartDate(String startDate) { this.startDate = startDate; }
+        
+        public String getEndDate() { return endDate; }
+        public void setEndDate(String endDate) { this.endDate = endDate; }
+        
+        public Integer getMaxParticipants() { return maxParticipants; }
+        public void setMaxParticipants(Integer maxParticipants) { this.maxParticipants = maxParticipants; }
+        
+        public Double getEntryFee() { return entryFee; }
+        public void setEntryFee(Double entryFee) { this.entryFee = entryFee; }
+        
+        public String getPrizePool() { return prizePool; }
+        public void setPrizePool(String prizePool) { this.prizePool = prizePool; }
+        
+        public Long getShopId() { return shopId; }
+        public void setShopId(Long shopId) { this.shopId = shopId; }
+    }
+
+    /**
+     * Request DTO for rejecting a tournament
+     */
+    public static class TournamentRejectionDTO {
+        private String reason;
+
+        public String getReason() { return reason; }
+        public void setReason(String reason) { this.reason = reason; }
     }
 
     /**

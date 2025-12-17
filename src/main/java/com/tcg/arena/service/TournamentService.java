@@ -834,4 +834,118 @@ public class TournamentService {
     public int getTournamentUpdateCount(Long tournamentId) {
         return tournamentUpdateRepository.countByTournamentId(tournamentId);
     }
+
+    // ===== TOURNAMENT APPROVAL WORKFLOW METHODS =====
+
+    /**
+     * Create a tournament request from a customer
+     * The tournament starts in PENDING_APPROVAL status
+     */
+    public Tournament createTournamentRequest(com.tcg.arena.controller.TournamentController.TournamentRequestDTO requestDTO, Long userId) {
+        // Validate shop exists
+        Shop shop = shopRepository.findById(requestDTO.getShopId())
+                .orElseThrow(() -> new RuntimeException("Negozio non trovato"));
+
+        // Create tournament with PENDING_APPROVAL status
+        Tournament tournament = new Tournament();
+        tournament.setTitle(requestDTO.getTitle());
+        tournament.setDescription(requestDTO.getDescription());
+        tournament.setTcgType(TCGType.valueOf(requestDTO.getTcgType()));
+        if (requestDTO.getType() != null) {
+            tournament.setType(TournamentType.valueOf(requestDTO.getType()));
+        }
+        tournament.setStatus(TournamentStatus.PENDING_APPROVAL);
+        tournament.setStartDate(LocalDateTime.parse(requestDTO.getStartDate()));
+        if (requestDTO.getEndDate() != null) {
+            tournament.setEndDate(LocalDateTime.parse(requestDTO.getEndDate()));
+        }
+        tournament.setMaxParticipants(requestDTO.getMaxParticipants());
+        tournament.setEntryFee(requestDTO.getEntryFee());
+        tournament.setPrizePool(requestDTO.getPrizePool());
+        
+        // Set organizerId to shop owner (the one who will need to approve)
+        tournament.setOrganizerId(shop.getOwnerId());
+        
+        // Set createdByUserId to the customer requesting the tournament
+        tournament.setCreatedByUserId(userId);
+        
+        // Set location from shop
+        TournamentLocation location = new TournamentLocation();
+        location.setVenueName(shop.getName());
+        location.setAddress(shop.getAddress());
+        location.setCity(""); // You can extract from address if needed
+        location.setCountry("Italy"); // Default or extract
+        location.setLatitude(shop.getLatitude());
+        location.setLongitude(shop.getLongitude());
+        tournament.setLocation(location);
+
+        return tournamentRepository.save(tournament);
+    }
+
+    /**
+     * Approve a tournament request
+     * Only the shop owner (organizer) can approve
+     */
+    public Tournament approveTournament(Long tournamentId, Long userId) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new RuntimeException("Torneo non trovato"));
+
+        // Verify tournament is in PENDING_APPROVAL status
+        if (tournament.getStatus() != TournamentStatus.PENDING_APPROVAL) {
+            throw new RuntimeException("Questo torneo non è in attesa di approvazione");
+        }
+
+        // Verify user is the organizer (shop owner)
+        if (!tournament.getOrganizerId().equals(userId)) {
+            throw new RuntimeException("Solo il proprietario del negozio può approvare questo torneo");
+        }
+
+        // Approve the tournament
+        tournament.setStatus(TournamentStatus.UPCOMING);
+        tournament.setApprovedByUserId(userId);
+        tournament.setApprovalDate(LocalDateTime.now());
+
+        return tournamentRepository.save(tournament);
+    }
+
+    /**
+     * Reject a tournament request
+     * Only the shop owner (organizer) can reject
+     */
+    public Tournament rejectTournament(Long tournamentId, Long userId, String reason) {
+        Tournament tournament = tournamentRepository.findById(tournamentId)
+                .orElseThrow(() -> new RuntimeException("Torneo non trovato"));
+
+        // Verify tournament is in PENDING_APPROVAL status
+        if (tournament.getStatus() != TournamentStatus.PENDING_APPROVAL) {
+            throw new RuntimeException("Questo torneo non è in attesa di approvazione");
+        }
+
+        // Verify user is the organizer (shop owner)
+        if (!tournament.getOrganizerId().equals(userId)) {
+            throw new RuntimeException("Solo il proprietario del negozio può rifiutare questo torneo");
+        }
+
+        // Reject the tournament
+        tournament.setStatus(TournamentStatus.REJECTED);
+        tournament.setRejectionReason(reason);
+
+        return tournamentRepository.save(tournament);
+    }
+
+    /**
+     * Get all pending tournament requests for shops owned by a merchant
+     */
+    public List<Tournament> getPendingTournamentRequestsForMerchant(Long merchantUserId) {
+        // Find all tournaments where:
+        // - status is PENDING_APPROVAL
+        // - organizerId matches the merchant's user ID
+        return tournamentRepository.findByStatusAndOrganizerId(
+                TournamentStatus.PENDING_APPROVAL, 
+                merchantUserId
+        );
+    }
+
+    @Autowired
+    private com.tcg.arena.repository.ShopRepository shopRepository;
 }

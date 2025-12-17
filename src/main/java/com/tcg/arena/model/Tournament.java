@@ -46,6 +46,16 @@ public class Tournament {
     @Column(nullable = false)
     private Long organizerId;
 
+    // Approval workflow fields
+    private Long createdByUserId; // User who created/requested the tournament
+    
+    private Long approvedByUserId; // Shop owner/merchant who approved the tournament
+    
+    private LocalDateTime approvalDate; // When the tournament was approved
+    
+    @Column(length = 500)
+    private String rejectionReason; // Reason for rejection (if REJECTED status)
+
     @Embedded
     private TournamentLocation location;
 
@@ -204,5 +214,37 @@ public class Tournament {
 
     public void setExternalRegistrationUrl(String externalRegistrationUrl) {
         this.externalRegistrationUrl = externalRegistrationUrl;
+    }
+
+    public Long getCreatedByUserId() {
+        return createdByUserId;
+    }
+
+    public void setCreatedByUserId(Long createdByUserId) {
+        this.createdByUserId = createdByUserId;
+    }
+
+    public Long getApprovedByUserId() {
+        return approvedByUserId;
+    }
+
+    public void setApprovedByUserId(Long approvedByUserId) {
+        this.approvedByUserId = approvedByUserId;
+    }
+
+    public LocalDateTime getApprovalDate() {
+        return approvalDate;
+    }
+
+    public void setApprovalDate(LocalDateTime approvalDate) {
+        this.approvalDate = approvalDate;
+    }
+
+    public String getRejectionReason() {
+        return rejectionReason;
+    }
+
+    public void setRejectionReason(String rejectionReason) {
+        this.rejectionReason = rejectionReason;
     }
 }
