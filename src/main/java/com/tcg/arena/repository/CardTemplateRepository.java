@@ -78,4 +78,22 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
                         @Param("cardName") String cardName,
                         @Param("setCode") String setCode,
                         @Param("tcgType") String tcgType);
+
+        /**
+         * OPTIMIZED: Get all card counts grouped by setCode in a single query
+         * Returns a list of Object[] where [0] = setCode (String), [1] = count (Long)
+         */
+        @Query("SELECT c.setCode, COUNT(c) FROM CardTemplate c " +
+                        "WHERE c.cardNumber IS NOT NULL AND c.cardNumber <> 'N/A' AND c.cardNumber <> '' " +
+                        "GROUP BY c.setCode")
+        List<Object[]> countAllGroupedBySetCode();
+
+        /**
+         * OPTIMIZED: Get all card counts grouped by expansionId in a single query
+         * Returns a list of Object[] where [0] = expansionId (Long), [1] = count (Long)
+         */
+        @Query("SELECT c.expansion.id, COUNT(c) FROM CardTemplate c " +
+                        "WHERE c.expansion IS NOT NULL " +
+                        "GROUP BY c.expansion.id")
+        List<Object[]> countAllGroupedByExpansionId();
 }

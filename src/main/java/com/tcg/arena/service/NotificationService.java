@@ -267,4 +267,62 @@ public class NotificationService {
             default -> placement + "°";
         };
     }
+
+    // ========== ADMIN BROADCAST ==========
+
+    /**
+     * Send broadcast notification to ALL users with registered device tokens
+     * 
+     * @param title   Notification title
+     * @param message Notification message
+     * @return Number of users notified
+     */
+    public int sendBroadcastNotification(String title, String message) {
+        // Get all unique user IDs from device tokens
+        List<DeviceToken> allDeviceTokens = deviceTokenRepository.findAll();
+
+        // Count unique users
+        java.util.Set<Long> notifiedUsers = new java.util.HashSet<>();
+        int successCount = 0;
+        int failCount = 0;
+
+        logger.info("📢 Starting broadcast notification to {} device tokens", allDeviceTokens.size());
+
+        for (DeviceToken deviceToken : allDeviceTokens) {
+            Long userId = deviceToken.getUserId();
+
+            // Create in-app notification only once per user
+            if (!notifiedUsers.contains(userId)) {
+                createNotification(userId, title, message, "admin_broadcast");
+                notifiedUsers.add(userId);
+            }
+
+            // Send push notification to each device
+            try {
+                firebaseMessagingService.sendPushNotification(deviceToken.getToken(), title, message);
+                successCount++;
+            } catch (Exception e) {
+                failCount++;
+                logger.error("Failed to send broadcast to device {}: {}",
+                        deviceToken.getToken().substring(0, Math.min(10, deviceToken.getToken().length())),
+                        e.getMessage());
+            }
+        }
+
+        logger.info("📢 Broadcast complete: {} users notified, {} push sent, {} failed",
+                notifiedUsers.size(), successCount, failCount);
+
+        return notifiedUsers.size();
+    }
+
+    /**
+     * Get count of users with registered device tokens (potential broadcast
+     * recipients)
+     */
+    public long getBroadcastRecipientsCount() {
+        return deviceTokenRepository.findAll().stream()
+                .map(DeviceToken::getUserId)
+                .distinct()
+                .count();
+    }
 }

@@ -149,4 +149,40 @@ public class CardTemplateService {
     public Expansion saveExpansion(Expansion expansion) {
         return expansionRepository.save(expansion);
     }
+
+    /**
+     * OPTIMIZED: Get all card counts grouped by setCode in a single query
+     * 
+     * @return Map of setCode -> count
+     */
+    public java.util.Map<String, Long> getAllCardCountsBySetCode() {
+        List<Object[]> results = cardTemplateRepository.countAllGroupedBySetCode();
+        java.util.Map<String, Long> countsMap = new java.util.HashMap<>();
+        for (Object[] row : results) {
+            String setCode = (String) row[0];
+            Long count = (Long) row[1];
+            if (setCode != null) {
+                countsMap.put(setCode, count);
+            }
+        }
+        return countsMap;
+    }
+
+    /**
+     * OPTIMIZED: Get all card counts grouped by expansionId in a single query
+     * 
+     * @return Map of expansionId -> count
+     */
+    public java.util.Map<Long, Long> getAllCardCountsByExpansionId() {
+        List<Object[]> results = cardTemplateRepository.countAllGroupedByExpansionId();
+        java.util.Map<Long, Long> countsMap = new java.util.HashMap<>();
+        for (Object[] row : results) {
+            Long expansionId = (Long) row[0];
+            Long count = (Long) row[1];
+            if (expansionId != null) {
+                countsMap.put(expansionId, count);
+            }
+        }
+        return countsMap;
+    }
 }

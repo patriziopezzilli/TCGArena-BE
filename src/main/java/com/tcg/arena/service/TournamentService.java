@@ -34,15 +34,19 @@ public class TournamentService {
 
     @Autowired
     private RewardService rewardService;
-    
+
     @Autowired
     private NotificationService notificationService;
+
+    @Autowired
+    private GeocodingService geocodingService;
 
     public List<Tournament> getAllTournaments() {
         List<Tournament> tournaments = tournamentRepository.findAllByOrderByStartDateAsc();
         System.out.println("📋 getAllTournaments: Found " + tournaments.size() + " tournaments");
         tournaments.forEach(t -> {
-            System.out.println("   - " + t.getTitle() + " | Status: " + t.getStatus() + " | Start: " + t.getStartDate());
+            System.out
+                    .println("   - " + t.getTitle() + " | Status: " + t.getStatus() + " | Start: " + t.getStartDate());
         });
         populateParticipantCounts(tournaments);
         return tournaments;
@@ -78,7 +82,8 @@ public class TournamentService {
         List<Tournament> tournaments = tournamentRepository.findUpcomingTournaments(now, fiveHoursAgo);
         System.out.println("   Found " + tournaments.size() + " tournaments from query");
         tournaments.forEach(t -> {
-            System.out.println("   - " + t.getTitle() + " | Status: " + t.getStatus() + " | Start: " + t.getStartDate() + " | End: " + t.getEndDate());
+            System.out.println("   - " + t.getTitle() + " | Status: " + t.getStatus() + " | Start: " + t.getStartDate()
+                    + " | End: " + t.getEndDate());
         });
         if (tournaments.isEmpty()) {
             return getAllTournaments();
@@ -269,7 +274,7 @@ public class TournamentService {
             TournamentParticipant promoted = waitingList.get(0);
             promoted.setStatus(ParticipantStatus.REGISTERED);
             participantRepository.save(promoted);
-            
+
             // Send push notification to promoted user
             try {
                 Optional<Tournament> tournament = tournamentRepository.findById(tournamentId);
@@ -277,15 +282,13 @@ public class TournamentService {
                     String tournamentTitle = tournament.get().getTitle();
                     String notificationTitle = "Sei stato iscritto al torneo!";
                     String notificationMessage = String.format(
-                        "Un posto si è liberato per il torneo \"%s\". Sei stato promosso dalla waiting list e ora sei ufficialmente iscritto!",
-                        tournamentTitle
-                    );
-                    
+                            "Un posto si è liberato per il torneo \"%s\". Sei stato promosso dalla waiting list e ora sei ufficialmente iscritto!",
+                            tournamentTitle);
+
                     notificationService.sendPushNotification(
-                        promoted.getUserId(),
-                        notificationTitle,
-                        notificationMessage
-                    );
+                            promoted.getUserId(),
+                            notificationTitle,
+                            notificationMessage);
                 }
             } catch (Exception e) {
                 // Log error but don't fail the promotion
@@ -877,7 +880,8 @@ public class TournamentService {
      * Create a tournament request from a customer
      * The tournament starts in PENDING_APPROVAL status
      */
-    public Tournament createTournamentRequest(com.tcg.arena.controller.TournamentController.TournamentRequestDTO requestDTO, Long userId) {
+    public Tournament createTournamentRequest(
+            com.tcg.arena.controller.TournamentController.TournamentRequestDTO requestDTO, Long userId) {
         // Validate shop exists
         Shop shop = shopRepository.findById(requestDTO.getShopId())
                 .orElseThrow(() -> new RuntimeException("Negozio non trovato"));
@@ -902,31 +906,23 @@ public class TournamentService {
         tournament.setMaxParticipants(requestDTO.getMaxParticipants());
         tournament.setEntryFee(requestDTO.getEntryFee());
         tournament.setPrizePool(requestDTO.getPrizePool());
-        
+
         // Set organizerId to shop owner (the one who will need to approve)
         tournament.setOrganizerId(shop.getOwnerId());
-        
+
         // Set createdByUserId to the customer requesting the tournament
         tournament.setCreatedByUserId(userId);
-        
+
         // Set location from shop
         TournamentLocation location = new TournamentLocation();
         location.setVenueName(shop.getName());
         location.setAddress(shop.getAddress());
-        
-        // Extract city from shop address (format: "Via Address, City PostalCode")
-        String city = "";
-        if (shop.getAddress() != null && shop.getAddress().contains(",")) {
-            String[] parts = shop.getAddress().split(",");
-            if (parts.length > 1) {
-                // Get the part after the comma and trim it
-                String cityPart = parts[1].trim();
-                // Remove postal code if present (last digits)
-                city = cityPart.replaceAll("\\s*\\d+\\s*$", "").trim();
-            }
-        }
-        location.setCity(city);
-        location.setCountry("Italy");
+
+        // Use reverse geocoding to get accurate city and country from coordinates
+        GeocodingService.GeocodingResult geoResult = geocodingService.reverseGeocode(
+                shop.getLatitude(), shop.getLongitude());
+        location.setCity(geoResult.getCity());
+        location.setCountry(geoResult.getCountry());
         location.setLatitude(shop.getLatitude());
         location.setLongitude(shop.getLongitude());
         tournament.setLocation(location);
@@ -938,7 +934,7 @@ public class TournamentService {
         System.out.println("   End Date: " + tournament.getEndDate());
         System.out.println("   CreatedByUserId: " + tournament.getCreatedByUserId());
         System.out.println("   OrganizerId: " + tournament.getOrganizerId());
-        
+
         Tournament saved = tournamentRepository.save(tournament);
         System.out.println("   ✅ Saved with ID: " + saved.getId());
         return saved;
@@ -973,7 +969,7 @@ public class TournamentService {
         System.out.println("   New Status: " + tournament.getStatus());
         System.out.println("   Start Date: " + tournament.getStartDate());
         System.out.println("   End Date: " + tournament.getEndDate());
-        
+
         Tournament approved = tournamentRepository.save(tournament);
         System.out.println("   ✅ Approved and saved");
         return approved;
@@ -1012,9 +1008,8 @@ public class TournamentService {
         // - status is PENDING_APPROVAL
         // - organizerId matches the merchant's user ID
         return tournamentRepository.findByStatusAndOrganizerId(
-                TournamentStatus.PENDING_APPROVAL, 
-                merchantUserId
-        );
+                TournamentStatus.PENDING_APPROVAL,
+                merchantUserId);
     }
 
     @Autowired

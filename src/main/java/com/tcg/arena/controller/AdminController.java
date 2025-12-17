@@ -6,6 +6,7 @@ import com.tcg.arena.model.Shop;
 import com.tcg.arena.model.TCGType;
 import com.tcg.arena.service.AchievementService;
 import com.tcg.arena.service.BatchService;
+import com.tcg.arena.service.NotificationService;
 import com.tcg.arena.service.RewardService;
 import com.tcg.arena.service.ShopService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,6 +42,9 @@ public class AdminController {
 
     @Autowired
     private AchievementService achievementService;
+
+    @Autowired
+    private NotificationService notificationService;
 
     // ========== SHOP MANAGEMENT ENDPOINTS ==========
 
@@ -398,5 +402,72 @@ public class AdminController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Failed to trigger batch import: " + e.getMessage());
         }
+    }
+
+    // ========== BROADCAST NOTIFICATIONS ENDPOINTS ==========
+
+    /**
+     * DTO for broadcast notification request
+     */
+    public static class BroadcastNotificationRequest {
+        private String title;
+        private String message;
+
+        public String getTitle() {
+            return title;
+        }
+
+        public void setTitle(String title) {
+            this.title = title;
+        }
+
+        public String getMessage() {
+            return message;
+        }
+
+        public void setMessage(String message) {
+            this.message = message;
+        }
+    }
+
+    /**
+     * Get count of users who will receive broadcast notifications
+     */
+    @GetMapping("/broadcast/recipients-count")
+    @PreAuthorize("permitAll()")
+    @Operation(summary = "Get broadcast recipients count", description = "Returns the number of users with registered device tokens who will receive broadcast notifications")
+    public ResponseEntity<?> getBroadcastRecipientsCount() {
+        long count = notificationService.getBroadcastRecipientsCount();
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("count", count);
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Send broadcast notification to all users
+     */
+    @PostMapping("/broadcast/send")
+    @PreAuthorize("permitAll()")
+    @Operation(summary = "Send broadcast notification", description = "Sends a push notification to all users with registered device tokens")
+    public ResponseEntity<?> sendBroadcastNotification(@RequestBody BroadcastNotificationRequest request) {
+        if (request.getTitle() == null || request.getTitle().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("Title is required");
+        }
+        if (request.getMessage() == null || request.getMessage().trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("Message is required");
+        }
+
+        int usersNotified = notificationService.sendBroadcastNotification(
+                request.getTitle().trim(),
+                request.getMessage().trim());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("usersNotified", usersNotified);
+        response.put("message", "Broadcast notification sent to " + usersNotified + " users");
+
+        return ResponseEntity.ok(response);
     }
 }

@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -25,15 +26,24 @@ public class ExpansionController {
 
     @GetMapping
     public List<ExpansionDTO> getAllExpansions() {
+        // OPTIMIZED: Load all counts in 2 batch queries instead of N queries per
+        // expansion
+        Map<String, Long> setCodeCounts = cardTemplateService.getAllCardCountsBySetCode();
+        Map<Long, Long> expansionIdCounts = cardTemplateService.getAllCardCountsByExpansionId();
+
         return expansionService.getAllExpansions().stream()
-                .map(expansion -> new ExpansionDTO(expansion, cardTemplateService))
+                .map(expansion -> new ExpansionDTO(expansion, setCodeCounts, expansionIdCounts))
                 .collect(Collectors.toList());
     }
 
     @GetMapping("/{id}")
     public ResponseEntity<ExpansionDTO> getExpansionById(@PathVariable Long id) {
+        // For single expansion, batch loading is still more efficient
+        Map<String, Long> setCodeCounts = cardTemplateService.getAllCardCountsBySetCode();
+        Map<Long, Long> expansionIdCounts = cardTemplateService.getAllCardCountsByExpansionId();
+
         return expansionService.getExpansionById(id)
-                .map(expansion -> ResponseEntity.ok(new ExpansionDTO(expansion, cardTemplateService)))
+                .map(expansion -> ResponseEntity.ok(new ExpansionDTO(expansion, setCodeCounts, expansionIdCounts)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -48,8 +58,12 @@ public class ExpansionController {
 
     @GetMapping("/recent")
     public List<ExpansionDTO> getRecentExpansions(@RequestParam(defaultValue = "5") int limit) {
+        // OPTIMIZED: Load all counts in 2 batch queries
+        Map<String, Long> setCodeCounts = cardTemplateService.getAllCardCountsBySetCode();
+        Map<Long, Long> expansionIdCounts = cardTemplateService.getAllCardCountsByExpansionId();
+
         return expansionService.getRecentExpansions(limit).stream()
-                .map(expansion -> new ExpansionDTO(expansion, cardTemplateService))
+                .map(expansion -> new ExpansionDTO(expansion, setCodeCounts, expansionIdCounts))
                 .collect(Collectors.toList());
     }
 
