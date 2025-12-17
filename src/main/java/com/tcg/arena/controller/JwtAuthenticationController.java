@@ -83,13 +83,27 @@ public class JwtAuthenticationController {
         User user = new User();
         user.setEmail(registerRequest.getEmail());
         user.setUsername(registerRequest.getUsername());
-        user.setDisplayName(registerRequest.getDisplayName() != null ? registerRequest.getDisplayName() : registerRequest.getUsername());
+        user.setDisplayName(registerRequest.getDisplayName() != null ? registerRequest.getDisplayName()
+                : registerRequest.getUsername());
         user.setPassword(registerRequest.getPassword());
         user.setDateJoined(LocalDateTime.now());
-        
+
         // Set favorite TCGs from the list
         if (registerRequest.getFavoriteGames() != null && !registerRequest.getFavoriteGames().isEmpty()) {
             user.setFavoriteTCGTypes(registerRequest.getFavoriteGames());
+        }
+
+        // Set location from registration (GPS data from onboarding)
+        if (registerRequest.getLatitude() != null && registerRequest.getLongitude() != null) {
+            com.tcg.arena.model.UserLocation location = new com.tcg.arena.model.UserLocation();
+            location.setLatitude(registerRequest.getLatitude());
+            location.setLongitude(registerRequest.getLongitude());
+            location.setCity(registerRequest.getCity());
+            location.setCountry(registerRequest.getCountry());
+            user.setLocation(location);
+            logger.debug("Setting user location: {}, {} ({}, {})",
+                    registerRequest.getCity(), registerRequest.getCountry(),
+                    registerRequest.getLatitude(), registerRequest.getLongitude());
         }
 
         logger.debug("Registering user: {}", user.getUsername());
@@ -97,7 +111,7 @@ public class JwtAuthenticationController {
         String encodedPassword = passwordEncoder.encode(user.getPassword());
         logger.debug("Encoded password: {}", encodedPassword);
         user.setPassword(encodedPassword);
-        
+
         User savedUser = userService.saveUser(user);
         logger.debug("User saved with ID: {}", savedUser.getId());
 
@@ -161,7 +175,7 @@ public class JwtAuthenticationController {
         user.setDateJoined(LocalDateTime.now());
         user.setIsMerchant(true);
         user.setIsPremium(false);
-        
+
         User savedUser = userService.saveUser(user);
 
         // Create Shop
@@ -173,7 +187,7 @@ public class JwtAuthenticationController {
         shop.setType(ShopType.LOCAL_STORE);
         shop.setIsVerified(false);
         shop.setOwnerId(savedUser.getId());
-        
+
         Shop savedShop = shopService.saveShop(shop);
 
         // Update user with shopId

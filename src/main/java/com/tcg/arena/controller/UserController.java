@@ -292,4 +292,32 @@ public class UserController {
                         return ResponseEntity.ok(java.util.Map.of("isPrivate", user.getIsPrivate()));
                 }).orElse(ResponseEntity.notFound().build());
         }
+
+        @PutMapping("/{id}/location")
+        @Operation(summary = "Update user location", description = "Updates the GPS location and city/country for a specific user")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Location updated successfully"),
+                        @ApiResponse(responseCode = "404", description = "User not found")
+        })
+        public ResponseEntity<User> updateLocation(
+                        @Parameter(description = "Unique identifier of the user") @PathVariable Long id,
+                        @Parameter(description = "Location update request") @RequestBody com.tcg.arena.dto.LocationUpdateRequest request) {
+                return userService.getUserById(id).map(user -> {
+                        com.tcg.arena.model.UserLocation location = new com.tcg.arena.model.UserLocation();
+                        location.setLatitude(request.getLatitude());
+                        location.setLongitude(request.getLongitude());
+                        location.setCity(request.getCity());
+                        location.setCountry(request.getCountry());
+                        user.setLocation(location);
+
+                        User updatedUser = userRepository.save(user); // Use repository directly or service if available
+                        // Ideally strictly use service, but for simple property update repo is fine or
+                        // add method to service
+                        // Using userRepository here for consistency with other methods in this
+                        // controller
+                        // (Note: updateUserProfile uses userRepository.save)
+
+                        return ResponseEntity.ok(updatedUser);
+                }).orElse(ResponseEntity.notFound().build());
+        }
 }
