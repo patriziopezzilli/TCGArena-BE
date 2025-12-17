@@ -25,6 +25,16 @@ public class TCGSetDTO {
         this.description = tcgSet.getDescription();
     }
 
+    public TCGSetDTO(TCGSet tcgSet, Integer actualCardCount) {
+        this.id = tcgSet.getId();
+        this.name = tcgSet.getName();
+        this.setCode = tcgSet.getSetCode();
+        this.imageUrl = tcgSet.getImageUrl();
+        this.releaseDate = tcgSet.getReleaseDate();
+        this.cardCount = actualCardCount != null ? actualCardCount : tcgSet.getCardCount();
+        this.description = tcgSet.getDescription();
+    }
+
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

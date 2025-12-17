@@ -45,8 +45,17 @@ public class TCGSetController {
     public ResponseEntity<Page<CardTemplate>> getCardTemplatesBySetId(@PathVariable Long id,
             @PageableDefault(size = 10, sort = "dateCreated", direction = Sort.Direction.DESC) Pageable pageable) {
         return tcgSetService.getSetById(id)
-                .map(set -> ResponseEntity
-                        .ok(cardTemplateService.getCardTemplatesBySetCode(set.getSetCode(), pageable)))
+                .map(set -> {
+                    // First try to get cards by set code
+                    Page<CardTemplate> cards = cardTemplateService.getCardTemplatesBySetCode(set.getSetCode(), pageable);
+                    
+                    // If no cards found by set code and set has an expansion, try by expansion ID
+                    if (cards.isEmpty() && set.getExpansionId() != null) {
+                        cards = cardTemplateService.getCardTemplatesByExpansionId(set.getExpansionId(), pageable);
+                    }
+                    
+                    return ResponseEntity.ok(cards);
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 

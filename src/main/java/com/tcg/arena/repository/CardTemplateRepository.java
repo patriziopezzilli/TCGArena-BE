@@ -19,6 +19,8 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
 
         List<CardTemplate> findByExpansionId(Long expansionId);
 
+        Page<CardTemplate> findByExpansionId(Long expansionId, Pageable pageable);
+
         List<CardTemplate> findByRarity(String rarity);
 
         List<CardTemplate> findBySetCode(String setCode);

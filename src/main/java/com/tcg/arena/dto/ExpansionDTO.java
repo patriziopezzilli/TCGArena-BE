@@ -2,6 +2,7 @@ package com.tcg.arena.dto;
 
 import com.tcg.arena.model.Expansion;
 import com.tcg.arena.model.TCGType;
+import com.tcg.arena.service.CardTemplateService;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -22,6 +23,27 @@ public class ExpansionDTO {
         this.imageUrl = expansion.getImageUrl();
         this.sets = expansion.getSets().stream()
             .map(TCGSetDTO::new)
+            .collect(Collectors.toList());
+    }
+
+    public ExpansionDTO(Expansion expansion, CardTemplateService cardTemplateService) {
+        this.id = expansion.getId();
+        this.title = expansion.getTitle();
+        this.tcgType = expansion.getTcgType();
+        this.imageUrl = expansion.getImageUrl();
+        this.sets = expansion.getSets().stream()
+            .map(set -> {
+                // Calculate actual card count from database
+                int actualCount = cardTemplateService.getCardTemplatesBySetCode(set.getSetCode(), 
+                    org.springframework.data.domain.PageRequest.of(0, Integer.MAX_VALUE)).getNumberOfElements();
+                
+                // If no cards by setCode, try by expansion
+                if (actualCount == 0 && set.getExpansion() != null) {
+                    actualCount = cardTemplateService.getCardTemplatesByExpansion(set.getExpansion().getId()).size();
+                }
+                
+                return new TCGSetDTO(set, actualCount);
+            })
             .collect(Collectors.toList());
     }
 

@@ -26,8 +26,15 @@ public class ExpansionController {
     @GetMapping
     public List<ExpansionDTO> getAllExpansions() {
         return expansionService.getAllExpansions().stream()
-                .map(ExpansionDTO::new)
+                .map(expansion -> new ExpansionDTO(expansion, cardTemplateService))
                 .collect(Collectors.toList());
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ExpansionDTO> getExpansionById(@PathVariable Long id) {
+        return expansionService.getExpansionById(id)
+                .map(expansion -> ResponseEntity.ok(new ExpansionDTO(expansion, cardTemplateService)))
+                .orElse(ResponseEntity.notFound().build());
     }
 
     @GetMapping("/{id}/cards")
@@ -42,7 +49,7 @@ public class ExpansionController {
     @GetMapping("/recent")
     public List<ExpansionDTO> getRecentExpansions(@RequestParam(defaultValue = "5") int limit) {
         return expansionService.getRecentExpansions(limit).stream()
-                .map(ExpansionDTO::new)
+                .map(expansion -> new ExpansionDTO(expansion, cardTemplateService))
                 .collect(Collectors.toList());
     }
 

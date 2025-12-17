@@ -31,6 +31,9 @@ public class BatchController {
     @Autowired
     private JustTCGApiClient justTCGApiClient;
 
+    @Autowired
+    private com.tcg.arena.service.AsyncImportService asyncImportService;
+
     @PostMapping("/import/{tcgType}")
     @Operation(summary = "Trigger legacy batch import", description = "Triggers the legacy batch import for a specific TCG type")
     @ApiResponses(value = {
@@ -66,7 +69,7 @@ public class BatchController {
     }
 
     @PostMapping("/justtcg/{tcgType}")
-    @Operation(summary = "Trigger JustTCG import", description = "Triggers a JustTCG API import for a specific TCG type with real-time pricing")
+    @Operation(summary = "Trigger JustTCG import", description = "Triggers a JustTCG API import for a specific TCG type with real-time pricing (Async)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "JustTCG import started successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid or unsupported TCG type")
@@ -86,13 +89,15 @@ public class BatchController {
                 return ResponseEntity.badRequest().body(response);
             }
 
-            batchService.triggerJustTCGImport(type);
+            // Start async job
+            com.tcg.arena.model.ImportJob job = asyncImportService.triggerJustTCGImportAsync(type);
 
             response.put("success", true);
-            response.put("message", "JustTCG import started for " + type.getDisplayName());
+            response.put("message", "JustTCG import started async for " + type.getDisplayName());
             response.put("tcgType", type.name());
+            response.put("jobId", job.getId()); // Return Job ID for polling
 
-            logger.info("JustTCG import triggered for {}", type);
+            logger.info("JustTCG import triggered async for {}, Job ID: {}", type, job.getId());
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             response.put("success", false);
@@ -103,6 +108,24 @@ public class BatchController {
             response.put("success", false);
             response.put("message", "Error starting JustTCG import: " + e.getMessage());
             return ResponseEntity.internalServerError().body(response);
+        }
+    }
+
+    @GetMapping("/jobs/{jobId}")
+    @Operation(summary = "Get import job status", description = "Returns the current status and progress of an async import job")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Job status retrieved successfully"),
+            @ApiResponse(responseCode = "404", description = "Job not found")
+    })
+    public ResponseEntity<com.tcg.arena.model.ImportJob> getJobStatus(
+            @Parameter(description = "Unique identifier of the job") @PathVariable String jobId) {
+
+        com.tcg.arena.model.ImportJob job = asyncImportService.getJobStatus(jobId);
+
+        if (job != null) {
+            return ResponseEntity.ok(job);
+        } else {
+            return ResponseEntity.notFound().build();
         }
     }
 
@@ -126,7 +149,7 @@ public class BatchController {
         Map<String, Object> response = new HashMap<>();
 
         try {
-            var games = justTCGApiClient.getGames().block();
+            List<?> games = justTCGApiClient.getGames().block();
             response.put("success", true);
             response.put("games", games);
             response.put("count", games != null ? games.size() : 0);

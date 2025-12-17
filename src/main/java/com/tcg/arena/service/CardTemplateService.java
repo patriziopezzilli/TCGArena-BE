@@ -47,6 +47,11 @@ public class CardTemplateService {
         return cardTemplateRepository.findByExpansionId(expansionId);
     }
 
+    @Cacheable(value = CacheConfig.EXPANSION_CARDS_CACHE, key = "'expansion_' + #expansionId + '_page_' + #pageable.pageNumber + '_size_' + #pageable.pageSize")
+    public Page<CardTemplate> getCardTemplatesByExpansionId(Long expansionId, Pageable pageable) {
+        return cardTemplateRepository.findByExpansionId(expansionId, pageable);
+    }
+
     @Cacheable(value = CacheConfig.SET_CARDS_CACHE, key = "'setCode_' + #setCode + '_page_' + #pageable.pageNumber + '_size_' + #pageable.pageSize")
     public Page<CardTemplate> getCardTemplatesBySetCode(String setCode, Pageable pageable) {
         return cardTemplateRepository.findBySetCode(setCode, pageable);
