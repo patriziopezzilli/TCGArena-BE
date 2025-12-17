@@ -64,6 +64,17 @@ public interface InventoryCardRepository extends JpaRepository<InventoryCard, St
     long countByShopId(Long shopId);
     
     /**
+     * Count low stock items (optimized for dashboard)
+     */
+    @Query("""
+        SELECT COUNT(i) FROM InventoryCard i
+        WHERE i.shopId = :shopId
+        AND i.quantity > 0
+        AND i.quantity <= :threshold
+        """)
+    long countLowStockItems(@Param("shopId") Long shopId, @Param("threshold") int threshold);
+    
+    /**
      * Find low stock items (quantity <= threshold)
      */
     @Query("""

@@ -27,4 +27,19 @@ public interface TournamentRepository extends JpaRepository<Tournament, Long> {
     List<Tournament> findByOrganizerId(Long organizerId);
     
     List<Tournament> findByStatusAndOrganizerId(TournamentStatus status, Long organizerId);
+    
+    /**
+     * Find all tournaments created by a user (for customers who request tournaments)
+     */
+    List<Tournament> findByCreatedByUserIdOrderByStartDateDesc(Long createdByUserId);
+    
+    /**
+     * Count upcoming tournaments for a merchant (optimized for dashboard)
+     */
+    @Query("""
+        SELECT COUNT(t) FROM Tournament t
+        WHERE t.organizerId = :organizerId
+        AND t.startDate > :now
+        """)
+    long countUpcomingTournamentsByOrganizer(@Param("organizerId") Long organizerId, @Param("now") LocalDateTime now);
 }

@@ -47,8 +47,11 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
         // Skip JWT filter for public GET endpoints
         if (!skip && "GET".equals(method)) {
-            skip = path.startsWith("/api/cards/") ||
-                    path.startsWith("/api/tournaments/") ||
+            // Don't skip authentication for tournament management endpoints
+            boolean isTournamentManagement = path.equals("/api/tournaments/pending-requests");
+            
+            skip = (path.startsWith("/api/cards/") ||
+                    (path.startsWith("/api/tournaments/") && !isTournamentManagement) ||
                     path.startsWith("/api/expansions/") ||
                     path.startsWith("/api/sets/") ||
                     path.equals("/api/users") ||
@@ -57,7 +60,7 @@ public class JwtRequestFilter extends OncePerRequestFilter {
                     path.equals("/api/requests") ||
                     // path.startsWith("/api/rewards") || // Removed to allow auth for /points and
                     // /history
-                    path.startsWith("/api/achievements");
+                    path.startsWith("/api/achievements"));
         }
 
         if (skip) {

@@ -93,6 +93,17 @@ public interface ReservationRepository extends JpaRepository<Reservation, String
     List<Reservation> findActiveReservations(@Param("merchantId") Long merchantId);
     
     /**
+     * Count active reservations (optimized for dashboard)
+     */
+    @Query("""
+        SELECT COUNT(r) FROM Reservation r
+        WHERE r.merchantId = :merchantId
+        AND r.status IN ('PENDING', 'VALIDATED')
+        AND r.expiresAt > CURRENT_TIMESTAMP
+        """)
+    long countActiveReservations(@Param("merchantId") Long merchantId);
+    
+    /**
      * Find expired pending reservations
      */
     @Query("""

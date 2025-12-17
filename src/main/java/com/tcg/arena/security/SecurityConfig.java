@@ -71,6 +71,12 @@ public class SecurityConfig {
                         .permitAll()
                         // Public GET endpoints for browsing content
                         .requestMatchers("GET", "/api/cards/**").permitAll()
+                        // Protected tournament endpoints (must come BEFORE the general permitAll)
+                        .requestMatchers("/api/tournaments/pending-requests").authenticated()
+                        .requestMatchers("/api/tournaments/*/approve").authenticated()
+                        .requestMatchers("/api/tournaments/*/reject").authenticated()
+                        .requestMatchers("/api/tournaments/request").authenticated()
+                        // Public tournament endpoints
                         .requestMatchers("GET", "/api/tournaments/**").permitAll()
                         .requestMatchers("/api/shops/**").permitAll()
                         .requestMatchers("GET", "/api/expansions/**").permitAll()

@@ -105,16 +105,28 @@ public class TournamentController {
         Optional<User> currentUser = userService.getCurrentUser();
         List<Tournament> upcomingTournaments = tournamentService.getUpcomingTournaments();
         
+        System.out.println("🔍 GET /tournaments/upcoming called");
+        System.out.println("   User authenticated: " + currentUser.isPresent());
+        if (currentUser.isPresent()) {
+            System.out.println("   User ID: " + currentUser.get().getId());
+        }
+        System.out.println("   Total upcoming tournaments from DB: " + upcomingTournaments.size());
+        upcomingTournaments.forEach(t -> {
+            System.out.println("   - Tournament: " + t.getTitle() + " | Status: " + t.getStatus() + " | CreatedBy: " + t.getCreatedByUserId());
+        });
+        
         // Filter based on user permissions (same logic as getAllTournaments)
         if (currentUser.isEmpty()) {
-            return upcomingTournaments.stream()
+            List<Tournament> filtered = upcomingTournaments.stream()
                     .filter(t -> t.getStatus() != com.tcg.arena.model.TournamentStatus.PENDING_APPROVAL 
                             && t.getStatus() != com.tcg.arena.model.TournamentStatus.REJECTED)
                     .toList();
+            System.out.println("   Filtered for anonymous user: " + filtered.size() + " tournaments");
+            return filtered;
         }
         
         Long userId = currentUser.get().getId();
-        return upcomingTournaments.stream()
+        List<Tournament> filtered = upcomingTournaments.stream()
                 .filter(t -> {
                     if (t.getStatus() != com.tcg.arena.model.TournamentStatus.PENDING_APPROVAL 
                             && t.getStatus() != com.tcg.arena.model.TournamentStatus.REJECTED) {
@@ -123,6 +135,8 @@ public class TournamentController {
                     return userId.equals(t.getCreatedByUserId()) || userId.equals(t.getOrganizerId());
                 })
                 .toList();
+        System.out.println("   Filtered for user " + userId + ": " + filtered.size() + " tournaments");
+        return filtered;
     }
 
     @GetMapping("/nearby")

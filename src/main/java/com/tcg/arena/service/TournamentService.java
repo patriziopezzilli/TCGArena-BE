@@ -34,6 +34,9 @@ public class TournamentService {
 
     @Autowired
     private RewardService rewardService;
+    
+    @Autowired
+    private NotificationService notificationService;
 
     public List<Tournament> getAllTournaments() {
         List<Tournament> tournaments = tournamentRepository.findAllByOrderByStartDateAsc();
@@ -65,7 +68,14 @@ public class TournamentService {
     public List<Tournament> getUpcomingTournaments() {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime fiveHoursAgo = now.minusHours(5);
+        System.out.println("📅 getUpcomingTournaments query with:");
+        System.out.println("   now: " + now);
+        System.out.println("   fiveHoursAgo: " + fiveHoursAgo);
         List<Tournament> tournaments = tournamentRepository.findUpcomingTournaments(now, fiveHoursAgo);
+        System.out.println("   Found " + tournaments.size() + " tournaments from query");
+        tournaments.forEach(t -> {
+            System.out.println("   - " + t.getTitle() + " | Status: " + t.getStatus() + " | Start: " + t.getStartDate() + " | End: " + t.getEndDate());
+        });
         if (tournaments.isEmpty()) {
             return getAllTournaments();
         }
@@ -255,6 +265,28 @@ public class TournamentService {
             TournamentParticipant promoted = waitingList.get(0);
             promoted.setStatus(ParticipantStatus.REGISTERED);
             participantRepository.save(promoted);
+            
+            // Send push notification to promoted user
+            try {
+                Optional<Tournament> tournament = tournamentRepository.findById(tournamentId);
+                if (tournament.isPresent()) {
+                    String tournamentTitle = tournament.get().getTitle();
+                    String notificationTitle = "Sei stato iscritto al torneo!";
+                    String notificationMessage = String.format(
+                        "Un posto si è liberato per il torneo \"%s\". Sei stato promosso dalla waiting list e ora sei ufficialmente iscritto!",
+                        tournamentTitle
+                    );
+                    
+                    notificationService.sendPushNotification(
+                        promoted.getUserId(),
+                        notificationTitle,
+                        notificationMessage
+                    );
+                }
+            } catch (Exception e) {
+                // Log error but don't fail the promotion
+                System.err.println("Failed to send promotion notification: " + e.getMessage());
+            }
         }
     }
 
@@ -855,9 +887,13 @@ public class TournamentService {
             tournament.setType(TournamentType.valueOf(requestDTO.getType()));
         }
         tournament.setStatus(TournamentStatus.PENDING_APPROVAL);
-        tournament.setStartDate(LocalDateTime.parse(requestDTO.getStartDate()));
-        if (requestDTO.getEndDate() != null) {
+        LocalDateTime startDate = LocalDateTime.parse(requestDTO.getStartDate());
+        tournament.setStartDate(startDate);
+        if (requestDTO.getEndDate() != null && !requestDTO.getEndDate().isEmpty()) {
             tournament.setEndDate(LocalDateTime.parse(requestDTO.getEndDate()));
+        } else {
+            // Se non viene fornito l'orario di fine, imposta 4 ore dopo l'inizio
+            tournament.setEndDate(startDate.plusHours(4));
         }
         tournament.setMaxParticipants(requestDTO.getMaxParticipants());
         tournament.setEntryFee(requestDTO.getEntryFee());
@@ -873,13 +909,35 @@ public class TournamentService {
         TournamentLocation location = new TournamentLocation();
         location.setVenueName(shop.getName());
         location.setAddress(shop.getAddress());
-        location.setCity(""); // You can extract from address if needed
-        location.setCountry("Italy"); // Default or extract
+        
+        // Extract city from shop address (format: "Via Address, City PostalCode")
+        String city = "";
+        if (shop.getAddress() != null && shop.getAddress().contains(",")) {
+            String[] parts = shop.getAddress().split(",");
+            if (parts.length > 1) {
+                // Get the part after the comma and trim it
+                String cityPart = parts[1].trim();
+                // Remove postal code if present (last digits)
+                city = cityPart.replaceAll("\\s*\\d+\\s*$", "").trim();
+            }
+        }
+        location.setCity(city);
+        location.setCountry("Italy");
         location.setLatitude(shop.getLatitude());
         location.setLongitude(shop.getLongitude());
         tournament.setLocation(location);
 
-        return tournamentRepository.save(tournament);
+        System.out.println("💾 Saving tournament request:");
+        System.out.println("   Title: " + tournament.getTitle());
+        System.out.println("   Status: " + tournament.getStatus());
+        System.out.println("   Start Date: " + tournament.getStartDate());
+        System.out.println("   End Date: " + tournament.getEndDate());
+        System.out.println("   CreatedByUserId: " + tournament.getCreatedByUserId());
+        System.out.println("   OrganizerId: " + tournament.getOrganizerId());
+        
+        Tournament saved = tournamentRepository.save(tournament);
+        System.out.println("   ✅ Saved with ID: " + saved.getId());
+        return saved;
     }
 
     /**
@@ -905,7 +963,16 @@ public class TournamentService {
         tournament.setApprovedByUserId(userId);
         tournament.setApprovalDate(LocalDateTime.now());
 
-        return tournamentRepository.save(tournament);
+        System.out.println("✅ Approving tournament:");
+        System.out.println("   ID: " + tournament.getId());
+        System.out.println("   Title: " + tournament.getTitle());
+        System.out.println("   New Status: " + tournament.getStatus());
+        System.out.println("   Start Date: " + tournament.getStartDate());
+        System.out.println("   End Date: " + tournament.getEndDate());
+        
+        Tournament approved = tournamentRepository.save(tournament);
+        System.out.println("   ✅ Approved and saved");
+        return approved;
     }
 
     /**

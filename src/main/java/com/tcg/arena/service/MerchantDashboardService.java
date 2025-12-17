@@ -3,6 +3,7 @@ package com.tcg.arena.service;
 import com.tcg.arena.dto.MerchantDashboardStatsDTO;
 import com.tcg.arena.model.CustomerRequest;
 import com.tcg.arena.repository.CustomerRequestRepository;
+import com.tcg.arena.repository.InventoryCardRepository;
 import com.tcg.arena.repository.ReservationRepository;
 import com.tcg.arena.repository.ShopSubscriptionRepository;
 import com.tcg.arena.repository.TournamentRepository;
@@ -18,20 +19,20 @@ public class MerchantDashboardService {
 
     private static final Logger log = LoggerFactory.getLogger(MerchantDashboardService.class);
 
-    private final InventoryCardService inventoryCardService;
+    private final InventoryCardRepository inventoryCardRepository;
     private final ReservationRepository reservationRepository;
     private final TournamentRepository tournamentRepository;
     private final CustomerRequestRepository customerRequestRepository;
     private final ShopSubscriptionRepository shopSubscriptionRepository;
 
     public MerchantDashboardService(
-        InventoryCardService inventoryCardService,
+        InventoryCardRepository inventoryCardRepository,
         ReservationRepository reservationRepository,
         TournamentRepository tournamentRepository,
         CustomerRequestRepository customerRequestRepository,
         ShopSubscriptionRepository shopSubscriptionRepository
     ) {
-        this.inventoryCardService = inventoryCardService;
+        this.inventoryCardRepository = inventoryCardRepository;
         this.reservationRepository = reservationRepository;
         this.tournamentRepository = tournamentRepository;
         this.customerRequestRepository = customerRequestRepository;
@@ -40,29 +41,33 @@ public class MerchantDashboardService {
 
     /**
      * Get dashboard statistics for a merchant
+     * Optimized with COUNT queries instead of loading entities
      */
     @Transactional(readOnly = true)
     public MerchantDashboardStatsDTO getDashboardStats(Long shopId) {
         log.info("Getting dashboard stats for shop: {}", shopId);
+        long startTime = System.currentTimeMillis();
 
-        // Get inventory count from existing service
-        long inventoryCount = inventoryCardService.getInventoryStats(shopId).getTotalItems();
+        // Use optimized COUNT queries instead of loading entities
+        long inventoryCount = inventoryCardRepository.countByShopId(shopId);
+        log.debug("Inventory count: {} ({}ms)", inventoryCount, System.currentTimeMillis() - startTime);
 
-        // Get active reservations count
-        long activeReservations = reservationRepository.findActiveReservations(shopId).size();
+        long activeReservations = reservationRepository.countActiveReservations(shopId);
+        log.debug("Active reservations: {} ({}ms)", activeReservations, System.currentTimeMillis() - startTime);
 
-        // Get upcoming tournaments count
-        long upcomingTournaments = tournamentRepository.findByOrganizerId(shopId).stream()
-            .filter(t -> t.getStartDate().isAfter(LocalDateTime.now()))
-            .count();
+        long upcomingTournaments = tournamentRepository.countUpcomingTournamentsByOrganizer(shopId, LocalDateTime.now());
+        log.debug("Upcoming tournaments: {} ({}ms)", upcomingTournaments, System.currentTimeMillis() - startTime);
 
-        // Get pending requests count
         long pendingRequests = customerRequestRepository.countByShopIdAndStatus(
             shopId, CustomerRequest.RequestStatus.PENDING
         );
+        log.debug("Pending requests: {} ({}ms)", pendingRequests, System.currentTimeMillis() - startTime);
 
-        // Get subscriber count
         long subscriberCount = shopSubscriptionRepository.countActiveSubscriptionsByShopId(shopId);
+        log.debug("Subscriber count: {} ({}ms)", subscriberCount, System.currentTimeMillis() - startTime);
+
+        long totalTime = System.currentTimeMillis() - startTime;
+        log.info("Dashboard stats retrieved in {}ms", totalTime);
 
         return new MerchantDashboardStatsDTO(
             inventoryCount,

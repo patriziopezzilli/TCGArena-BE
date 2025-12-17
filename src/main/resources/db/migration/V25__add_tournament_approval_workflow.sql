@@ -5,6 +5,13 @@
 -- Note: PostgreSQL doesn't allow adding values to existing enum in a transaction
 -- So we'll rely on the String-based @Enumerated in JPA
 
+-- Drop existing status constraint if it exists
+ALTER TABLE tournaments DROP CONSTRAINT IF EXISTS tournaments_status_check;
+
+-- Add updated status constraint with new PENDING_APPROVAL and REJECTED values
+ALTER TABLE tournaments ADD CONSTRAINT tournaments_status_check 
+    CHECK (status IN ('PENDING_APPROVAL', 'UPCOMING', 'REGISTRATION_OPEN', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'REJECTED'));
+
 -- Add approval workflow columns
 ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS created_by_user_id BIGINT;
 ALTER TABLE tournaments ADD COLUMN IF NOT EXISTS approved_by_user_id BIGINT;
