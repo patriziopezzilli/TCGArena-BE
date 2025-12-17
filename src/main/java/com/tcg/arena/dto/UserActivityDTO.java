@@ -6,16 +6,24 @@ import java.time.LocalDateTime;
 
 public class UserActivityDTO {
     private Long id;
+    private Long userId;
+    private String username;
+    private String displayName;
     private ActivityType activityType;
     private String description;
     private LocalDateTime timestamp;
     private String metadata;
 
-    public UserActivityDTO() {}
+    public UserActivityDTO() {
+    }
 
-    public UserActivityDTO(Long id, ActivityType activityType, String description,
-                          LocalDateTime timestamp, String metadata) {
+    public UserActivityDTO(Long id, Long userId, String username, String displayName,
+            ActivityType activityType, String description,
+            LocalDateTime timestamp, String metadata) {
         this.id = id;
+        this.userId = userId;
+        this.username = username;
+        this.displayName = displayName;
         this.activityType = activityType;
         this.description = description;
         this.timestamp = timestamp;
@@ -29,6 +37,30 @@ public class UserActivityDTO {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
     }
 
     public ActivityType getActivityType() {

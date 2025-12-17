@@ -23,8 +23,12 @@ public class FirebaseMessagingService {
     public void initializeFirebase() {
         try {
             // Initialize Firebase with service account key
-            // In production, this should be loaded from environment variables or a secure location
-            FileInputStream serviceAccount = new FileInputStream("path/to/firebase-service-account.json");
+            // Load from project root or environment variable
+            String firebaseKeyPath = System.getenv("FIREBASE_SERVICE_ACCOUNT_PATH");
+            if (firebaseKeyPath == null || firebaseKeyPath.isEmpty()) {
+                firebaseKeyPath = "firebase-service-account.json";
+            }
+            FileInputStream serviceAccount = new FileInputStream(firebaseKeyPath);
 
             FirebaseOptions options = FirebaseOptions.builder()
                     .setCredentials(GoogleCredentials.fromStream(serviceAccount))

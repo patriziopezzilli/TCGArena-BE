@@ -21,6 +21,9 @@ public class ShopNewsService {
     @Autowired
     private ShopRepository shopRepository;
 
+    @Autowired
+    private NotificationService notificationService;
+
     /**
      * Create a new news item for a shop
      */
@@ -29,9 +32,8 @@ public class ShopNewsService {
             LocalDateTime startDate, LocalDateTime expiryDate,
             String imageUrl, Boolean isPinned) {
         // Verify shop exists
-        if (!shopRepository.existsById(shopId)) {
-            throw new IllegalArgumentException("Shop not found with id: " + shopId);
-        }
+        var shop = shopRepository.findById(shopId)
+                .orElseThrow(() -> new IllegalArgumentException("Shop not found with id: " + shopId));
 
         ShopNews news = new ShopNews();
         news.setShopId(shopId);
@@ -43,7 +45,19 @@ public class ShopNewsService {
         news.setImageUrl(imageUrl);
         news.setIsPinned(isPinned != null ? isPinned : false);
 
-        return shopNewsRepository.save(news);
+        ShopNews saved = shopNewsRepository.save(news);
+
+        // Send notification to subscribers if news is immediately active
+        if (saved.getStartDate().isBefore(LocalDateTime.now()) || saved.getStartDate().isEqual(LocalDateTime.now())) {
+            try {
+                notificationService.sendShopNewsNotification(shopId, shop.getName(), title);
+            } catch (Exception e) {
+                // Log error but don't fail the news creation
+                System.err.println("Failed to send news notification: " + e.getMessage());
+            }
+        }
+
+        return saved;
     }
 
     /**

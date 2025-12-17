@@ -33,17 +33,20 @@ public class ReservationService {
     private final UserService userService;
     private final ShopRepository shopRepository;
     private final RewardService rewardService;
+    private final NotificationService notificationService;
 
     public ReservationService(ReservationRepository reservationRepository,
             InventoryCardService inventoryCardService,
             UserService userService,
             ShopRepository shopRepository,
-            RewardService rewardService) {
+            RewardService rewardService,
+            NotificationService notificationService) {
         this.reservationRepository = reservationRepository;
         this.inventoryCardService = inventoryCardService;
         this.userService = userService;
         this.shopRepository = shopRepository;
         this.rewardService = rewardService;
+        this.notificationService = notificationService;
     }
 
     @Transactional
@@ -90,7 +93,7 @@ public class ReservationService {
 
         return new ReservationResponse(
                 saved,
-                String.format("Reservation created successfully. Please complete pickup within %d minutes.",
+                String.format("Prenotazione creata con successo. Completa il ritiro entro %d minuti.",
                         reservationDurationMinutes));
     }
 
@@ -234,9 +237,21 @@ public class ReservationService {
 
         Reservation saved = reservationRepository.save(reservation);
 
+        // Send notification to user
+        try {
+            InventoryCard card = inventoryCardService.getInventoryCard(reservation.getCardId());
+            Shop shop = shopRepository.findById(shopId).orElse(null);
+            String cardName = (card != null && card.getCardTemplate() != null) ? card.getCardTemplate().getName()
+                    : "carta";
+            String shopName = shop != null ? shop.getName() : "negozio";
+            notificationService.sendReservationValidatedNotification(reservation.getUserId(), cardName, shopName);
+        } catch (Exception e) {
+            log.warn("Failed to send validation notification: {}", e.getMessage());
+        }
+
         return new ReservationResponse(
                 saved,
-                "Reservation validated successfully");
+                "Prenotazione validata con successo");
     }
 
     /**
@@ -267,9 +282,21 @@ public class ReservationService {
 
         Reservation saved = reservationRepository.save(reservation);
 
+        // Send notification to user
+        try {
+            InventoryCard card = inventoryCardService.getInventoryCard(reservation.getCardId());
+            Shop shop = shopRepository.findById(shopId).orElse(null);
+            String cardName = (card != null && card.getCardTemplate() != null) ? card.getCardTemplate().getName()
+                    : "carta";
+            String shopName = shop != null ? shop.getName() : "negozio";
+            notificationService.sendReservationValidatedNotification(reservation.getUserId(), cardName, shopName);
+        } catch (Exception e) {
+            log.warn("Failed to send validation notification: {}", e.getMessage());
+        }
+
         return new ReservationResponse(
                 saved,
-                "Reservation validated successfully");
+                "Prenotazione validata con successo");
     }
 
     /**
@@ -302,7 +329,7 @@ public class ReservationService {
 
         return new ReservationResponse(
                 saved,
-                "Pickup completed successfully");
+                "Ritiro completato con successo");
     }
 
     /**
@@ -341,7 +368,7 @@ public class ReservationService {
 
         return new ReservationResponse(
                 saved,
-                "Reservation cancelled successfully");
+                "Prenotazione annullata con successo");
     }
 
     /**
