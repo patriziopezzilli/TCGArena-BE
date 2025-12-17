@@ -63,6 +63,26 @@ public class TournamentController {
                 .toList();
     }
 
+    @GetMapping("/pending-requests")
+    @Operation(summary = "Get pending tournament requests", description = "Gets all pending tournament requests for shops owned by the current merchant")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved pending requests"),
+            @ApiResponse(responseCode = "403", description = "Only merchants can access this endpoint")
+    })
+    public ResponseEntity<?> getPendingTournamentRequests() {
+        Optional<User> currentUser = userService.getCurrentUser();
+        if (currentUser.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Devi essere autenticato"));
+        }
+
+        if (!Boolean.TRUE.equals(currentUser.get().getIsMerchant())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Solo i merchant possono accedere a questa risorsa"));
+        }
+
+        List<Tournament> pendingRequests = tournamentService.getPendingTournamentRequestsForMerchant(currentUser.get().getId());
+        return ResponseEntity.ok(pendingRequests);
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get tournament by ID", description = "Retrieves a specific tournament by its unique ID")
     @ApiResponses(value = {
@@ -617,26 +637,6 @@ public class TournamentController {
         } catch (RuntimeException e) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
         }
-    }
-
-    @GetMapping("/pending-requests")
-    @Operation(summary = "Get pending tournament requests", description = "Gets all pending tournament requests for shops owned by the current merchant")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Successfully retrieved pending requests"),
-            @ApiResponse(responseCode = "403", description = "Only merchants can access this endpoint")
-    })
-    public ResponseEntity<?> getPendingTournamentRequests() {
-        Optional<User> currentUser = userService.getCurrentUser();
-        if (currentUser.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Devi essere autenticato"));
-        }
-
-        if (!Boolean.TRUE.equals(currentUser.get().getIsMerchant())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Solo i merchant possono accedere a questa risorsa"));
-        }
-
-        List<Tournament> pendingRequests = tournamentService.getPendingTournamentRequestsForMerchant(currentUser.get().getId());
-        return ResponseEntity.ok(pendingRequests);
     }
 
     /**
