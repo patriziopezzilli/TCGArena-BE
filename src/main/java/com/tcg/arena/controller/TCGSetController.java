@@ -50,8 +50,8 @@ public class TCGSetController {
                     Page<CardTemplate> cards = cardTemplateService.getCardTemplatesBySetCode(set.getSetCode(), pageable);
                     
                     // If no cards found by set code and set has an expansion, try by expansion ID
-                    if (cards.isEmpty() && set.getExpansionId() != null) {
-                        cards = cardTemplateService.getCardTemplatesByExpansionId(set.getExpansionId(), pageable);
+                    if (cards.isEmpty() && set.getExpansion() != null) {
+                        cards = cardTemplateService.getCardTemplatesByExpansionId(set.getExpansion().getId(), pageable);
                     }
                     
                     return ResponseEntity.ok(cards);
