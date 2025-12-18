@@ -1,7 +1,12 @@
 package com.tcg.arena.service;
 
 import com.tcg.arena.dto.MerchantDashboardStatsDTO;
+import com.tcg.arena.dto.MerchantNotificationsDTO;
+import com.tcg.arena.dto.MerchantNotificationsDTO.NotificationItem;
+import com.tcg.arena.dto.MerchantNotificationsDTO.NotificationType;
 import com.tcg.arena.model.CustomerRequest;
+import com.tcg.arena.model.Reservation;
+import com.tcg.arena.model.Tournament;
 import com.tcg.arena.repository.CustomerRequestRepository;
 import com.tcg.arena.repository.InventoryCardRepository;
 import com.tcg.arena.repository.ReservationRepository;
@@ -13,6 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class MerchantDashboardService {
@@ -26,12 +34,11 @@ public class MerchantDashboardService {
     private final ShopSubscriptionRepository shopSubscriptionRepository;
 
     public MerchantDashboardService(
-        InventoryCardRepository inventoryCardRepository,
-        ReservationRepository reservationRepository,
-        TournamentRepository tournamentRepository,
-        CustomerRequestRepository customerRequestRepository,
-        ShopSubscriptionRepository shopSubscriptionRepository
-    ) {
+            InventoryCardRepository inventoryCardRepository,
+            ReservationRepository reservationRepository,
+            TournamentRepository tournamentRepository,
+            CustomerRequestRepository customerRequestRepository,
+            ShopSubscriptionRepository shopSubscriptionRepository) {
         this.inventoryCardRepository = inventoryCardRepository;
         this.reservationRepository = reservationRepository;
         this.tournamentRepository = tournamentRepository;
@@ -55,12 +62,12 @@ public class MerchantDashboardService {
         long activeReservations = reservationRepository.countActiveReservations(shopId);
         log.debug("Active reservations: {} ({}ms)", activeReservations, System.currentTimeMillis() - startTime);
 
-        long upcomingTournaments = tournamentRepository.countUpcomingTournamentsByOrganizer(shopId, LocalDateTime.now());
+        long upcomingTournaments = tournamentRepository.countUpcomingTournamentsByOrganizer(shopId,
+                LocalDateTime.now());
         log.debug("Upcoming tournaments: {} ({}ms)", upcomingTournaments, System.currentTimeMillis() - startTime);
 
         long pendingRequests = customerRequestRepository.countByShopIdAndStatus(
-            shopId, CustomerRequest.RequestStatus.PENDING
-        );
+                shopId, CustomerRequest.RequestStatus.PENDING);
         log.debug("Pending requests: {} ({}ms)", pendingRequests, System.currentTimeMillis() - startTime);
 
         long subscriberCount = shopSubscriptionRepository.countActiveSubscriptionsByShopId(shopId);
@@ -70,11 +77,84 @@ public class MerchantDashboardService {
         log.info("Dashboard stats retrieved in {}ms", totalTime);
 
         return new MerchantDashboardStatsDTO(
-            inventoryCount,
-            activeReservations,
-            upcomingTournaments,
-            pendingRequests,
-            subscriberCount
-        );
+                inventoryCount,
+                activeReservations,
+                upcomingTournaments,
+                pendingRequests,
+                subscriberCount);
+    }
+
+    /**
+     * Get actionable notifications for a merchant
+     * Includes: today's tournaments, pending requests, active reservations
+     */
+    @Transactional(readOnly = true)
+    public MerchantNotificationsDTO getMerchantNotifications(Long shopId) {
+        log.info("Getting notifications for shop: {}", shopId);
+        List<NotificationItem> notifications = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+
+        // 1. Today's tournaments (urgent)
+        List<Tournament> todaysTournaments = tournamentRepository.findTodaysTournamentsByOrganizer(shopId, now);
+        for (Tournament t : todaysTournaments) {
+            String time = t.getStartDate().format(timeFormatter);
+            notifications.add(new NotificationItem(
+                    "tournament_" + t.getId(),
+                    NotificationType.TOURNAMENT_TODAY,
+                    "Torneo oggi alle " + time,
+                    t.getTitle(),
+                    "/merchant/tournaments",
+                    t.getStartDate(),
+                    true));
+        }
+
+        // 2. Tournaments starting within 24 hours
+        List<Tournament> upcomingTournaments = tournamentRepository.findUpcomingTournamentsByOrganizerWithinHours(
+                shopId, now, now.plusHours(24));
+        for (Tournament t : upcomingTournaments) {
+            // Skip if already in today's list
+            if (todaysTournaments.stream().anyMatch(tt -> tt.getId().equals(t.getId()))) {
+                continue;
+            }
+            notifications.add(new NotificationItem(
+                    "tournament_upcoming_" + t.getId(),
+                    NotificationType.TOURNAMENT_UPCOMING,
+                    "Torneo domani",
+                    t.getTitle(),
+                    "/merchant/tournaments",
+                    t.getStartDate(),
+                    false));
+        }
+
+        // 3. Unread customer requests (uses existing repository method)
+        List<CustomerRequest> unreadRequests = customerRequestRepository.findUnreadRequests(shopId);
+        for (CustomerRequest r : unreadRequests) {
+            notifications.add(new NotificationItem(
+                    "request_" + r.getId(),
+                    NotificationType.PENDING_REQUEST,
+                    "Nuova richiesta",
+                    r.getType() != null ? r.getType().getDisplayName() : "Richiesta cliente",
+                    "/merchant/requests",
+                    r.getCreatedAt(),
+                    true));
+        }
+
+        // 4. Active reservations (uses existing repository method - merchantId =
+        // shopId)
+        List<Reservation> activeReservations = reservationRepository.findActiveReservations(shopId);
+        if (!activeReservations.isEmpty()) {
+            notifications.add(new NotificationItem(
+                    "reservations_active",
+                    NotificationType.ACTIVE_RESERVATION,
+                    activeReservations.size() + " prenotazioni attive",
+                    "Da validare",
+                    "/merchant/reservations",
+                    now,
+                    true));
+        }
+
+        log.info("Found {} notifications for shop {}", notifications.size(), shopId);
+        return new MerchantNotificationsDTO(notifications);
     }
 }

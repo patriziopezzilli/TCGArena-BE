@@ -69,7 +69,8 @@ public class MerchantBackofficeController {
 
     /**
      * Get merchant dashboard statistics
-     * Returns aggregated stats for inventory, reservations, tournaments, requests, and subscribers
+     * Returns aggregated stats for inventory, reservations, tournaments, requests,
+     * and subscribers
      */
     @GetMapping("/dashboard/stats")
     public ResponseEntity<?> getDashboardStats() {
@@ -94,7 +95,40 @@ public class MerchantBackofficeController {
             MerchantDashboardStatsDTO stats = merchantDashboardService.getDashboardStats(user.getShopId());
             return ResponseEntity.ok(stats);
         } catch (Exception e) {
-            return ResponseEntity.internalServerError().body("Error retrieving dashboard statistics: " + e.getMessage());
+            return ResponseEntity.internalServerError()
+                    .body("Error retrieving dashboard statistics: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get merchant dashboard notifications
+     * Returns actionable notifications for tournaments today, pending requests, and
+     * active reservations
+     */
+    @GetMapping("/dashboard/notifications")
+    public ResponseEntity<?> getDashboardNotifications() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String username = authentication.getName();
+
+        Optional<User> userOpt = userService.getUserByUsername(username);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("User not found");
+        }
+
+        User user = userOpt.get();
+        if (!user.getIsMerchant()) {
+            return ResponseEntity.badRequest().body("User is not a merchant");
+        }
+
+        if (user.getShopId() == null) {
+            return ResponseEntity.badRequest().body("No shop associated with this merchant");
+        }
+
+        try {
+            var notifications = merchantDashboardService.getMerchantNotifications(user.getShopId());
+            return ResponseEntity.ok(notifications);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body("Error retrieving notifications: " + e.getMessage());
         }
     }
 
@@ -149,23 +183,40 @@ public class MerchantBackofficeController {
         Shop existingShop = shopOpt.get();
 
         // Update allowed fields
-        if (updatedShop.getName() != null) existingShop.setName(updatedShop.getName());
-        if (updatedShop.getDescription() != null) existingShop.setDescription(updatedShop.getDescription());
-        if (updatedShop.getAddress() != null) existingShop.setAddress(updatedShop.getAddress());
-        if (updatedShop.getLatitude() != null) existingShop.setLatitude(updatedShop.getLatitude());
-        if (updatedShop.getLongitude() != null) existingShop.setLongitude(updatedShop.getLongitude());
-        if (updatedShop.getPhoneNumber() != null) existingShop.setPhoneNumber(updatedShop.getPhoneNumber());
-        if (updatedShop.getWebsiteUrl() != null) existingShop.setWebsiteUrl(updatedShop.getWebsiteUrl());
-        if (updatedShop.getOpeningHours() != null) existingShop.setOpeningHours(updatedShop.getOpeningHours());
-        if (updatedShop.getOpeningDays() != null) existingShop.setOpeningDays(updatedShop.getOpeningDays());
-        if (updatedShop.getInstagramUrl() != null) existingShop.setInstagramUrl(updatedShop.getInstagramUrl());
-        if (updatedShop.getFacebookUrl() != null) existingShop.setFacebookUrl(updatedShop.getFacebookUrl());
-        if (updatedShop.getTwitterUrl() != null) existingShop.setTwitterUrl(updatedShop.getTwitterUrl());
-        if (updatedShop.getEmail() != null) existingShop.setEmail(updatedShop.getEmail());
-        if (updatedShop.getType() != null) existingShop.setType(updatedShop.getType());
-        if (updatedShop.getTcgTypes() != null) existingShop.setTcgTypes(updatedShop.getTcgTypes());
-        if (updatedShop.getServices() != null) existingShop.setServices(updatedShop.getServices());
-        if (updatedShop.getPhotoBase64() != null) existingShop.setPhotoBase64(updatedShop.getPhotoBase64());
+        if (updatedShop.getName() != null)
+            existingShop.setName(updatedShop.getName());
+        if (updatedShop.getDescription() != null)
+            existingShop.setDescription(updatedShop.getDescription());
+        if (updatedShop.getAddress() != null)
+            existingShop.setAddress(updatedShop.getAddress());
+        if (updatedShop.getLatitude() != null)
+            existingShop.setLatitude(updatedShop.getLatitude());
+        if (updatedShop.getLongitude() != null)
+            existingShop.setLongitude(updatedShop.getLongitude());
+        if (updatedShop.getPhoneNumber() != null)
+            existingShop.setPhoneNumber(updatedShop.getPhoneNumber());
+        if (updatedShop.getWebsiteUrl() != null)
+            existingShop.setWebsiteUrl(updatedShop.getWebsiteUrl());
+        if (updatedShop.getOpeningHours() != null)
+            existingShop.setOpeningHours(updatedShop.getOpeningHours());
+        if (updatedShop.getOpeningDays() != null)
+            existingShop.setOpeningDays(updatedShop.getOpeningDays());
+        if (updatedShop.getInstagramUrl() != null)
+            existingShop.setInstagramUrl(updatedShop.getInstagramUrl());
+        if (updatedShop.getFacebookUrl() != null)
+            existingShop.setFacebookUrl(updatedShop.getFacebookUrl());
+        if (updatedShop.getTwitterUrl() != null)
+            existingShop.setTwitterUrl(updatedShop.getTwitterUrl());
+        if (updatedShop.getEmail() != null)
+            existingShop.setEmail(updatedShop.getEmail());
+        if (updatedShop.getType() != null)
+            existingShop.setType(updatedShop.getType());
+        if (updatedShop.getTcgTypes() != null)
+            existingShop.setTcgTypes(updatedShop.getTcgTypes());
+        if (updatedShop.getServices() != null)
+            existingShop.setServices(updatedShop.getServices());
+        if (updatedShop.getPhotoBase64() != null)
+            existingShop.setPhotoBase64(updatedShop.getPhotoBase64());
 
         Shop saved = shopService.saveShop(existingShop);
 
