@@ -82,7 +82,7 @@ public class HomeDashboardService {
         // Using page size 1 just to get the total count from the response
         try {
             var reservations = reservationService.getUserReservations(user.getUsername(), 0, 1);
-            dashboard.setPendingReservationsCount(reservations.getTotalElements());
+            dashboard.setPendingReservationsCount(reservations.getTotal());
         } catch (Exception e) {
             dashboard.setPendingReservationsCount(0);
         }
@@ -90,7 +90,7 @@ public class HomeDashboardService {
         // 5. Active Requests
         try {
             var requests = customerRequestService.getRequests(null, String.valueOf(user.getId()), null, null, 0, 1);
-            dashboard.setActiveRequestsCount(requests.getTotalElements());
+            dashboard.setActiveRequestsCount(requests.getTotal());
         } catch (Exception e) {
             dashboard.setActiveRequestsCount(0);
         }

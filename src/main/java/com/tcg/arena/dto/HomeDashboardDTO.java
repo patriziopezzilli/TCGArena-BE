@@ -1,16 +1,7 @@
 package com.tcg.arena.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.math.BigDecimal;
 
-@Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
 public class HomeDashboardDTO {
     private long nearbyShopsCount;
     private long upcomingTournamentsCount;
@@ -19,4 +10,73 @@ public class HomeDashboardDTO {
     private long unreadNewsCount;
     private long pendingReservationsCount;
     private long activeRequestsCount;
+
+    public HomeDashboardDTO() {
+    }
+
+    public HomeDashboardDTO(long nearbyShopsCount, long upcomingTournamentsCount, long collectionCount, BigDecimal totalCollectionValue, long unreadNewsCount, long pendingReservationsCount, long activeRequestsCount) {
+        this.nearbyShopsCount = nearbyShopsCount;
+        this.upcomingTournamentsCount = upcomingTournamentsCount;
+        this.collectionCount = collectionCount;
+        this.totalCollectionValue = totalCollectionValue;
+        this.unreadNewsCount = unreadNewsCount;
+        this.pendingReservationsCount = pendingReservationsCount;
+        this.activeRequestsCount = activeRequestsCount;
+    }
+
+    public long getNearbyShopsCount() {
+        return nearbyShopsCount;
+    }
+
+    public void setNearbyShopsCount(long nearbyShopsCount) {
+        this.nearbyShopsCount = nearbyShopsCount;
+    }
+
+    public long getUpcomingTournamentsCount() {
+        return upcomingTournamentsCount;
+    }
+
+    public void setUpcomingTournamentsCount(long upcomingTournamentsCount) {
+        this.upcomingTournamentsCount = upcomingTournamentsCount;
+    }
+
+    public long getCollectionCount() {
+        return collectionCount;
+    }
+
+    public void setCollectionCount(long collectionCount) {
+        this.collectionCount = collectionCount;
+    }
+
+    public BigDecimal getTotalCollectionValue() {
+        return totalCollectionValue;
+    }
+
+    public void setTotalCollectionValue(BigDecimal totalCollectionValue) {
+        this.totalCollectionValue = totalCollectionValue;
+    }
+
+    public long getUnreadNewsCount() {
+        return unreadNewsCount;
+    }
+
+    public void setUnreadNewsCount(long unreadNewsCount) {
+        this.unreadNewsCount = unreadNewsCount;
+    }
+
+    public long getPendingReservationsCount() {
+        return pendingReservationsCount;
+    }
+
+    public void setPendingReservationsCount(long pendingReservationsCount) {
+        this.pendingReservationsCount = pendingReservationsCount;
+    }
+
+    public long getActiveRequestsCount() {
+        return activeRequestsCount;
+    }
+
+    public void setActiveRequestsCount(long activeRequestsCount) {
+        this.activeRequestsCount = activeRequestsCount;
+    }
 }
