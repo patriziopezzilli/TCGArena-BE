@@ -41,6 +41,7 @@ public class NewsAggregationService {
 
         // 1. Get active broadcast news
         List<BroadcastNews> broadcastNews = broadcastNewsRepository.findActiveNews(now);
+        System.out.println("📰 DEBUG - Broadcast news found: " + broadcastNews.size());
         allNews.addAll(broadcastNews.stream()
                 .map(NewsItemDTO::new)
                 .collect(Collectors.toList()));
@@ -50,10 +51,12 @@ public class NewsAggregationService {
                 .stream()
                 .map(subscription -> subscription.getShopId())
                 .collect(Collectors.toList());
+        System.out.println("🏪 DEBUG - User subscribed to shops: " + subscribedShopIds.size());
 
         // 3. Get active news from subscribed shops
         for (Long shopId : subscribedShopIds) {
             List<ShopNews> shopNews = shopNewsRepository.findActiveNewsByShopId(shopId, now);
+            System.out.println("📰 DEBUG - Shop " + shopId + " has " + shopNews.size() + " active news");
             Shop shop = shopRepository.findById(shopId).orElse(null);
             String shopName = shop != null ? shop.getName() : "Unknown Shop";
 
@@ -66,6 +69,8 @@ public class NewsAggregationService {
         allNews.sort(Comparator
                 .comparing(NewsItemDTO::getIsPinned, Comparator.reverseOrder())
                 .thenComparing(NewsItemDTO::getStartDate, Comparator.reverseOrder()));
+
+        System.out.println("✅ DEBUG - Total news aggregated: " + allNews.size());
 
         // 5. Limit results
         return allNews.stream()
