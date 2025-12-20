@@ -46,7 +46,10 @@ public class NewsAggregationService {
                 .collect(Collectors.toList()));
 
         // 2. Get subscribed shops
-        List<Long> subscribedShopIds = shopSubscriptionService.getSubscribedShopIds(user.getId());
+        List<Long> subscribedShopIds = shopSubscriptionService.getUserSubscriptions(user.getId())
+                .stream()
+                .map(subscription -> subscription.getShopId())
+                .collect(Collectors.toList());
 
         // 3. Get active news from subscribed shops
         for (Long shopId : subscribedShopIds) {
