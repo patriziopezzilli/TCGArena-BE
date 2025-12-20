@@ -375,8 +375,9 @@ public class JustTCGApiClient {
                             .concatMap(response -> { // concatMap ensures sequential processing
                                 List<JustTCGCard> cards = response.getCards();
                                 if (cards.isEmpty()) {
-                                    // Done!
-                                    updateProgress(tcgType, 0, true);
+                                    // Done! Keep the current offset as completion marker
+                                    updateProgress(tcgType, response.currentOffset, true);
+                                    logger.info("Import completed at offset: {}", response.currentOffset);
                                     return Mono.just(0);
                                 }
 
@@ -399,11 +400,20 @@ public class JustTCGApiClient {
                                     }
                                 }
 
-                                // Update progress after successful page processing
+                                // Calculate next offset BEFORE saving progress
                                 int newOffset = response.currentOffset + PAGE_SIZE;
+                                
+                                // Update progress after successful page processing
+                                // This ensures we save progress even if next page fails
                                 updateProgress(tcgType, newOffset, false);
+                                logger.debug("Progress saved at offset: {}", newOffset);
 
                                 return Mono.just(savedInPage);
+                            })
+                            .onErrorResume(e -> {
+                                logger.error("Error during import for {}: {}", gameId, e.getMessage(), e);
+                                // Don't reset progress on error - it was already saved for successful pages
+                                return Mono.just(0);
                             })
                             .reduce(0, Integer::sum)
                             .doOnSuccess(total -> logger.info("Import complete for {}: {} new cards imported", gameId,
