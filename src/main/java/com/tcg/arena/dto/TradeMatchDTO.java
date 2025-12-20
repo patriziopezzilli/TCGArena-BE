@@ -11,6 +11,7 @@ public class TradeMatchDTO {
     private Double distance;
     private List<TradeListEntryDTO> matchedCards; // List of full card details
     private String type; // "THEY_HAVE_WHAT_I_WANT" or "I_HAVE_WHAT_THEY_WANT" or "BOTH"
+    private String status;
 
     public Long getId() {
         return id;
@@ -66,5 +67,13 @@ public class TradeMatchDTO {
 
     public void setType(String type) {
         this.type = type;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 }

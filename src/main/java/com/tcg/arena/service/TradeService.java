@@ -31,6 +31,9 @@ public class TradeService {
     @Autowired
     private NotificationService notificationService;
 
+    @Autowired
+    private RewardService rewardService;
+
     @Transactional
     public void addCardToList(Long userId, Long cardTemplateId, TradeListType type) {
         User user = userRepository.findById(userId)
@@ -160,6 +163,7 @@ public class TradeService {
 
             dto.setMatchedCards(cardDtos);
             dto.setType(type);
+            dto.setStatus(match.getStatus().name());
             
             results.add(dto);
         }
@@ -307,6 +311,10 @@ public class TradeService {
         
         match.setStatus(TradeStatus.COMPLETED);
         tradeMatchRepository.save(match);
+
+        // Award Loyalty Points
+        rewardService.earnPoints(match.getUser1().getId(), 50, "Scambio completato con " + match.getUser2().getUsername());
+        rewardService.earnPoints(match.getUser2().getId(), 50, "Scambio completato con " + match.getUser1().getUsername());
     }
 
     @Transactional
