@@ -100,6 +100,12 @@
             <version>0.11.5</version>
             <scope>runtime</scope>
         </dependency>
+        <!-- Apple Wallet PassKit -->
+        <dependency>
+            <groupId>de.brendamour</groupId>
+            <artifactId>jpasskit</artifactId>
+            <version>0.4.2</version>
+        </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>

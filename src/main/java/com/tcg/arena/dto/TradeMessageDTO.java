@@ -1,0 +1,30 @@
+package com.tcg.arena.dto;
+
+import java.time.LocalDateTime;
+
+public class TradeMessageDTO {
+    private Long id;
+    private String content;
+    private Long senderId;
+    private String senderName;
+    private LocalDateTime sentAt;
+    private boolean isCurrentUser;
+
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
+    public String getContent() { return content; }
+    public void setContent(String content) { this.content = content; }
+
+    public Long getSenderId() { return senderId; }
+    public void setSenderId(Long senderId) { this.senderId = senderId; }
+
+    public String getSenderName() { return senderName; }
+    public void setSenderName(String senderName) { this.senderName = senderName; }
+
+    public LocalDateTime getSentAt() { return sentAt; }
+    public void setSentAt(LocalDateTime sentAt) { this.sentAt = sentAt; }
+
+    public boolean isCurrentUser() { return isCurrentUser; }
+    public void setCurrentUser(boolean currentUser) { isCurrentUser = currentUser; }
+}

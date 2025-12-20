@@ -19,6 +19,10 @@ Backend for TCG Arena app, providing card data for Pokémon, Magic: The Gatherin
 - Spring Cache with Caffeine (for performance optimization)
 - Image compression utilities
 
+## Trade Radar Feature
+A GPS-based matching system for trading cards.
+- **Documentation**: See [TRADE_RADAR_IMPLEMENTATION.md](TRADE_RADAR_IMPLEMENTATION.md) for full details on architecture, API, and testing.
+
 ## Setup
 
 1. Install PostgreSQL and create a database named `tcg_arena`.
