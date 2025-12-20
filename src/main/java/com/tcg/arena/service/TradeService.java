@@ -77,7 +77,7 @@ public class TradeService {
                 .map(e -> e.getCardTemplate().getId())
                 .collect(Collectors.toSet());
 
-        Map<User, List<String>> matchesMap = new HashMap<>();
+        Map<User, List<TradeListEntry>> matchesMap = new HashMap<>();
         Map<User, String> matchTypeMap = new HashMap<>();
 
         // 1. Find users who HAVE what I WANT
@@ -94,7 +94,7 @@ public class TradeService {
             for (TradeListEntry entry : potentialMatches) {
                 User otherUser = entry.getUser();
                 if (isWithinRadius(currentUser, otherUser, radiusKm)) {
-                    matchesMap.computeIfAbsent(otherUser, k -> new ArrayList<>()).add(entry.getCardTemplate().getName());
+                    matchesMap.computeIfAbsent(otherUser, k -> new ArrayList<>()).add(entry);
                     matchTypeMap.put(otherUser, "THEY_HAVE_WHAT_I_WANT");
                 }
             }
@@ -111,7 +111,7 @@ public class TradeService {
             for (TradeListEntry entry : potentialMatches) {
                 User otherUser = entry.getUser();
                 if (isWithinRadius(currentUser, otherUser, radiusKm)) {
-                    matchesMap.computeIfAbsent(otherUser, k -> new ArrayList<>()).add(entry.getCardTemplate().getName());
+                    matchesMap.computeIfAbsent(otherUser, k -> new ArrayList<>()).add(entry);
                     
                     String currentType = matchTypeMap.get(otherUser);
                     if (currentType != null && currentType.equals("THEY_HAVE_WHAT_I_WANT")) {
@@ -125,9 +125,9 @@ public class TradeService {
 
         // Convert to DTOs
         List<TradeMatchDTO> results = new ArrayList<>();
-        for (Map.Entry<User, List<String>> entry : matchesMap.entrySet()) {
+        for (Map.Entry<User, List<TradeListEntry>> entry : matchesMap.entrySet()) {
             User otherUser = entry.getKey();
-            List<String> cards = entry.getValue();
+            List<TradeListEntry> entries = entry.getValue();
             String type = matchTypeMap.get(otherUser);
             double distance = calculateDistance(currentUser, otherUser);
 
@@ -140,7 +140,22 @@ public class TradeService {
             dto.setOtherUserName(otherUser.getUsername()); // Or display name
             dto.setOtherUserAvatar("person.crop.circle"); // Placeholder
             dto.setDistance(distance);
-            dto.setMatchedCards(cards.stream().distinct().collect(Collectors.toList()));
+            
+            List<com.tcg.arena.dto.TradeListEntryDTO> cardDtos = entries.stream()
+                .map(e -> {
+                    com.tcg.arena.dto.TradeListEntryDTO d = new com.tcg.arena.dto.TradeListEntryDTO();
+                    d.setId(e.getId());
+                    d.setCardTemplateId(e.getCardTemplate().getId());
+                    d.setCardName(e.getCardTemplate().getName());
+                    d.setImageUrl(getFullImageUrl(e.getCardTemplate()));
+                    d.setType(e.getType());
+                    d.setTcgType(e.getCardTemplate().getTcgType().name());
+                    d.setRarity(e.getCardTemplate().getRarity().name());
+                    return d;
+                })
+                .collect(Collectors.toList());
+
+            dto.setMatchedCards(cardDtos);
             dto.setType(type);
             
             results.add(dto);

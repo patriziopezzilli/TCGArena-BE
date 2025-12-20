@@ -9,7 +9,7 @@ public class TradeMatchDTO {
     private String otherUserName;
     private String otherUserAvatar; // Assuming we have avatar URL or similar
     private Double distance;
-    private List<String> matchedCards; // Names of cards
+    private List<TradeListEntryDTO> matchedCards; // List of full card details
     private String type; // "THEY_HAVE_WHAT_I_WANT" or "I_HAVE_WHAT_THEY_WANT" or "BOTH"
 
     public Long getId() {
@@ -52,11 +52,11 @@ public class TradeMatchDTO {
         this.distance = distance;
     }
 
-    public List<String> getMatchedCards() {
+    public List<TradeListEntryDTO> getMatchedCards() {
         return matchedCards;
     }
 
-    public void setMatchedCards(List<String> matchedCards) {
+    public void setMatchedCards(List<TradeListEntryDTO> matchedCards) {
         this.matchedCards = matchedCards;
     }
 
