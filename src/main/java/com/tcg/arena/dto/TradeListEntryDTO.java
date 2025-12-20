@@ -6,6 +6,7 @@ public class TradeListEntryDTO {
     private Long id;
     private Long cardTemplateId;
     private String cardName;
+    private String imageUrl;
     private TradeListType type;
 
     public Long getId() {
@@ -30,6 +31,14 @@ public class TradeListEntryDTO {
 
     public void setCardName(String cardName) {
         this.cardName = cardName;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 
     public TradeListType getType() {

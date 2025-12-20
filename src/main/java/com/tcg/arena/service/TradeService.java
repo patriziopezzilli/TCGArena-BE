@@ -171,6 +171,7 @@ public class TradeService {
                     dto.setId(entry.getId());
                     dto.setCardTemplateId(entry.getCardTemplate().getId());
                     dto.setCardName(entry.getCardTemplate().getName());
+                    dto.setImageUrl(entry.getCardTemplate().getImageUrl());
                     dto.setType(entry.getType());
                     return dto;
                 })
