@@ -341,6 +341,54 @@ public class TradeService {
         if (!match.getUser1().getId().equals(userId) && !match.getUser2().getId().equals(userId)) {
             throw new RuntimeException("User not part of this trade match");
         }
+
+        // 1. Identify matched cards to remove and summarize
+        User u1 = match.getUser1();
+        User u2 = match.getUser2();
+        
+        List<TradeListEntry> u1Entries = tradeListEntryRepository.findByUser(u1);
+        List<TradeListEntry> u2Entries = tradeListEntryRepository.findByUser(u2);
+        
+        Set<Long> u1Want = u1Entries.stream().filter(e -> e.getType() == TradeListType.WANT).map(e -> e.getCardTemplate().getId()).collect(Collectors.toSet());
+        Set<Long> u1Have = u1Entries.stream().filter(e -> e.getType() == TradeListType.HAVE).map(e -> e.getCardTemplate().getId()).collect(Collectors.toSet());
+        
+        Set<Long> u2Want = u2Entries.stream().filter(e -> e.getType() == TradeListType.WANT).map(e -> e.getCardTemplate().getId()).collect(Collectors.toSet());
+        Set<Long> u2Have = u2Entries.stream().filter(e -> e.getType() == TradeListType.HAVE).map(e -> e.getCardTemplate().getId()).collect(Collectors.toSet());
+
+        List<TradeListEntry> toRemove = new ArrayList<>();
+        StringBuilder summary = new StringBuilder("🤝 Scambio Concluso!\n\nCarte scambiate:\n");
+        boolean hasTrades = false;
+
+        // U1 gets what U2 has
+        for (TradeListEntry e : u2Entries) {
+            if (e.getType() == TradeListType.HAVE && u1Want.contains(e.getCardTemplate().getId())) {
+                summary.append("- ").append(e.getCardTemplate().getName()).append(" (da ").append(u2.getUsername()).append(" a ").append(u1.getUsername()).append(")\n");
+                toRemove.add(e);
+                // Also remove the WANT entry from U1
+                u1Entries.stream()
+                    .filter(x -> x.getType() == TradeListType.WANT && x.getCardTemplate().getId().equals(e.getCardTemplate().getId()))
+                    .findFirst().ifPresent(toRemove::add);
+                hasTrades = true;
+            }
+        }
+
+        // U2 gets what U1 has
+        for (TradeListEntry e : u1Entries) {
+            if (e.getType() == TradeListType.HAVE && u2Want.contains(e.getCardTemplate().getId())) {
+                summary.append("- ").append(e.getCardTemplate().getName()).append(" (da ").append(u1.getUsername()).append(" a ").append(u2.getUsername()).append(")\n");
+                toRemove.add(e);
+                // Also remove the WANT entry from U2
+                u2Entries.stream()
+                    .filter(x -> x.getType() == TradeListType.WANT && x.getCardTemplate().getId().equals(e.getCardTemplate().getId()))
+                    .findFirst().ifPresent(toRemove::add);
+                hasTrades = true;
+            }
+        }
+
+        if (hasTrades) {
+            tradeListEntryRepository.deleteAll(toRemove);
+            sendMessage(matchId, userId, summary.toString());
+        }
         
         match.setStatus(TradeStatus.COMPLETED);
         tradeMatchRepository.save(match);
