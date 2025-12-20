@@ -162,10 +162,19 @@ public class TradeService {
         return match;
     }
 
-    public List<TradeListEntry> getUserList(Long userId, TradeListType type) {
+    public List<com.tcg.arena.dto.TradeListEntryDTO> getUserList(Long userId, TradeListType type) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        return tradeListEntryRepository.findByUserAndType(user, type);
+        return tradeListEntryRepository.findByUserAndType(user, type).stream()
+                .map(entry -> {
+                    com.tcg.arena.dto.TradeListEntryDTO dto = new com.tcg.arena.dto.TradeListEntryDTO();
+                    dto.setId(entry.getId());
+                    dto.setCardTemplateId(entry.getCardTemplate().getId());
+                    dto.setCardName(entry.getCardTemplate().getName());
+                    dto.setType(entry.getType());
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 
     private boolean isWithinRadius(User u1, User u2, double radiusKm) {

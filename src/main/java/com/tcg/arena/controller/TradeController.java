@@ -55,7 +55,7 @@ public class TradeController {
     }
 
     @GetMapping("/list")
-    public ResponseEntity<List<TradeListEntry>> getMyList(
+    public ResponseEntity<List<com.tcg.arena.dto.TradeListEntryDTO>> getMyList(
             Authentication authentication,
             @RequestParam TradeListType type) {
         
