@@ -129,6 +129,26 @@ public class TradeService {
             }
         }
 
+        // 3. Include existing matches with history (even if no current card match)
+        List<TradeMatch> existingMatches = tradeMatchRepository.findAllMatchesForUser(currentUser);
+        for (TradeMatch match : existingMatches) {
+            User otherUser = match.getUser1().equals(currentUser) ? match.getUser2() : match.getUser1();
+            
+            // If already found by radar, skip (it's already in matchesMap)
+            if (matchesMap.containsKey(otherUser)) {
+                continue;
+            }
+
+            // If not found by radar, check if it's worth keeping (has messages or is COMPLETED/CANCELLED)
+            boolean hasMessages = tradeMessageRepository.existsByMatchId(match.getId());
+            boolean isRelevant = hasMessages || match.getStatus() == TradeStatus.COMPLETED || match.getStatus() == TradeStatus.CANCELLED;
+
+            if (isRelevant) {
+                matchesMap.put(otherUser, Collections.emptyList()); // No current matched cards
+                matchTypeMap.put(otherUser, "HISTORY");
+            }
+        }
+
         // Convert to DTOs
         List<TradeMatchDTO> results = new ArrayList<>();
         for (Map.Entry<User, List<TradeListEntry>> entry : matchesMap.entrySet()) {

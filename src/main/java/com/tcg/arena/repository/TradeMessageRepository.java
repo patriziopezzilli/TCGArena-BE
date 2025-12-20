@@ -9,4 +9,5 @@ import java.util.List;
 @Repository
 public interface TradeMessageRepository extends JpaRepository<TradeMessage, Long> {
     List<TradeMessage> findByMatchIdOrderBySentAtAsc(Long matchId);
+    boolean existsByMatchId(Long matchId);
 }
