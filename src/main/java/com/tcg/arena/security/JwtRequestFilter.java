@@ -37,10 +37,9 @@ public class JwtRequestFilter extends OncePerRequestFilter {
 
         // Always skip JWT filter for these paths
         boolean skip = path.startsWith("/api/waiting-list/") ||
-                path.startsWith("/api/auth/") ||
-                path.startsWith("/api/public/") ||
-                path.startsWith("/api/admin/") ||
-                path.startsWith("/api/shops/") ||
+            path.startsWith("/api/auth/") ||
+            path.startsWith("/api/public/") ||
+            path.startsWith("/api/admin/") ||
                 path.startsWith("/health") ||
                 path.startsWith("/swagger-ui/") ||
                 path.startsWith("/v3/api-docs/");
@@ -50,8 +49,9 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             // Don't skip authentication for tournament management endpoints
             boolean isTournamentManagement = path.equals("/api/tournaments/pending-requests");
             
-            skip = (path.startsWith("/api/cards/") ||
+                skip = (path.startsWith("/api/cards/") ||
                     (path.startsWith("/api/tournaments/") && !isTournamentManagement) ||
+                    path.startsWith("/api/shops/") ||
                     path.startsWith("/api/expansions/") ||
                     path.startsWith("/api/sets/") ||
                     path.equals("/api/users") ||
