@@ -1,9 +1,12 @@
 package com.tcg.arena.controller;
 
 import com.tcg.arena.dto.ShopDTO;
+import com.tcg.arena.dto.ShopSuggestionDTO;
 import com.tcg.arena.model.Shop;
 import com.tcg.arena.model.ShopSubscription;
+import com.tcg.arena.model.ShopSuggestion;
 import com.tcg.arena.model.User;
+import com.tcg.arena.repository.ShopSuggestionRepository;
 import com.tcg.arena.service.ShopService;
 import com.tcg.arena.service.ShopSubscriptionService;
 import com.tcg.arena.service.UserService;
@@ -13,6 +16,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -34,6 +38,9 @@ public class ShopController {
 
     @Autowired
     private UserService userService;
+    
+    @Autowired
+    private ShopSuggestionRepository shopSuggestionRepository;
 
     @GetMapping
     @Operation(summary = "Get all shops", description = "Retrieves all shops")
@@ -161,6 +168,46 @@ public class ShopController {
         User user = getCurrentUser(authentication);
         Long userId = user.getId();
         return subscriptionService.getUserSubscriptions(userId);
+    }
+
+    // MARK: - Shop Suggestion Endpoints
+    
+    @PostMapping("/suggest")
+    @Operation(summary = "Suggest a shop", description = "Allows users to suggest a shop in their area that's not yet in the system")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "201", description = "Suggestion created successfully"),
+        @ApiResponse(responseCode = "400", description = "Invalid request data")
+    })
+    public ResponseEntity<?> suggestShop(@RequestBody ShopSuggestionDTO request, Authentication authentication) {
+        try {
+            User user = getCurrentUser(authentication);
+            
+            if (request.getShopName() == null || request.getShopName().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Shop name is required"));
+            }
+            if (request.getCity() == null || request.getCity().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("error", "City is required"));
+            }
+            
+            ShopSuggestion suggestion = new ShopSuggestion();
+            suggestion.setShopName(request.getShopName().trim());
+            suggestion.setCity(request.getCity().trim());
+            suggestion.setLatitude(request.getLatitude());
+            suggestion.setLongitude(request.getLongitude());
+            suggestion.setUserId(user.getId());
+            suggestion.setStatus(ShopSuggestion.SuggestionStatus.PENDING);
+            
+            ShopSuggestion saved = shopSuggestionRepository.save(suggestion);
+            
+            return ResponseEntity.status(HttpStatus.CREATED)
+                .body(Map.of(
+                    "message", "Grazie per il suggerimento! Lo esamineremo presto.",
+                    "suggestionId", saved.getId()
+                ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("error", "Failed to save suggestion: " + e.getMessage()));
+        }
     }
 
     @GetMapping("/{shopId}/subscribers")

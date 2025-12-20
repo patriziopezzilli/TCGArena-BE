@@ -1,11 +1,14 @@
 package com.tcg.arena.controller;
 
+import com.tcg.arena.dto.ShopSuggestionDTO;
 import com.tcg.arena.model.Achievement;
 import com.tcg.arena.model.BroadcastNews;
 import com.tcg.arena.model.Reward;
 import com.tcg.arena.model.Shop;
+import com.tcg.arena.model.ShopSuggestion;
 import com.tcg.arena.model.TCGType;
 import com.tcg.arena.model.User;
+import com.tcg.arena.repository.ShopSuggestionRepository;
 import com.tcg.arena.service.AchievementService;
 import com.tcg.arena.service.BatchService;
 import com.tcg.arena.service.BroadcastNewsService;
@@ -57,6 +60,9 @@ public class AdminController {
 
     @Autowired
     private UserService userService;
+    
+    @Autowired
+    private ShopSuggestionRepository shopSuggestionRepository;
 
     // ========== SHOP MANAGEMENT ENDPOINTS ==========
 
@@ -674,6 +680,71 @@ public class AdminController {
         results.put("note", "Before running V27 migration, manually check for duplicates in expansions and card_templates tables");
         
         return ResponseEntity.ok(results);
+    }
+
+    // ========== SHOP SUGGESTION ENDPOINTS ==========
+
+    @GetMapping("/shop-suggestions")
+    @PreAuthorize("permitAll()")
+    @Operation(summary = "Get all shop suggestions", description = "Retrieves all shop suggestions from users")
+    public ResponseEntity<?> getAllShopSuggestions(@RequestParam(required = false) String status) {
+        List<ShopSuggestion> suggestions;
+        
+        if (status != null && !status.isEmpty()) {
+            try {
+                ShopSuggestion.SuggestionStatus statusEnum = ShopSuggestion.SuggestionStatus.valueOf(status.toUpperCase());
+                suggestions = shopSuggestionRepository.findByStatusOrderByCreatedAtDesc(statusEnum);
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.badRequest().body(Map.of("error", "Invalid status value"));
+            }
+        } else {
+            suggestions = shopSuggestionRepository.findAllByOrderByCreatedAtDesc();
+        }
+        
+        List<ShopSuggestionDTO> dtos = suggestions.stream().map(s -> {
+            ShopSuggestionDTO dto = new ShopSuggestionDTO(s);
+            // Add username if needed
+            if (s.getUserId() != null) {
+                userService.getUserById(s.getUserId()).ifPresent(user -> {
+                    dto.setUsername(user.getUsername());
+                });
+            }
+            return dto;
+        }).collect(Collectors.toList());
+        
+        return ResponseEntity.ok(dtos);
+    }
+
+    @PutMapping("/shop-suggestions/{id}/status")
+    @PreAuthorize("permitAll()")
+    @Operation(summary = "Update shop suggestion status", description = "Updates the status of a shop suggestion")
+    public ResponseEntity<?> updateSuggestionStatus(
+            @PathVariable Long id,
+            @RequestParam String status,
+            @RequestParam(required = false) String notes) {
+        
+        Optional<ShopSuggestion> suggestionOpt = shopSuggestionRepository.findById(id);
+        if (suggestionOpt.isEmpty()) {
+            return ResponseEntity.notFound().build();
+        }
+        
+        try {
+            ShopSuggestion.SuggestionStatus statusEnum = ShopSuggestion.SuggestionStatus.valueOf(status.toUpperCase());
+            ShopSuggestion suggestion = suggestionOpt.get();
+            suggestion.setStatus(statusEnum);
+            if (notes != null && !notes.isEmpty()) {
+                suggestion.setNotes(notes);
+            }
+            
+            shopSuggestionRepository.save(suggestion);
+            
+            return ResponseEntity.ok(Map.of(
+                "message", "Status updated successfully",
+                "suggestion", new ShopSuggestionDTO(suggestion)
+            ));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid status value"));
+        }
     }
 
     // ========== HELPER METHODS ==========
