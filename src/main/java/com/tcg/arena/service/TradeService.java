@@ -310,7 +310,7 @@ public class TradeService {
         notificationService.sendPushNotification(recipient.getId(), title, content);
     }
 
-    public List<com.tcg.arena.dto.TradeMessageDTO> getMessages(Long matchId, Long currentUserId) {
+    public com.tcg.arena.dto.TradeChatResponseDTO getMessages(Long matchId, Long currentUserId) {
         TradeMatch match = tradeMatchRepository.findById(matchId)
                 .orElseThrow(() -> new RuntimeException("Match not found"));
 
@@ -319,7 +319,7 @@ public class TradeService {
             throw new RuntimeException("User not part of this trade match");
         }
 
-        return tradeMessageRepository.findByMatchIdOrderBySentAtAsc(matchId).stream()
+        List<com.tcg.arena.dto.TradeMessageDTO> messages = tradeMessageRepository.findByMatchIdOrderBySentAtAsc(matchId).stream()
                 .map(msg -> {
                     com.tcg.arena.dto.TradeMessageDTO dto = new com.tcg.arena.dto.TradeMessageDTO();
                     dto.setId(msg.getId());
@@ -331,6 +331,8 @@ public class TradeService {
                     return dto;
                 })
                 .collect(Collectors.toList());
+        
+        return new com.tcg.arena.dto.TradeChatResponseDTO(messages, match.getStatus().name());
     }
 
     @Transactional

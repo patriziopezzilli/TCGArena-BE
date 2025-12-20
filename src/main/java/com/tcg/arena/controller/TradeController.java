@@ -75,7 +75,7 @@ public class TradeController {
     }
 
     @GetMapping("/chat/{matchId}")
-    public ResponseEntity<List<com.tcg.arena.dto.TradeMessageDTO>> getMessages(
+    public ResponseEntity<com.tcg.arena.dto.TradeChatResponseDTO> getMessages(
             Authentication authentication,
             @PathVariable Long matchId) {
         
