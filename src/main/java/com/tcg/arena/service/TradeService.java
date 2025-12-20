@@ -171,11 +171,31 @@ public class TradeService {
                     dto.setId(entry.getId());
                     dto.setCardTemplateId(entry.getCardTemplate().getId());
                     dto.setCardName(entry.getCardTemplate().getName());
-                    dto.setImageUrl(entry.getCardTemplate().getImageUrl());
+                    dto.setImageUrl(getFullImageUrl(entry.getCardTemplate()));
                     dto.setType(entry.getType());
                     return dto;
                 })
                 .collect(Collectors.toList());
+    }
+
+    private String getFullImageUrl(CardTemplate template) {
+        // 1. Priority: TCGPlayer ID (Direct Link)
+        if (template.getTcgplayerId() != null && !template.getTcgplayerId().isEmpty()) {
+            return "https://tcgplayer-cdn.tcgplayer.com/product/" + template.getTcgplayerId() + "_in_1000x1000.jpg";
+        }
+        
+        // 2. Fallback: Image URL field
+        String baseUrl = template.getImageUrl();
+        if (baseUrl == null) return null;
+        
+        // Logic from iOS Card.swift
+        if (baseUrl.toLowerCase().contains("tcgplayer")) {
+            return baseUrl;
+        }
+        if (baseUrl.contains("/high.webp")) {
+            return baseUrl;
+        }
+        return baseUrl + "/high.webp";
     }
 
     private boolean isWithinRadius(User u1, User u2, double radiusKm) {
