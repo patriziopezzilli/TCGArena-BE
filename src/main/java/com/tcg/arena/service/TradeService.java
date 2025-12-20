@@ -160,19 +160,6 @@ public class TradeService {
             // Ensure persistent match exists
             TradeMatch match = createOrGetMatch(currentUser, otherUser);
 
-            // If we have actual cards to trade (not just history) and the match was closed, reactivate it
-            if (!entries.isEmpty() && match.getStatus() != TradeStatus.ACTIVE) {
-                match.setStatus(TradeStatus.ACTIVE);
-                tradeMatchRepository.save(match);
-                
-                // Add a separator message to indicate new negotiation
-                try {
-                    sendMessage(match.getId(), currentUser.getId(), "🔄 Nuova trattativa iniziata");
-                } catch (Exception e) {
-                    // Ignore if message fails, not critical
-                }
-            }
-
             TradeMatchDTO dto = new TradeMatchDTO();
             dto.setId(match.getId());
             dto.setOtherUserId(otherUser.getId());
@@ -411,5 +398,27 @@ public class TradeService {
         
         match.setStatus(TradeStatus.CANCELLED);
         tradeMatchRepository.save(match);
+    }
+
+    @Transactional
+    public void startChat(Long matchId, Long userId) {
+        TradeMatch match = tradeMatchRepository.findById(matchId)
+                .orElseThrow(() -> new RuntimeException("Match not found"));
+        
+        if (!match.getUser1().getId().equals(userId) && !match.getUser2().getId().equals(userId)) {
+            throw new RuntimeException("User not part of this trade match");
+        }
+
+        // Only reactivate if it's not active
+        if (match.getStatus() != TradeStatus.ACTIVE) {
+            match.setStatus(TradeStatus.ACTIVE);
+            tradeMatchRepository.save(match);
+            
+            try {
+                sendMessage(match.getId(), userId, "🔄 Nuova trattativa iniziata");
+            } catch (Exception e) {
+                // ignore
+            }
+        }
     }
 }

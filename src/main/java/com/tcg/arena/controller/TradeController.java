@@ -121,4 +121,16 @@ public class TradeController {
         tradeService.cancelTrade(matchId, user.getId());
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/chat/{matchId}/start")
+    public ResponseEntity<?> startChat(
+            Authentication authentication,
+            @PathVariable Long matchId) {
+        
+        User user = userService.getUserByUsername(authentication.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        tradeService.startChat(matchId, user.getId());
+        return ResponseEntity.ok().build();
+    }
 }
