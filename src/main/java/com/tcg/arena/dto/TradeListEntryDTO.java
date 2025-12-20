@@ -8,6 +8,8 @@ public class TradeListEntryDTO {
     private String cardName;
     private String imageUrl;
     private TradeListType type;
+    private String tcgType;
+    private String rarity;
 
     public Long getId() {
         return id;
@@ -47,5 +49,21 @@ public class TradeListEntryDTO {
 
     public void setType(TradeListType type) {
         this.type = type;
+    }
+
+    public String getTcgType() {
+        return tcgType;
+    }
+
+    public void setTcgType(String tcgType) {
+        this.tcgType = tcgType;
+    }
+
+    public String getRarity() {
+        return rarity;
+    }
+
+    public void setRarity(String rarity) {
+        this.rarity = rarity;
     }
 }

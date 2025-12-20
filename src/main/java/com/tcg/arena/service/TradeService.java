@@ -173,6 +173,8 @@ public class TradeService {
                     dto.setCardName(entry.getCardTemplate().getName());
                     dto.setImageUrl(getFullImageUrl(entry.getCardTemplate()));
                     dto.setType(entry.getType());
+                    dto.setTcgType(entry.getCardTemplate().getTcgType().name());
+                    dto.setRarity(entry.getCardTemplate().getRarity().name());
                     return dto;
                 })
                 .collect(Collectors.toList());
