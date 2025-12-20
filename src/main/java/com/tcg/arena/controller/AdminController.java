@@ -551,7 +551,13 @@ public class AdminController {
                                                   @RequestParam(required = false, defaultValue = "false") boolean sendPushNotification,
                                                   Authentication authentication) {
         try {
-            User user = getCurrentUser(authentication);
+            // Get user ID if authenticated, otherwise use null (system will use default admin ID)
+            Long createdBy = null;
+            if (authentication != null) {
+                User user = getCurrentUser(authentication);
+                createdBy = user.getId();
+            }
+            
             BroadcastNews news = broadcastNewsService.createNews(
                     request.getTitle(),
                     request.getContent(),
@@ -560,7 +566,7 @@ public class AdminController {
                     request.getExpiryDate(),
                     request.getImageUrl(),
                     request.getIsPinned(),
-                    user.getId()
+                    createdBy
             );
             
             Map<String, Object> response = new HashMap<>();
