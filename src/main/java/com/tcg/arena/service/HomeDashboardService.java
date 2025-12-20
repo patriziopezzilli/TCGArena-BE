@@ -1,6 +1,7 @@
 package com.tcg.arena.service;
 
 import com.tcg.arena.dto.HomeDashboardDTO;
+import com.tcg.arena.model.Deck;
 import com.tcg.arena.model.Shop;
 import com.tcg.arena.model.User;
 import com.tcg.arena.model.UserCard;
@@ -33,6 +34,9 @@ public class HomeDashboardService {
 
     @Autowired
     private ShopNewsService shopNewsService;
+
+    @Autowired
+    private DeckService deckService;
 
     public HomeDashboardDTO getDashboardData(User user, Double latitude, Double longitude) {
         HomeDashboardDTO dashboard = new HomeDashboardDTO();
@@ -78,7 +82,15 @@ public class HomeDashboardService {
         }
         dashboard.setTotalCollectionValue(totalValue);
 
-        // 4. Pending Reservations
+        // 4. Deck Count
+        try {
+            List<Deck> decks = deckService.getDecksByOwnerId(user.getId());
+            dashboard.setDeckCount(decks.size());
+        } catch (Exception e) {
+            dashboard.setDeckCount(0);
+        }
+
+        // 5. Pending Reservations
         // Using page size 1 just to get the total count from the response
         try {
             var reservations = reservationService.getUserReservations(user.getUsername(), 0, 1);
@@ -87,7 +99,7 @@ public class HomeDashboardService {
             dashboard.setPendingReservationsCount(0);
         }
 
-        // 5. Active Requests
+        // 6. Active Requests
         try {
             var requests = customerRequestService.getRequests(null, String.valueOf(user.getId()), null, null, 0, 1);
             dashboard.setActiveRequestsCount(requests.getTotal());
@@ -95,7 +107,7 @@ public class HomeDashboardService {
             dashboard.setActiveRequestsCount(0);
         }
 
-        // 6. News (Placeholder: Sum of active news from all shops for now, as we don't
+        // 7. News (Placeholder: Sum of active news from all shops for now, as we don't
         // have "following" logic easily accessible)
         // In a real scenario, we'd filter by shops the user follows.
         // For MVP, let's just count active news from nearby shops if location is

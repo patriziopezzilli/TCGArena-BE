@@ -6,6 +6,7 @@ public class HomeDashboardDTO {
     private long nearbyShopsCount;
     private long upcomingTournamentsCount;
     private long collectionCount;
+    private long deckCount;
     private BigDecimal totalCollectionValue;
     private long unreadNewsCount;
     private long pendingReservationsCount;
@@ -14,10 +15,13 @@ public class HomeDashboardDTO {
     public HomeDashboardDTO() {
     }
 
-    public HomeDashboardDTO(long nearbyShopsCount, long upcomingTournamentsCount, long collectionCount, BigDecimal totalCollectionValue, long unreadNewsCount, long pendingReservationsCount, long activeRequestsCount) {
+    public HomeDashboardDTO(long nearbyShopsCount, long upcomingTournamentsCount, long collectionCount, long deckCount,
+            BigDecimal totalCollectionValue, long unreadNewsCount, long pendingReservationsCount,
+            long activeRequestsCount) {
         this.nearbyShopsCount = nearbyShopsCount;
         this.upcomingTournamentsCount = upcomingTournamentsCount;
         this.collectionCount = collectionCount;
+        this.deckCount = deckCount;
         this.totalCollectionValue = totalCollectionValue;
         this.unreadNewsCount = unreadNewsCount;
         this.pendingReservationsCount = pendingReservationsCount;
@@ -46,6 +50,14 @@ public class HomeDashboardDTO {
 
     public void setCollectionCount(long collectionCount) {
         this.collectionCount = collectionCount;
+    }
+
+    public long getDeckCount() {
+        return deckCount;
+    }
+
+    public void setDeckCount(long deckCount) {
+        this.deckCount = deckCount;
     }
 
     public BigDecimal getTotalCollectionValue() {
