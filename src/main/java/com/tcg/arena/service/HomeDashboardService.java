@@ -1,6 +1,7 @@
 package com.tcg.arena.service;
 
 import com.tcg.arena.dto.HomeDashboardDTO;
+import com.tcg.arena.dto.NewsItemDTO;
 import com.tcg.arena.model.Deck;
 import com.tcg.arena.model.Shop;
 import com.tcg.arena.model.User;
@@ -37,6 +38,9 @@ public class HomeDashboardService {
 
     @Autowired
     private DeckService deckService;
+
+    @Autowired
+    private NewsAggregationService newsAggregationService;
 
     public HomeDashboardDTO getDashboardData(User user, Double latitude, Double longitude) {
         HomeDashboardDTO dashboard = new HomeDashboardDTO();
@@ -125,6 +129,10 @@ public class HomeDashboardService {
             }
         }
         dashboard.setUnreadNewsCount(unreadNewsCount);
+
+        // 8. Get aggregated news (broadcast + subscribed shops)
+        List<NewsItemDTO> news = newsAggregationService.getAggregatedNews(user, 10); // Limit to 10 news items
+        dashboard.setNews(news);
 
         return dashboard;
     }

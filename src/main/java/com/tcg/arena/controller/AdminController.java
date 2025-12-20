@@ -1,14 +1,18 @@
 package com.tcg.arena.controller;
 
 import com.tcg.arena.model.Achievement;
+import com.tcg.arena.model.BroadcastNews;
 import com.tcg.arena.model.Reward;
 import com.tcg.arena.model.Shop;
 import com.tcg.arena.model.TCGType;
+import com.tcg.arena.model.User;
 import com.tcg.arena.service.AchievementService;
 import com.tcg.arena.service.BatchService;
+import com.tcg.arena.service.BroadcastNewsService;
 import com.tcg.arena.service.NotificationService;
 import com.tcg.arena.service.RewardService;
 import com.tcg.arena.service.ShopService;
+import com.tcg.arena.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -18,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -25,6 +30,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -45,6 +51,12 @@ public class AdminController {
 
     @Autowired
     private NotificationService notificationService;
+
+    @Autowired
+    private BroadcastNewsService broadcastNewsService;
+
+    @Autowired
+    private UserService userService;
 
     // ========== SHOP MANAGEMENT ENDPOINTS ==========
 
@@ -471,6 +483,163 @@ public class AdminController {
         return ResponseEntity.ok(response);
     }
 
+    // ========== BROADCAST NEWS ENDPOINTS ==========
+
+    /**
+     * Get all broadcast news
+     */
+    @GetMapping("/broadcast-news")
+    @PreAuthorize("permitAll()")
+    @Operation(summary = "Get all broadcast news", description = "Returns all broadcast news for admin management")
+    public ResponseEntity<?> getAllBroadcastNews(Authentication authentication) {
+        List<BroadcastNews> news = broadcastNewsService.getAllNews();
+        List<BroadcastNewsDTO> dtos = news.stream()
+                .map(BroadcastNewsDTO::new)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
+    }
+
+    /**
+     * Get active broadcast news
+     */
+    @GetMapping("/broadcast-news/active")
+    @PreAuthorize("permitAll()")
+    @Operation(summary = "Get active broadcast news", description = "Returns currently active broadcast news")
+    public ResponseEntity<?> getActiveBroadcastNews(Authentication authentication) {
+        List<BroadcastNews> news = broadcastNewsService.getActiveNews();
+        List<BroadcastNewsDTO> dtos = news.stream()
+                .map(BroadcastNewsDTO::new)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
+    }
+
+    /**
+     * Get future broadcast news
+     */
+    @GetMapping("/broadcast-news/future")
+    @PreAuthorize("permitAll()")
+    @Operation(summary = "Get future broadcast news", description = "Returns broadcast news scheduled for future")
+    public ResponseEntity<?> getFutureBroadcastNews(Authentication authentication) {
+        List<BroadcastNews> news = broadcastNewsService.getFutureNews();
+        List<BroadcastNewsDTO> dtos = news.stream()
+                .map(BroadcastNewsDTO::new)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
+    }
+
+    /**
+     * Get expired broadcast news
+     */
+    @GetMapping("/broadcast-news/expired")
+    @PreAuthorize("permitAll()")
+    @Operation(summary = "Get expired broadcast news", description = "Returns expired broadcast news")
+    public ResponseEntity<?> getExpiredBroadcastNews(Authentication authentication) {
+        List<BroadcastNews> news = broadcastNewsService.getExpiredNews();
+        List<BroadcastNewsDTO> dtos = news.stream()
+                .map(BroadcastNewsDTO::new)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
+    }
+
+    /**
+     * Create new broadcast news
+     */
+    @PostMapping("/broadcast-news")
+    @PreAuthorize("permitAll()")
+    @Operation(summary = "Create broadcast news", description = "Creates a new broadcast news item that will be visible to all users. Optionally sends a push notification.")
+    public ResponseEntity<?> createBroadcastNews(@RequestBody BroadcastNewsDTO request,
+                                                  @RequestParam(required = false, defaultValue = "false") boolean sendPushNotification,
+                                                  Authentication authentication) {
+        try {
+            User user = getCurrentUser(authentication);
+            BroadcastNews news = broadcastNewsService.createNews(
+                    request.getTitle(),
+                    request.getContent(),
+                    request.getNewsType(),
+                    request.getStartDate(),
+                    request.getExpiryDate(),
+                    request.getImageUrl(),
+                    request.getIsPinned(),
+                    user.getId()
+            );
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Broadcast news created successfully");
+            response.put("news", new BroadcastNewsDTO(news));
+            
+            // Opzionalmente manda anche una push notification
+            if (sendPushNotification) {
+                int usersNotified = notificationService.sendBroadcastNotification(
+                        news.getTitle(),
+                        news.getContent()
+                );
+                response.put("pushNotificationSent", true);
+                response.put("usersNotified", usersNotified);
+            } else {
+                response.put("pushNotificationSent", false);
+            }
+            
+            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    /**
+     * Update broadcast news
+     */
+    @PutMapping("/broadcast-news/{newsId}")
+    @PreAuthorize("permitAll()")
+    @Operation(summary = "Update broadcast news", description = "Updates an existing broadcast news item")
+    public ResponseEntity<?> updateBroadcastNews(@PathVariable Long newsId,
+                                                  @RequestBody BroadcastNewsDTO request,
+                                                  Authentication authentication) {
+        try {
+            BroadcastNews news = broadcastNewsService.updateNews(
+                    newsId,
+                    request.getTitle(),
+                    request.getContent(),
+                    request.getNewsType(),
+                    request.getStartDate(),
+                    request.getExpiryDate(),
+                    request.getImageUrl(),
+                    request.getIsPinned()
+            );
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Broadcast news updated successfully");
+            response.put("news", new BroadcastNewsDTO(news));
+            
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    /**
+     * Delete broadcast news
+     */
+    @DeleteMapping("/broadcast-news/{newsId}")
+    @PreAuthorize("permitAll()")
+    @Operation(summary = "Delete broadcast news", description = "Deletes a broadcast news item")
+    public ResponseEntity<?> deleteBroadcastNews(@PathVariable Long newsId,
+                                                  Authentication authentication) {
+        try {
+            broadcastNewsService.deleteNews(newsId);
+            
+            Map<String, Object> response = new HashMap<>();
+            response.put("success", true);
+            response.put("message", "Broadcast news deleted successfully");
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("message", "Failed to delete news: " + e.getMessage()));
+        }
+    }
+
     // ========== DIAGNOSTIC ENDPOINTS ==========
 
     /**
@@ -487,5 +656,16 @@ public class AdminController {
         results.put("note", "Before running V27 migration, manually check for duplicates in expansions and card_templates tables");
         
         return ResponseEntity.ok(results);
+    }
+
+    // ========== HELPER METHODS ==========
+
+    private User getCurrentUser(Authentication authentication) {
+        if (authentication == null) {
+            throw new RuntimeException("User not authenticated");
+        }
+        String username = authentication.getName();
+        return userService.getUserByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 }

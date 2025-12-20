@@ -1,6 +1,7 @@
 package com.tcg.arena.dto;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 public class HomeDashboardDTO {
     private long nearbyShopsCount;
@@ -11,6 +12,7 @@ public class HomeDashboardDTO {
     private long unreadNewsCount;
     private long pendingReservationsCount;
     private long activeRequestsCount;
+    private List<NewsItemDTO> news; // NEW: Lista delle notizie aggregate
 
     public HomeDashboardDTO() {
     }
@@ -90,5 +92,13 @@ public class HomeDashboardDTO {
 
     public void setActiveRequestsCount(long activeRequestsCount) {
         this.activeRequestsCount = activeRequestsCount;
+    }
+
+    public List<NewsItemDTO> getNews() {
+        return news;
+    }
+
+    public void setNews(List<NewsItemDTO> news) {
+        this.news = news;
     }
 }

@@ -1,0 +1,85 @@
+package com.tcg.arena.service;
+
+import com.tcg.arena.dto.NewsItemDTO;
+import com.tcg.arena.model.BroadcastNews;
+import com.tcg.arena.model.Shop;
+import com.tcg.arena.model.ShopNews;
+import com.tcg.arena.model.User;
+import com.tcg.arena.repository.BroadcastNewsRepository;
+import com.tcg.arena.repository.ShopNewsRepository;
+import com.tcg.arena.repository.ShopRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.Collectors;
+
+@Service
+public class NewsAggregationService {
+
+    @Autowired
+    private BroadcastNewsRepository broadcastNewsRepository;
+
+    @Autowired
+    private ShopNewsRepository shopNewsRepository;
+
+    @Autowired
+    private ShopRepository shopRepository;
+
+    @Autowired
+    private ShopSubscriptionService shopSubscriptionService;
+
+    /**
+     * Get aggregated news for a user (broadcast + subscribed shops)
+     */
+    public List<NewsItemDTO> getAggregatedNews(User user, int limit) {
+        List<NewsItemDTO> allNews = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+
+        // 1. Get active broadcast news
+        List<BroadcastNews> broadcastNews = broadcastNewsRepository.findActiveNews(now);
+        allNews.addAll(broadcastNews.stream()
+                .map(NewsItemDTO::new)
+                .collect(Collectors.toList()));
+
+        // 2. Get subscribed shops
+        List<Long> subscribedShopIds = shopSubscriptionService.getSubscribedShopIds(user.getId());
+
+        // 3. Get active news from subscribed shops
+        for (Long shopId : subscribedShopIds) {
+            List<ShopNews> shopNews = shopNewsRepository.findActiveNewsByShopId(shopId, now);
+            Shop shop = shopRepository.findById(shopId).orElse(null);
+            String shopName = shop != null ? shop.getName() : "Unknown Shop";
+
+            allNews.addAll(shopNews.stream()
+                    .map(news -> new NewsItemDTO(news, shopName))
+                    .collect(Collectors.toList()));
+        }
+
+        // 4. Sort by pinned first, then by start date descending
+        allNews.sort(Comparator
+                .comparing(NewsItemDTO::getIsPinned, Comparator.reverseOrder())
+                .thenComparing(NewsItemDTO::getStartDate, Comparator.reverseOrder()));
+
+        // 5. Limit results
+        return allNews.stream()
+                .limit(limit)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get aggregated news without user context (only broadcast)
+     */
+    public List<NewsItemDTO> getPublicNews(int limit) {
+        LocalDateTime now = LocalDateTime.now();
+        List<BroadcastNews> broadcastNews = broadcastNewsRepository.findActiveNews(now);
+
+        return broadcastNews.stream()
+                .map(NewsItemDTO::new)
+                .limit(limit)
+                .collect(Collectors.toList());
+    }
+}
