@@ -180,6 +180,12 @@ public class ShopController {
     })
     public ResponseEntity<?> suggestShop(@RequestBody ShopSuggestionDTO request, Authentication authentication) {
         try {
+            System.out.println("🔍 ShopController.suggestShop: Received request for shop suggestion");
+            System.out.println("🔍 Authentication: " + (authentication != null ? "Present" : "NULL"));
+            if (authentication != null) {
+                System.out.println("🔍 Principal: " + authentication.getPrincipal());
+            }
+            
             User user = getCurrentUser(authentication);
             
             if (request.getShopName() == null || request.getShopName().trim().isEmpty()) {
