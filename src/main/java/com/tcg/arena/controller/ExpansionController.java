@@ -33,6 +33,13 @@ public class ExpansionController {
 
         return expansionService.getAllExpansions().stream()
                 .map(expansion -> new ExpansionDTO(expansion, setCodeCounts, expansionIdCounts))
+                .filter(expansionDTO -> {
+                    // Exclude expansions with 0 total cards
+                    int totalCards = expansionDTO.getSets().stream()
+                            .mapToInt(set -> set.getCardCount() != null ? set.getCardCount() : 0)
+                            .sum();
+                    return totalCards > 0;
+                })
                 .collect(Collectors.toList());
     }
 
@@ -64,6 +71,13 @@ public class ExpansionController {
 
         return expansionService.getRecentExpansions(limit).stream()
                 .map(expansion -> new ExpansionDTO(expansion, setCodeCounts, expansionIdCounts))
+                .filter(expansionDTO -> {
+                    // Exclude expansions with 0 total cards
+                    int totalCards = expansionDTO.getSets().stream()
+                            .mapToInt(set -> set.getCardCount() != null ? set.getCardCount() : 0)
+                            .sum();
+                    return totalCards > 0;
+                })
                 .collect(Collectors.toList());
     }
 

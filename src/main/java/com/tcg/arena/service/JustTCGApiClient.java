@@ -293,7 +293,11 @@ public class JustTCGApiClient {
                         gameId, resp.getCards().size(), offset))
                 .onErrorResume(e -> {
                     logger.error("Error fetching cards for game {} (offset {}): {}", gameId, offset, e.getMessage());
-                    return Mono.just(new JustTCGCardsResponse());
+                    // Return empty response but preserve the CURRENT offset (not 0)
+                    // This allows the main flow to detect error and stop without saving wrong offset
+                    JustTCGCardsResponse errorResponse = new JustTCGCardsResponse();
+                    errorResponse.currentOffset = offset; // Preserve offset where error occurred
+                    return Mono.just(errorResponse);
                 });
     }
 
@@ -371,16 +375,32 @@ public class JustTCGApiClient {
                     logger.info("Created/loaded {} sets in DB", setMap.size());
 
                     // Step 2: Fetch cards page by page starting from offset
+                    // Track last successful offset
+                    final int[] lastSuccessfulOffset = {startOffset > 0 ? startOffset - PAGE_SIZE : 0};
+                    
                     return getCardPagesForGame(gameId, startOffset)
                             .concatMap(response -> { // concatMap ensures sequential processing
                                 List<JustTCGCard> cards = response.getCards();
+                                
                                 if (cards.isEmpty()) {
-                                    // Done! Keep the current offset as completion marker
-                                    updateProgress(tcgType, response.currentOffset, true);
-                                    logger.info("Import completed at offset: {}", response.currentOffset);
-                                    return Mono.just(0);
+                                    // Empty response could mean:
+                                    // 1. End of data (normal completion)
+                                    // 2. Error occurred (check if offset matches last successful)
+                                    
+                                    if (response.currentOffset == 0 && lastSuccessfulOffset[0] > 0) {
+                                        // Error case: offset was reset to 0, use last successful offset
+                                        logger.warn("Import stopped due to error at offset {}. Last successful offset: {}", 
+                                            response.currentOffset, lastSuccessfulOffset[0]);
+                                        updateProgress(tcgType, lastSuccessfulOffset[0], false);
+                                    } else {
+                                        // Normal completion: no more cards
+                                        logger.info("Import completed successfully. Total offset reached: {}", lastSuccessfulOffset[0]);
+                                        updateProgress(tcgType, lastSuccessfulOffset[0], true);
+                                    }
+                                    return Mono.empty(); // Stop the stream
                                 }
 
+                                // Process cards in this page
                                 int savedInPage = 0;
                                 for (JustTCGCard card : cards) {
                                     try {
@@ -400,20 +420,21 @@ public class JustTCGApiClient {
                                     }
                                 }
 
-                                // Calculate next offset BEFORE saving progress
-                                int newOffset = response.currentOffset + PAGE_SIZE;
+                                // Update last successful offset to CURRENT page offset
+                                lastSuccessfulOffset[0] = response.currentOffset;
                                 
-                                // Update progress after successful page processing
-                                // This ensures we save progress even if next page fails
-                                updateProgress(tcgType, newOffset, false);
-                                logger.debug("Progress saved at offset: {}", newOffset);
+                                // Save progress after successful page processing
+                                // Save CURRENT offset (where we successfully processed), not next
+                                updateProgress(tcgType, response.currentOffset, false);
+                                logger.debug("Progress saved at offset: {} ({} cards saved)", response.currentOffset, savedInPage);
 
                                 return Mono.just(savedInPage);
                             })
                             .onErrorResume(e -> {
                                 logger.error("Error during import for {}: {}", gameId, e.getMessage(), e);
-                                // Don't reset progress on error - it was already saved for successful pages
-                                return Mono.just(0);
+                                // Progress was already saved for successful pages
+                                logger.info("Import stopped at offset: {}", lastSuccessfulOffset[0]);
+                                return Mono.empty(); // Stop processing
                             })
                             .reduce(0, Integer::sum)
                             .doOnSuccess(total -> logger.info("Import complete for {}: {} new cards imported", gameId,
