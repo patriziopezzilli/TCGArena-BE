@@ -1,5 +1,6 @@
 package com.tcg.arena.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDateTime;
 
 public class TradeMessageDTO {
@@ -8,6 +9,8 @@ public class TradeMessageDTO {
     private Long senderId;
     private String senderName;
     private LocalDateTime sentAt;
+    
+    @JsonProperty("isCurrentUser")
     private boolean isCurrentUser;
 
     public Long getId() { return id; }
@@ -25,6 +28,7 @@ public class TradeMessageDTO {
     public LocalDateTime getSentAt() { return sentAt; }
     public void setSentAt(LocalDateTime sentAt) { this.sentAt = sentAt; }
 
+    @JsonProperty("isCurrentUser")
     public boolean isCurrentUser() { return isCurrentUser; }
     public void setCurrentUser(boolean currentUser) { isCurrentUser = currentUser; }
 }
