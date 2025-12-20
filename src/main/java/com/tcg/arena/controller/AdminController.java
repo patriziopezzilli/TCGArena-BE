@@ -551,6 +551,14 @@ public class AdminController {
                                                   @RequestParam(required = false, defaultValue = "false") boolean sendPushNotification,
                                                   Authentication authentication) {
         try {
+            System.out.println("📰 DEBUG - Creating broadcast news:");
+            System.out.println("  Title: " + request.getTitle());
+            System.out.println("  Content: " + request.getContent());
+            System.out.println("  NewsType: " + request.getNewsType());
+            System.out.println("  StartDate: " + request.getStartDate());
+            System.out.println("  ExpiryDate: " + request.getExpiryDate());
+            System.out.println("  IsPinned: " + request.getIsPinned());
+            
             // Get user ID if authenticated, otherwise use null (system will use default admin ID)
             Long createdBy = null;
             if (authentication != null) {
@@ -568,6 +576,10 @@ public class AdminController {
                     request.getIsPinned(),
                     createdBy
             );
+            
+            System.out.println("✅ DEBUG - Broadcast news created with ID: " + news.getId());
+            System.out.println("  Saved StartDate: " + news.getStartDate());
+            System.out.println("  Saved ExpiryDate: " + news.getExpiryDate());
             
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);

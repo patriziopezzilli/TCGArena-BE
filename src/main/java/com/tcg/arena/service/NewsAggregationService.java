@@ -38,10 +38,25 @@ public class NewsAggregationService {
     public List<NewsItemDTO> getAggregatedNews(User user, int limit) {
         List<NewsItemDTO> allNews = new ArrayList<>();
         LocalDateTime now = LocalDateTime.now();
+        
+        System.out.println("🕐 DEBUG - Current time: " + now);
 
         // 1. Get active broadcast news
         List<BroadcastNews> broadcastNews = broadcastNewsRepository.findActiveNews(now);
         System.out.println("📰 DEBUG - Broadcast news found: " + broadcastNews.size());
+        
+        // Debug: Get ALL broadcast news to see what exists
+        List<BroadcastNews> allBroadcastNews = broadcastNewsRepository.findAll();
+        System.out.println("📰 DEBUG - Total broadcast news in DB: " + allBroadcastNews.size());
+        for (BroadcastNews news : allBroadcastNews) {
+            System.out.println("  - ID: " + news.getId() + 
+                             ", Title: " + news.getTitle() + 
+                             ", StartDate: " + news.getStartDate() + 
+                             ", ExpiryDate: " + news.getExpiryDate() +
+                             ", Active: " + (news.getStartDate() != null && news.getStartDate().isBefore(now) || news.getStartDate().isEqual(now)) +
+                                          (news.getExpiryDate() == null || news.getExpiryDate().isAfter(now)));
+        }
+        
         allNews.addAll(broadcastNews.stream()
                 .map(NewsItemDTO::new)
                 .collect(Collectors.toList()));
