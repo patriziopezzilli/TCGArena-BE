@@ -6,6 +6,7 @@ import com.tcg.arena.model.ShopSubscription;
 import com.tcg.arena.model.User;
 import com.tcg.arena.service.ShopService;
 import com.tcg.arena.service.ShopSubscriptionService;
+import com.tcg.arena.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -13,6 +14,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -29,6 +31,9 @@ public class ShopController {
 
     @Autowired
     private ShopSubscriptionService subscriptionService;
+
+    @Autowired
+    private UserService userService;
 
     @GetMapping
     @Operation(summary = "Get all shops", description = "Retrieves all shops")
@@ -117,11 +122,10 @@ public class ShopController {
         @ApiResponse(responseCode = "200", description = "Successfully subscribed to shop"),
         @ApiResponse(responseCode = "400", description = "User already subscribed")
     })
-    public ResponseEntity<Map<String, String>> subscribeToShop(@Parameter(description = "ID of the shop") @PathVariable Long shopId) {
-        // TODO: Get from authentication
-        Long userId = 1L;
-
-        ShopSubscription subscription = subscriptionService.subscribeToShop(userId, shopId);
+    public ResponseEntity<Map<String, String>> subscribeToShop(@Parameter(description = "ID of the shop") @PathVariable Long shopId,
+                                                                 Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        ShopSubscription subscription = subscriptionService.subscribeToShop(user.getId(), shopId);
         return ResponseEntity.ok(Map.of("message", "Successfully subscribed to shop", "subscriptionId", subscription.getId().toString()));
     }
 
@@ -131,11 +135,10 @@ public class ShopController {
         @ApiResponse(responseCode = "200", description = "Successfully unsubscribed from shop"),
         @ApiResponse(responseCode = "404", description = "Subscription not found")
     })
-    public ResponseEntity<Map<String, String>> unsubscribeFromShop(@Parameter(description = "ID of the shop") @PathVariable Long shopId) {
-        // TODO: Get from authentication
-        Long userId = 1L;
-
-        boolean unsubscribed = subscriptionService.unsubscribeFromShop(userId, shopId);
+    public ResponseEntity<Map<String, String>> unsubscribeFromShop(@Parameter(description = "ID of the shop") @PathVariable Long shopId,
+                                                                     Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        boolean unsubscribed = subscriptionService.unsubscribeFromShop(user.getId(), shopId);
         if (unsubscribed) {
             return ResponseEntity.ok(Map.of("message", "Successfully unsubscribed from shop"));
         } else {
@@ -145,19 +148,18 @@ public class ShopController {
 
     @GetMapping("/{shopId}/subscription")
     @Operation(summary = "Check subscription status", description = "Checks if the authenticated user is subscribed to a shop")
-    public ResponseEntity<Map<String, Boolean>> checkSubscription(@Parameter(description = "ID of the shop") @PathVariable Long shopId) {
-        // TODO: Get from authentication
-        Long userId = 1L;
-
-        boolean isSubscribed = subscriptionService.isUserSubscribedToShop(userId, shopId);
+    public ResponseEntity<Map<String, Boolean>> checkSubscription(@Parameter(description = "ID of the shop") @PathVariable Long shopId,
+                                                                    Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        boolean isSubscribed = subscriptionService.isUserSubscribedToShop(user.getId(), shopId);
         return ResponseEntity.ok(Map.of("subscribed", isSubscribed));
     }
 
     @GetMapping("/subscriptions")
     @Operation(summary = "Get user subscriptions", description = "Retrieves all shops the authenticated user is subscribed to")
-    public List<ShopSubscription> getUserSubscriptions() {
-        // TODO: Get from authentication
-        Long userId = 1L;
+    public List<ShopSubscription> getUserSubscriptions(Authentication authentication) {
+        User user = getCurrentUser(authentication);
+        Long userId = user.getId();
         return subscriptionService.getUserSubscriptions(userId);
     }
 
@@ -223,5 +225,15 @@ public class ShopController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
+    }
+
+    // Helper method to get current authenticated user
+    private User getCurrentUser(Authentication authentication) {
+        if (authentication == null) {
+            throw new RuntimeException("User not authenticated");
+        }
+        String username = authentication.getName();
+        return userService.getUserByUsername(username)
+                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 }

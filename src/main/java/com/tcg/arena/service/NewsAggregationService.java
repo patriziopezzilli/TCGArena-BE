@@ -62,11 +62,15 @@ public class NewsAggregationService {
                 .collect(Collectors.toList()));
 
         // 2. Get subscribed shops
+        System.out.println("👤 DEBUG - User ID: " + user.getId() + ", Username: " + user.getUsername());
         List<Long> subscribedShopIds = shopSubscriptionService.getUserSubscriptions(user.getId())
                 .stream()
                 .map(subscription -> subscription.getShopId())
                 .collect(Collectors.toList());
         System.out.println("🏪 DEBUG - User subscribed to shops: " + subscribedShopIds.size());
+        if (!subscribedShopIds.isEmpty()) {
+            System.out.println("  Shop IDs: " + subscribedShopIds);
+        }
 
         // 3. Get active news from subscribed shops
         for (Long shopId : subscribedShopIds) {
