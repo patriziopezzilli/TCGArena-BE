@@ -522,8 +522,10 @@ public class JustTCGApiClient {
 
     /**
      * Get or create Expansion
+     * Synchronized to prevent race conditions and duplicate creations
      */
-    private Expansion getOrCreateExpansion(String name, TCGType tcgType) {
+    @Transactional
+    private synchronized Expansion getOrCreateExpansion(String name, TCGType tcgType) {
         String cacheKey = name + "_" + tcgType.name();
 
         if (expansionCache.containsKey(cacheKey)) {
@@ -538,20 +540,32 @@ public class JustTCGApiClient {
         }
 
         // Create new Expansion
-        Expansion expansion = new Expansion();
-        expansion.setTitle(name);
-        expansion.setTcgType(tcgType);
+        try {
+            Expansion expansion = new Expansion();
+            expansion.setTitle(name);
+            expansion.setTcgType(tcgType);
 
-        expansion = expansionRepository.save(expansion);
-        expansionCache.put(cacheKey, expansion);
+            expansion = expansionRepository.save(expansion);
+            expansionCache.put(cacheKey, expansion);
 
-        logger.debug("Created new Expansion: {}", name);
-        return expansion;
+            logger.debug("Created new Expansion: {}", name);
+            return expansion;
+        } catch (Exception e) {
+            // Handle duplicate key violation - fetch existing record
+            logger.debug("Expansion already exists (constraint violation), fetching: {}", name);
+            Expansion existing2 = expansionRepository.findByTitle(name);
+            if (existing2 != null && existing2.getTcgType() == tcgType) {
+                expansionCache.put(cacheKey, existing2);
+                return existing2;
+            }
+            throw e;
+        }
     }
 
     /**
      * Save card only if it doesn't already exist (by name + setCode + cardNumber)
      * Returns true if card was saved, false if it already exists
+     * Handles duplicate key violations gracefully
      */
     @Transactional
     private boolean saveCardIfNotExists(JustTCGCard card, TCGSet tcgSet, TCGType tcgType) {
@@ -572,24 +586,42 @@ public class JustTCGApiClient {
         }
 
         // Create new CardTemplate
-        CardTemplate template = new CardTemplate();
-        template.setName(card.name);
-        template.setTcgType(tcgType);
-        template.setSetCode(card.set);
-        template.setExpansion(tcgSet.getExpansion());
-        template.setCardNumber(cardNumber);
+        try {
+            CardTemplate template = new CardTemplate();
+            template.setName(card.name);
+            template.setTcgType(tcgType);
+            template.setSetCode(card.set);
+            template.setExpansion(tcgSet.getExpansion());
+            template.setCardNumber(cardNumber);
         template.setRarity(mapRarity(card.rarity));
         template.setDescription(card.details);
-        template.setImageUrl(card.imageUrl);
-        template.setTcgplayerId(card.tcgplayerId);
-        template.setDateCreated(LocalDateTime.now());
+            template.setImageUrl(card.imageUrl);
+            template.setTcgplayerId(card.tcgplayerId);
+            template.setDateCreated(LocalDateTime.now());
 
-        // Set all prices from variants
-        setPricesFromVariants(template, card.variants);
-        template.setLastPriceUpdate(LocalDateTime.now());
+            // Set all prices from variants
+            setPricesFromVariants(template, card.variants);
+            template.setLastPriceUpdate(LocalDateTime.now());
 
-        cardTemplateRepository.save(template);
-        return true;
+            cardTemplateRepository.save(template);
+            return true;
+        } catch (Exception e) {
+            // Handle duplicate key violation - card was created by concurrent import
+            if (e.getMessage() != null && e.getMessage().contains("constraint")) {
+                logger.debug("Card already exists (constraint violation), updating prices: {}", card.name);
+                List<CardTemplate> retryExisting = cardTemplateRepository.findByNameAndSetCodeAndCardNumber(
+                        card.name, card.set, cardNumber);
+                if (!retryExisting.isEmpty()) {
+                    CardTemplate existingCard = retryExisting.get(0);
+                    setPricesFromVariants(existingCard, card.variants);
+                    existingCard.setLastPriceUpdate(LocalDateTime.now());
+                    cardTemplateRepository.save(existingCard);
+                    return false;
+                }
+            }
+            logger.error("Error saving card {}: {}", card.name, e.getMessage());
+            throw e;
+        }
     }
 
     /**

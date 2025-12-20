@@ -4,7 +4,8 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "card_templates")
+@Table(name = "card_templates",
+    uniqueConstraints = @UniqueConstraint(columnNames = {"name", "set_code", "card_number"}))
 public class CardTemplate {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -17,7 +18,7 @@ public class CardTemplate {
     @Column(nullable = false)
     private TCGType tcgType;
 
-    @Column(nullable = false)
+    @Column(name = "set_code", nullable = false)
     private String setCode;
 
     @ManyToOne
@@ -28,7 +29,7 @@ public class CardTemplate {
     @Column(nullable = false)
     private Rarity rarity;
 
-    @Column(nullable = false)
+    @Column(name = "card_number", nullable = false)
     private String cardNumber;
 
     @Column(length = 2000)

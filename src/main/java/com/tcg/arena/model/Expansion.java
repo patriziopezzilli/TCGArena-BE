@@ -6,7 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "expansions")
+@Table(name = "expansions", 
+    uniqueConstraints = @UniqueConstraint(columnNames = {"title", "tcg_type"}))
 public class Expansion {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -16,7 +17,7 @@ public class Expansion {
     private String title;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "tcg_type", nullable = false)
     private TCGType tcgType;
 
     private String imageUrl;

@@ -470,4 +470,22 @@ public class AdminController {
 
         return ResponseEntity.ok(response);
     }
+
+    // ========== DIAGNOSTIC ENDPOINTS ==========
+
+    /**
+     * Check for duplicate data before applying unique constraints
+     */
+    @GetMapping("/diagnostics/check-duplicates")
+    @PreAuthorize("permitAll()")
+    @Operation(summary = "Check for duplicate data", description = "Checks for duplicate expansions and card templates that would violate unique constraints")
+    public ResponseEntity<?> checkForDuplicates() {
+        Map<String, Object> results = new HashMap<>();
+        
+        // This would require custom repository queries to find duplicates
+        results.put("message", "Duplicate check endpoint - implementation pending");
+        results.put("note", "Before running V27 migration, manually check for duplicates in expansions and card_templates tables");
+        
+        return ResponseEntity.ok(results);
+    }
 }
