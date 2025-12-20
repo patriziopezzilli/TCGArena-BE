@@ -160,6 +160,19 @@ public class TradeService {
             // Ensure persistent match exists
             TradeMatch match = createOrGetMatch(currentUser, otherUser);
 
+            // If we have actual cards to trade (not just history) and the match was closed, reactivate it
+            if (!entries.isEmpty() && match.getStatus() != TradeStatus.ACTIVE) {
+                match.setStatus(TradeStatus.ACTIVE);
+                tradeMatchRepository.save(match);
+                
+                // Add a separator message to indicate new negotiation
+                try {
+                    sendMessage(match.getId(), currentUser.getId(), "🔄 Nuova trattativa iniziata");
+                } catch (Exception e) {
+                    // Ignore if message fails, not critical
+                }
+            }
+
             TradeMatchDTO dto = new TradeMatchDTO();
             dto.setId(match.getId());
             dto.setOtherUserId(otherUser.getId());
