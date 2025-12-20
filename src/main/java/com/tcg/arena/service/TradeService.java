@@ -28,6 +28,9 @@ public class TradeService {
     @Autowired
     private CardTemplateRepository cardTemplateRepository;
 
+    @Autowired
+    private NotificationService notificationService;
+
     @Transactional
     public void addCardToList(Long userId, Long cardTemplateId, TradeListType type) {
         User user = userRepository.findById(userId)
@@ -263,6 +266,11 @@ public class TradeService {
         message.setSender(sender);
         message.setContent(content);
         tradeMessageRepository.save(message);
+
+        // Send Push Notification to the other user
+        User recipient = match.getUser1().getId().equals(senderId) ? match.getUser2() : match.getUser1();
+        String title = "Nuovo messaggio da " + sender.getUsername();
+        notificationService.sendPushNotification(recipient.getId(), title, content);
     }
 
     public List<com.tcg.arena.dto.TradeMessageDTO> getMessages(Long matchId, Long currentUserId) {
