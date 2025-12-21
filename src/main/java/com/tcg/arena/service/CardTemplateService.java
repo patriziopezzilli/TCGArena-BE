@@ -97,8 +97,11 @@ public class CardTemplateService {
 
     public List<CardTemplate> smartScan(List<String> rawTexts) {
         if (rawTexts == null || rawTexts.isEmpty()) {
+            System.out.println("DEBUG: SmartScan - Input is empty");
             return List.of();
         }
+
+        System.out.println("DEBUG: SmartScan - Raw Texts: " + rawTexts);
 
         // 1. Flatten and Tokenize
         // Split strings by spaces and clean them
@@ -118,10 +121,15 @@ public class CardTemplateService {
         // Add potential names to tokens to check exact match
         tokens.addAll(rawTexts);
 
+        System.out.println("DEBUG: SmartScan - Generated Tokens: " + tokens);
+        System.out.println("DEBUG: SmartScan - Longest Phrase (Potential Name): " + longestPhrase);
+
         // 4. Query DB
         // We pass the token list to check against card_number and accurate name
         // We pass the longestPhrase to check partial name match
-        return cardTemplateRepository.findBySmartScanTokens(tokens, longestPhrase);
+        List<CardTemplate> results = cardTemplateRepository.findBySmartScanTokens(tokens, longestPhrase);
+        System.out.println("DEBUG: SmartScan - Found " + results.size() + " matches");
+        return results;
     }
 
     public Page<CardTemplate> searchCardTemplatesWithFilters(
