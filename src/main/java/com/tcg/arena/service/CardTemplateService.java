@@ -109,7 +109,9 @@ public class CardTemplateService {
                 .filter(s -> s != null && !s.isBlank())
                 .flatMap(s -> java.util.Arrays.stream(s.split("\\s+")))
                 .map(String::trim)
-                .filter(s -> s.length() > 1) // Ignore single chars
+                // Filter: keep if length >= 4 OR contains a digit (to keep numbers like "58",
+                // "4/102")
+                .filter(s -> s.length() >= 4 || s.matches(".*\\d.*"))
                 .collect(java.util.stream.Collectors.toList());
 
         // 2. Identify "Long Tokens" (potential names) - keep original phrases for fuzzy

@@ -294,7 +294,8 @@ public class JustTCGApiClient {
                 .onErrorResume(e -> {
                     logger.error("Error fetching cards for game {} (offset {}): {}", gameId, offset, e.getMessage());
                     // Return empty response but preserve the CURRENT offset (not 0)
-                    // This allows the main flow to detect error and stop without saving wrong offset
+                    // This allows the main flow to detect error and stop without saving wrong
+                    // offset
                     JustTCGCardsResponse errorResponse = new JustTCGCardsResponse();
                     errorResponse.currentOffset = offset; // Preserve offset where error occurred
                     return Mono.just(errorResponse);
@@ -376,25 +377,27 @@ public class JustTCGApiClient {
 
                     // Step 2: Fetch cards page by page starting from offset
                     // Track last successful offset
-                    final int[] lastSuccessfulOffset = {startOffset > 0 ? startOffset - PAGE_SIZE : 0};
-                    
+                    final int[] lastSuccessfulOffset = { startOffset > 0 ? startOffset - PAGE_SIZE : 0 };
+
                     return getCardPagesForGame(gameId, startOffset)
                             .concatMap(response -> { // concatMap ensures sequential processing
                                 List<JustTCGCard> cards = response.getCards();
-                                
+
                                 if (cards.isEmpty()) {
                                     // Empty response could mean:
                                     // 1. End of data (normal completion)
                                     // 2. Error occurred (check if offset matches last successful)
-                                    
+
                                     if (response.currentOffset == 0 && lastSuccessfulOffset[0] > 0) {
                                         // Error case: offset was reset to 0, use last successful offset
-                                        logger.warn("Import stopped due to error at offset {}. Last successful offset: {}", 
-                                            response.currentOffset, lastSuccessfulOffset[0]);
+                                        logger.warn(
+                                                "Import stopped due to error at offset {}. Last successful offset: {}",
+                                                response.currentOffset, lastSuccessfulOffset[0]);
                                         updateProgress(tcgType, lastSuccessfulOffset[0], false);
                                     } else {
                                         // Normal completion: no more cards
-                                        logger.info("Import completed successfully. Total offset reached: {}", lastSuccessfulOffset[0]);
+                                        logger.info("Import completed successfully. Total offset reached: {}",
+                                                lastSuccessfulOffset[0]);
                                         updateProgress(tcgType, lastSuccessfulOffset[0], true);
                                     }
                                     return Mono.empty(); // Stop the stream
@@ -422,11 +425,12 @@ public class JustTCGApiClient {
 
                                 // Update last successful offset to CURRENT page offset
                                 lastSuccessfulOffset[0] = response.currentOffset;
-                                
+
                                 // Save progress after successful page processing
                                 // Save CURRENT offset (where we successfully processed), not next
                                 updateProgress(tcgType, response.currentOffset, false);
-                                logger.debug("Progress saved at offset: {} ({} cards saved)", response.currentOffset, savedInPage);
+                                logger.debug("Progress saved at offset: {} ({} cards saved)", response.currentOffset,
+                                        savedInPage);
 
                                 return Mono.just(savedInPage);
                             })
@@ -454,18 +458,22 @@ public class JustTCGApiClient {
                 });
     }
 
-    @Transactional
+    // Removed @Transactional as it is ignored on private methods called internally
     private void updateProgress(TCGType tcgType, int offset, boolean complete) {
-        importProgressRepository.findByTcgType(tcgType).ifPresent(p -> {
+        importProgressRepository.findByTcgType(tcgType).ifPresentOrElse(p -> {
+            logger.info("Updating progress for {}: offset {} -> {}, complete={}", tcgType, p.getLastOffset(), offset,
+                    complete);
             p.setLastOffset(offset);
+            p.setLastUpdated(LocalDateTime.now()); // Explicitly update timestamp
             if (complete) {
                 p.setComplete(true);
-                // Keep the last offset as a marker of completion instead of resetting
-                // p.setLastOffset(0);
             } else {
                 p.setComplete(false);
             }
-            importProgressRepository.save(p);
+            importProgressRepository.saveAndFlush(p);
+            logger.info("Progress saved for {} (ID: {}). New offset: {}", tcgType, p.getId(), p.getLastOffset());
+        }, () -> {
+            logger.error("Could not find import progress for {}", tcgType);
         });
     }
 
@@ -614,8 +622,8 @@ public class JustTCGApiClient {
             template.setSetCode(card.set);
             template.setExpansion(tcgSet.getExpansion());
             template.setCardNumber(cardNumber);
-        template.setRarity(mapRarity(card.rarity));
-        template.setDescription(card.details);
+            template.setRarity(mapRarity(card.rarity));
+            template.setDescription(card.details);
             template.setImageUrl(card.imageUrl);
             template.setTcgplayerId(card.tcgplayerId);
             template.setDateCreated(LocalDateTime.now());
