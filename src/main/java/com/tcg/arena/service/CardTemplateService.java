@@ -103,34 +103,40 @@ public class CardTemplateService {
 
         System.out.println("DEBUG: SmartScan - Raw Texts: " + rawTexts);
 
-        // 1. Flatten and Tokenize
-        // Split strings by spaces and clean them
+        // 1. Flatten, Tokenize and Filter
+        // Filter: Keep only alphabetic strings with length >= 4
         List<String> tokens = rawTexts.stream()
                 .filter(s -> s != null && !s.isBlank())
                 .flatMap(s -> java.util.Arrays.stream(s.split("\\s+")))
                 .map(String::trim)
-                // Filter: keep if length >= 4 OR contains a digit (to keep numbers like "58",
-                // "4/102")
-                .filter(s -> s.length() >= 4 || s.matches(".*\\d.*"))
+                .filter(s -> s.matches("[a-zA-Z]{4,}"))
+                .distinct()
                 .collect(java.util.stream.Collectors.toList());
 
-        // 2. Identify "Long Tokens" (potential names) - keep original phrases for fuzzy
-        // name match
-        String longestPhrase = rawTexts.stream()
-                .max(java.util.Comparator.comparingInt(String::length))
-                .orElse("");
+        System.out.println("DEBUG: SmartScan - Filtered Alphabetic Tokens: " + tokens);
 
-        // Add potential names to tokens to check exact match
-        tokens.addAll(rawTexts);
+        if (tokens.isEmpty()) {
+            return List.of();
+        }
 
-        System.out.println("DEBUG: SmartScan - Generated Tokens: " + tokens);
-        System.out.println("DEBUG: SmartScan - Longest Phrase (Potential Name): " + longestPhrase);
+        // 2. Query DB for each token and collect unique results
+        java.util.Set<CardTemplate> resultSet = new java.util.HashSet<>();
 
-        // 4. Query DB
-        // We pass the token list to check against card_number and accurate name
-        // We pass the longestPhrase to check partial name match
-        List<CardTemplate> results = cardTemplateRepository.findBySmartScanTokens(tokens, longestPhrase);
-        System.out.println("DEBUG: SmartScan - Found " + results.size() + " matches");
+        for (String token : tokens) {
+            // Simple LIKE %token% search
+            List<CardTemplate> matches = cardTemplateRepository.findByNameContainingIgnoreCase(token);
+            resultSet.addAll(matches);
+
+            // Safety break if too many results?
+            // For now, respect user request "simple like"
+            if (resultSet.size() > 100) {
+                System.out.println("DEBUG: SmartScan - Hit result limit (100) with token: " + token);
+                break;
+            }
+        }
+
+        List<CardTemplate> results = new java.util.ArrayList<>(resultSet);
+        System.out.println("DEBUG: SmartScan - Found " + results.size() + " unique matches");
         return results;
     }
 

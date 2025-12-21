@@ -114,10 +114,14 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
         List<Object[]> countAllGroupedByExpansionId();
 
         /**
+         * Standard JPA query for case-insensitive name search
+         */
+        List<CardTemplate> findByNameContainingIgnoreCase(String name);
+
+        /**
          * Smart Scan: Find cards where name fits tokens or card number matches tokens
          */
         @Query(value = "SELECT * FROM card_templates ct WHERE " +
-                        "(ct.card_number IN :tokens) OR " +
                         "(ct.name IN :tokens) OR " +
                         "(LOWER(ct.name) LIKE LOWER(CONCAT('%', :longToken, '%'))) " +
                         "AND ct.card_number IS NOT NULL AND ct.card_number <> 'N/A' AND ct.card_number <> '' " +
