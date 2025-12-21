@@ -23,7 +23,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
  * Client for JustTCG API - provides real-time pricing data for TCGs
@@ -43,8 +42,6 @@ public class JustTCGApiClient {
     // Rate limiting: delay between API calls (ms)
     // Rate limiting: delay between API calls (ms) -> increased to 3s to avoid 429
     private static final long API_DELAY_MS = 3000;
-    // Max concurrent set imports
-    private static final int MAX_CONCURRENCY = 1; // Serial processing to be safe
     // Page size for card fetching
     private static final int PAGE_SIZE = 100;
 
@@ -289,13 +286,16 @@ public class JustTCGApiClient {
                     response.currentOffset = offset;
                     return response;
                 })
-                .doOnSuccess(resp -> logger.info("Fetched cards page for game {}: {} cards (offset: {})",
-                        gameId, resp.getCards().size(), offset))
+                .doOnSuccess(resp -> {
+                    if (resp != null && resp.getCards() != null) {
+                        logger.info("Fetched cards page for game {}: {} cards (offset: {})",
+                                gameId, resp.getCards().size(), offset);
+                    }
+                })
                 .onErrorResume(e -> {
-                    logger.error("Error fetching cards for game {} (offset {}): {}", gameId, offset, e.getMessage());
+                    logger.error("Error fetching cards for game {} (offset {}): {}", gameId, offset, e.getMessage(), e);
                     // Return empty response but preserve the CURRENT offset (not 0)
-                    // This allows the main flow to detect error and stop without saving wrong
-                    // offset
+                    // This allows the main flow to detect error and stop without saving wrong offset
                     JustTCGCardsResponse errorResponse = new JustTCGCardsResponse();
                     errorResponse.currentOffset = offset; // Preserve offset where error occurred
                     return Mono.just(errorResponse);
@@ -350,15 +350,23 @@ public class JustTCGApiClient {
 
         logger.info("Starting JustTCG import for {} (game: {})", tcgType.getDisplayName(), gameId);
 
-        // Get current progress - keep reference to update it throughout the import
+        // Get current progress
         ImportProgress progress = getOrCreateImportProgress(tcgType);
-        final Long progressId = progress.getId(); // Store ID to reload entity in transactional context
-        int startOffset = progress.getLastOffset();
-        logger.info("Resuming import from offset: {} (Progress ID: {})", startOffset, progressId);
+        
+        // Check if import is already complete
+        if (progress != null && progress.isComplete()) {
+            logger.info("Import for {} already completed. Skipping.", tcgType);
+            return Mono.just(0);
+        }
+        
+        int startOffset = (progress != null && progress.getLastOffset() != 0) ? progress.getLastOffset() : 0;
+        logger.info("Resuming import from offset: {}", startOffset);
 
-        // Step 1: Fetch all sets first to get full metadata (only if starting fresh or
-        // needed)
-        // For simplicity, we always refresh sets metadata as it's quick
+        // Track progress in memory during import
+        final int[] lastSuccessfulOffset = { startOffset };
+        final boolean[] importCompleted = { false };
+
+        // Step 1: Fetch all sets first to get full metadata
         return getAllSets(gameId)
                 .collectList()
                 .flatMap(sets -> {
@@ -377,36 +385,26 @@ public class JustTCGApiClient {
                     logger.info("Created/loaded {} sets in DB", setMap.size());
 
                     // Step 2: Fetch cards page by page starting from offset
-                    // Track last successful offset
-                    final int[] lastSuccessfulOffset = { startOffset > 0 ? startOffset - PAGE_SIZE : 0 };
-
                     return getCardPagesForGame(gameId, startOffset)
                             .concatMap(response -> { // concatMap ensures sequential processing
                                 List<JustTCGCard> cards = response.getCards();
 
                                 if (cards.isEmpty()) {
-                                    // Empty response could mean:
-                                    // 1. End of data (normal completion)
-                                    // 2. Error occurred (check if offset matches last successful)
-
-                                    if (response.currentOffset == 0 && lastSuccessfulOffset[0] > 0) {
-                                        // Error case: offset was reset to 0, use last successful offset
-                                        logger.warn(
-                                                "Import stopped due to error at offset {}. Last successful offset: {}",
-                                                response.currentOffset, lastSuccessfulOffset[0]);
-                                        updateProgress(progressId, tcgType, lastSuccessfulOffset[0], false);
-                                    } else {
-                                        // Normal completion: no more cards
-                                        logger.info("Import completed successfully. Total offset reached: {}",
-                                                lastSuccessfulOffset[0]);
-                                        updateProgress(progressId, tcgType, lastSuccessfulOffset[0], true);
-                                    }
+                                    // Empty response - end of data
+                                    logger.info("No more cards. Import completed successfully at offset: {}",
+                                            lastSuccessfulOffset[0]);
+                                    importCompleted[0] = true;
                                     return Mono.empty(); // Stop the stream
                                 }
 
                                 // Process cards in this page
                                 int savedInPage = 0;
                                 for (JustTCGCard card : cards) {
+                                    if (card == null || card.name == null) {
+                                        logger.warn("Skipping null or invalid card at offset {}", response.currentOffset);
+                                        continue;
+                                    }
+                                    
                                     try {
                                         String setId = card.set != null ? card.set : "unknown";
                                         TCGSet tcgSet = setMap.get(setId);
@@ -420,30 +418,41 @@ public class JustTCGApiClient {
                                             savedInPage++;
                                         }
                                     } catch (Exception e) {
-                                        logger.warn("Error saving card {}: {}", card.name, e.getMessage());
+                                        logger.warn("Error saving card '{}': {}", card.name, e.getMessage());
                                     }
                                 }
 
-                                // Update last successful offset to CURRENT page offset
+                                // Update last successful offset in memory only
                                 lastSuccessfulOffset[0] = response.currentOffset;
-
-                                // Save progress after successful page processing
-                                // Save CURRENT offset (where we successfully processed), not next
-                                updateProgress(progressId, tcgType, response.currentOffset, false);
-                                logger.debug("Progress saved at offset: {} ({} cards saved)", response.currentOffset,
+                                logger.debug("Processed page at offset: {} ({} cards saved)", response.currentOffset,
                                         savedInPage);
 
                                 return Mono.just(savedInPage);
                             })
                             .onErrorResume(e -> {
                                 logger.error("Error during import for {}: {}", gameId, e.getMessage(), e);
-                                // Progress was already saved for successful pages
                                 logger.info("Import stopped at offset: {}", lastSuccessfulOffset[0]);
                                 return Mono.empty(); // Stop processing
                             })
                             .reduce(0, Integer::sum)
-                            .doOnSuccess(total -> logger.info("Import complete for {}: {} new cards imported", gameId,
-                                    total));
+                            .doOnSuccess(total -> {
+                                logger.info("Import complete for {}: {} new cards imported", gameId, total);
+                                // Update progress in DB only at the end
+                                try {
+                                    updateProgress(tcgType, lastSuccessfulOffset[0], importCompleted[0]);
+                                } catch (Exception e) {
+                                    logger.error("Error updating progress after successful import: {}", e.getMessage(), e);
+                                }
+                            });
+                })
+                .doOnError(e -> {
+                    // Save progress on error
+                    logger.error("Import failed, saving progress at offset: {}", lastSuccessfulOffset[0], e);
+                    try {
+                        updateProgress(tcgType, lastSuccessfulOffset[0], false);
+                    } catch (Exception ex) {
+                        logger.error("Error saving progress after failed import: {}", ex.getMessage(), ex);
+                    }
                 })
                 .doFinally(signal -> {
                     expansionCache.clear();
@@ -464,28 +473,23 @@ public class JustTCGApiClient {
         return progress;
     }
 
-    // Update progress using ID lookup - ensures we get the managed entity
-    // If entity is not found by ID (shouldn't happen), we cannot recover as we don't have tcgType
-    // So we need to pass both ID and TCGType for safety
+    // Update progress - simplified version that creates or updates by TCGType
     @Transactional
-    public void updateProgress(Long progressId, TCGType tcgType, int offset, boolean complete) {
-        ImportProgress p = importProgressRepository.findById(progressId).orElseGet(() -> {
-            logger.warn("Import progress with ID {} not found, creating new one for {}", progressId, tcgType);
+    public void updateProgress(TCGType tcgType, int offset, boolean complete) {
+        ImportProgress p = importProgressRepository.findByTcgType(tcgType).orElseGet(() -> {
+            logger.info("Creating new import progress for {}", tcgType);
             ImportProgress newProgress = new ImportProgress(tcgType);
-            return importProgressRepository.saveAndFlush(newProgress);
+            return newProgress;
         });
         
-        logger.debug("Updating progress for {} (ID: {}): offset {} -> {}, complete={}", 
-                p.getTcgType(), p.getId(), p.getLastOffset(), offset, complete);
+        logger.info("Updating progress for {}: offset {} -> {}, complete={}", 
+                tcgType, p.getLastOffset(), offset, complete);
         p.setLastOffset(offset);
         p.setLastUpdated(LocalDateTime.now());
-        if (complete) {
-            p.setComplete(true);
-        } else {
-            p.setComplete(false);
-        }
+        p.setComplete(complete);
         importProgressRepository.saveAndFlush(p);
-        logger.info("Progress saved for {} (ID: {}). New offset: {}", p.getTcgType(), p.getId(), p.getLastOffset());
+        logger.info("Progress saved for {} (ID: {}). New offset: {}, complete: {}", 
+                tcgType, p.getId(), p.getLastOffset(), p.isComplete());
     }
 
     /**
