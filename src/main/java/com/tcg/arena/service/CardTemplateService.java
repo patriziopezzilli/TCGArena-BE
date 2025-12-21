@@ -95,6 +95,35 @@ public class CardTemplateService {
         return cardTemplateRepository.searchByNameOrSetCode(query);
     }
 
+    public List<CardTemplate> smartScan(List<String> rawTexts) {
+        if (rawTexts == null || rawTexts.isEmpty()) {
+            return List.of();
+        }
+
+        // 1. Flatten and Tokenize
+        // Split strings by spaces and clean them
+        List<String> tokens = rawTexts.stream()
+                .filter(s -> s != null && !s.isBlank())
+                .flatMap(s -> java.util.Arrays.stream(s.split("\\s+")))
+                .map(String::trim)
+                .filter(s -> s.length() > 1) // Ignore single chars
+                .collect(java.util.stream.Collectors.toList());
+
+        // 2. Identify "Long Tokens" (potential names) - keep original phrases for fuzzy
+        // name match
+        String longestPhrase = rawTexts.stream()
+                .max(java.util.Comparator.comparingInt(String::length))
+                .orElse("");
+
+        // Add potential names to tokens to check exact match
+        tokens.addAll(rawTexts);
+
+        // 4. Query DB
+        // We pass the token list to check against card_number and accurate name
+        // We pass the longestPhrase to check partial name match
+        return cardTemplateRepository.findBySmartScanTokens(tokens, longestPhrase);
+    }
+
     public Page<CardTemplate> searchCardTemplatesWithFilters(
             String tcgType,
             Long expansionId,

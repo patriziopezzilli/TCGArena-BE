@@ -112,4 +112,16 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
                         "WHERE c.expansion IS NOT NULL AND " + EXCLUDE_NA_CONDITION + " " +
                         "GROUP BY c.expansion.id")
         List<Object[]> countAllGroupedByExpansionId();
+
+        /**
+         * Smart Scan: Find cards where name fits tokens or card number matches tokens
+         */
+        @Query(value = "SELECT * FROM card_templates ct WHERE " +
+                        "(ct.card_number IN :tokens) OR " +
+                        "(ct.name IN :tokens) OR " +
+                        "(LOWER(ct.name) LIKE LOWER(CONCAT('%', :longToken, '%'))) " +
+                        "AND ct.card_number IS NOT NULL AND ct.card_number <> 'N/A' AND ct.card_number <> '' " +
+                        "LIMIT 20", nativeQuery = true)
+        List<CardTemplate> findBySmartScanTokens(@Param("tokens") List<String> tokens,
+                        @Param("longToken") String longToken);
 }
