@@ -5,9 +5,6 @@ import com.tcg.arena.dto.RadarUserDto;
 import com.tcg.arena.service.RadarService;
 import com.tcg.arena.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -37,7 +34,7 @@ public class RadarController {
         // In a real app we'd get ID from userDetails
         // For now finding by username
         // Assuming userService.findByUsername exists
-        return userService.findByUsername(userDetails.getUsername())
+        return userService.getUserByUsername(userDetails.getUsername())
                 .map(user -> {
                     radarService.updateUserLocation(user.getId(), request);
                     return ResponseEntity.ok().<Void>build();
@@ -53,7 +50,7 @@ public class RadarController {
             @RequestParam double longitude,
             @RequestParam(defaultValue = "10.0") double radiusKm) {
 
-        return userService.findByUsername(userDetails.getUsername())
+        return userService.getUserByUsername(userDetails.getUsername())
                 .map(user -> {
                     List<RadarUserDto> users = radarService.getNearbyUsers(user.getId(), latitude, longitude, radiusKm);
                     return ResponseEntity.ok(users);
@@ -67,7 +64,7 @@ public class RadarController {
             @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable Long targetUserId) {
 
-        return userService.findByUsername(userDetails.getUsername())
+        return userService.getUserByUsername(userDetails.getUsername())
                 .map(user -> {
                     radarService.sendPing(user.getId(), targetUserId);
                     return ResponseEntity.ok().<Void>build();

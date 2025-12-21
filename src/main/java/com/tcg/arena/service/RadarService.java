@@ -8,7 +8,6 @@ import com.tcg.arena.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -18,8 +17,9 @@ public class RadarService {
     @Autowired
     private UserRepository userRepository;
 
-    @Autowired
-    private NotificationService notificationService; // Assuming it exists for "Ping"
+    // @Autowired
+    // private NotificationService notificationService; // Assuming it exists for
+    // "Ping"
 
     // Update user location
     public void updateUserLocation(Long userId, LocationUpdateRequest request) {
