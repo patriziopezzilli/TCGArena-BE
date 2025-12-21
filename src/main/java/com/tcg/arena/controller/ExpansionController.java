@@ -25,13 +25,17 @@ public class ExpansionController {
     private CardTemplateService cardTemplateService;
 
     @GetMapping
-    public List<ExpansionDTO> getAllExpansions() {
+    public List<ExpansionDTO> getAllExpansions(
+            @RequestParam(required = false) List<Integer> years) {
         // OPTIMIZED: Load all counts in 2 batch queries instead of N queries per
         // expansion
         Map<String, Long> setCodeCounts = cardTemplateService.getAllCardCountsBySetCode();
         Map<Long, Long> expansionIdCounts = cardTemplateService.getAllCardCountsByExpansionId();
 
-        return expansionService.getAllExpansions().stream()
+        // Use year-filtered query (defaults to current year if no years specified)
+        List<Expansion> expansions = expansionService.getExpansionsByYears(years);
+
+        return expansions.stream()
                 .map(expansion -> new ExpansionDTO(expansion, setCodeCounts, expansionIdCounts))
                 .filter(expansionDTO -> {
                     // Exclude expansions with 0 total cards

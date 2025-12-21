@@ -24,4 +24,16 @@ public interface ExpansionRepository extends JpaRepository<Expansion, Long> {
 
     @Query("SELECT e FROM Expansion e LEFT JOIN e.sets s GROUP BY e ORDER BY MAX(s.releaseDate) DESC")
     List<Expansion> findAllByOrderByReleaseDateDesc();
+
+    /**
+     * Find expansions that have at least one set released in the given year(s)
+     */
+    @Query("SELECT DISTINCT e FROM Expansion e LEFT JOIN FETCH e.sets s WHERE YEAR(s.releaseDate) IN :years")
+    List<Expansion> findAllWithSetsByYears(@Param("years") List<Integer> years);
+
+    /**
+     * Find expansions that have at least one set released in the given year
+     */
+    @Query("SELECT DISTINCT e FROM Expansion e LEFT JOIN FETCH e.sets s WHERE YEAR(s.releaseDate) = :year")
+    List<Expansion> findAllWithSetsByYear(@Param("year") int year);
 }

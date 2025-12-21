@@ -33,6 +33,31 @@ public class ExpansionService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Get expansions filtered by year(s)
+     * If no years specified, defaults to current year
+     * 
+     * @param years List of years to filter by (e.g., [2025, 2024])
+     * @return Filtered and sorted expansions
+     */
+    public List<Expansion> getExpansionsByYears(List<Integer> years) {
+        List<Expansion> expansions;
+
+        if (years == null || years.isEmpty()) {
+            // Default: current year only
+            int currentYear = java.time.Year.now().getValue();
+            expansions = expansionRepository.findAllWithSetsByYear(currentYear);
+        } else if (years.size() == 1) {
+            expansions = expansionRepository.findAllWithSetsByYear(years.get(0));
+        } else {
+            expansions = expansionRepository.findAllWithSetsByYears(years);
+        }
+
+        return expansions.stream()
+                .sorted((e1, e2) -> e2.getReleaseDate().compareTo(e1.getReleaseDate()))
+                .collect(Collectors.toList());
+    }
+
     public Optional<Expansion> getExpansionById(Long id) {
         return expansionRepository.findById(id);
     }
