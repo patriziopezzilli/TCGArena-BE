@@ -6,6 +6,7 @@ import com.tcg.arena.model.CardTemplate;
 import com.tcg.arena.service.CardService;
 import com.tcg.arena.service.TCGSetService;
 import com.tcg.arena.service.CardTemplateService;
+import com.tcg.arena.service.JustTCGApiClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +16,7 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/sets")
@@ -28,6 +30,9 @@ public class TCGSetController {
 
     @Autowired
     private CardTemplateService cardTemplateService;
+
+    @Autowired
+    private JustTCGApiClient justTCGApiClient;
 
     @GetMapping
     public List<TCGSet> getAllSets() {
@@ -47,13 +52,14 @@ public class TCGSetController {
         return tcgSetService.getSetById(id)
                 .map(set -> {
                     // First try to get cards by set code
-                    Page<CardTemplate> cards = cardTemplateService.getCardTemplatesBySetCode(set.getSetCode(), pageable);
-                    
+                    Page<CardTemplate> cards = cardTemplateService.getCardTemplatesBySetCode(set.getSetCode(),
+                            pageable);
+
                     // If no cards found by set code and set has an expansion, try by expansion ID
                     if (cards.isEmpty() && set.getExpansion() != null) {
                         cards = cardTemplateService.getCardTemplatesByExpansionId(set.getExpansion().getId(), pageable);
                     }
-                    
+
                     return ResponseEntity.ok(cards);
                 })
                 .orElse(ResponseEntity.notFound().build());
@@ -97,5 +103,17 @@ public class TCGSetController {
             }
             return ResponseEntity.badRequest().body(java.util.Map.of("error", message));
         }
+    }
+
+    /**
+     * Sync release dates for all sets from JustTCG API
+     * This is a synchronous operation that may take several minutes
+     * 
+     * @return Map of TCGType names to number of sets updated
+     */
+    @PostMapping("/sync-release-dates")
+    public ResponseEntity<Map<String, Integer>> syncReleaseDates() {
+        Map<String, Integer> results = justTCGApiClient.syncAllSetReleaseDates();
+        return ResponseEntity.ok(results);
     }
 }

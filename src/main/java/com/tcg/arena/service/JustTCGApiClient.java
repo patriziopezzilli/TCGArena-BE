@@ -74,8 +74,7 @@ public class JustTCGApiClient {
             Map.entry(TCGType.LORCANA, "disney-lorcana"),
             Map.entry(TCGType.ONE_PIECE, "one-piece-card-game"),
             Map.entry(TCGType.DIGIMON, "digimon-card-game"),
-            Map.entry(TCGType.RIFTBOUND, "riftbound-league-of-legends-trading-card-game")
-    );
+            Map.entry(TCGType.RIFTBOUND, "riftbound-league-of-legends-trading-card-game"));
 
     public JustTCGApiClient(@Value("${justtcg.api.base-url}") String baseUrl) {
         this.webClient = WebClient.builder()
@@ -106,6 +105,8 @@ public class JustTCGApiClient {
         public Integer count;
         @JsonProperty("cards_count")
         public Integer cardsCount;
+        @JsonProperty("release_date")
+        public String releaseDate;
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
@@ -257,7 +258,7 @@ public class JustTCGApiClient {
                 .doOnNext(resp -> logger.debug("[FLUX] First page received, cards: {}", resp.getCards().size()))
                 .expand(response -> {
                     List<JustTCGCard> cards = response.getCards();
-                    logger.debug("[FLUX-EXPAND] Checking if we need next page. Current cards: {}, offset: {}", 
+                    logger.debug("[FLUX-EXPAND] Checking if we need next page. Current cards: {}, offset: {}",
                             cards.size(), response.currentOffset);
                     if (!cards.isEmpty()) {
                         int nextOffset = response.currentOffset + PAGE_SIZE;
@@ -302,7 +303,8 @@ public class JustTCGApiClient {
                 .onErrorResume(e -> {
                     logger.error("Error fetching cards for game {} (offset {}): {}", gameId, offset, e.getMessage(), e);
                     // Return empty response but preserve the CURRENT offset (not 0)
-                    // This allows the main flow to detect error and stop without saving wrong offset
+                    // This allows the main flow to detect error and stop without saving wrong
+                    // offset
                     JustTCGCardsResponse errorResponse = new JustTCGCardsResponse();
                     errorResponse.currentOffset = offset; // Preserve offset where error occurred
                     return Mono.just(errorResponse);
@@ -359,13 +361,13 @@ public class JustTCGApiClient {
 
         // Get current progress
         ImportProgress progress = getOrCreateImportProgress(tcgType);
-        
+
         // Check if import is already complete
         if (progress != null && progress.isComplete()) {
             logger.info("Import for {} already completed. Skipping.", tcgType);
             return Mono.just(0);
         }
-        
+
         int startOffset = (progress != null && progress.getLastOffset() != 0) ? progress.getLastOffset() : 0;
         logger.info("Resuming import from offset: {}", startOffset);
 
@@ -409,10 +411,11 @@ public class JustTCGApiClient {
                                 int savedInPage = 0;
                                 for (JustTCGCard card : cards) {
                                     if (card == null || card.name == null) {
-                                        logger.warn("Skipping null or invalid card at offset {}", response.currentOffset);
+                                        logger.warn("Skipping null or invalid card at offset {}",
+                                                response.currentOffset);
                                         continue;
                                     }
-                                    
+
                                     try {
                                         String setId = card.set != null ? card.set : "unknown";
                                         TCGSet tcgSet = setMap.get(setId);
@@ -449,7 +452,8 @@ public class JustTCGApiClient {
                                 try {
                                     updateProgress(tcgType, lastSuccessfulOffset[0], importCompleted[0]);
                                 } catch (Exception e) {
-                                    logger.error("Error updating progress after successful import: {}", e.getMessage(), e);
+                                    logger.error("Error updating progress after successful import: {}", e.getMessage(),
+                                            e);
                                 }
                             });
                 })
@@ -469,6 +473,92 @@ public class JustTCGApiClient {
                 });
     }
 
+    /**
+     * Synchronize release dates for all existing TCG sets by fetching from JustTCG
+     * API
+     * This is a synchronous operation that iterates through all TCG types and their
+     * sets
+     * 
+     * @return Map of TCGType to number of sets updated
+     */
+    @Transactional
+    public Map<String, Integer> syncAllSetReleaseDates() {
+        logger.info("Starting release date sync for all sets");
+        Map<String, Integer> results = new HashMap<>();
+
+        for (Map.Entry<TCGType, String> entry : TCG_TYPE_TO_GAME_ID.entrySet()) {
+            TCGType tcgType = entry.getKey();
+            String gameId = entry.getValue();
+
+            try {
+                int updated = syncReleaseDatesForGame(tcgType, gameId);
+                results.put(tcgType.name(), updated);
+                logger.info("Synced {} release dates for {}", updated, tcgType);
+
+                // Small delay between games to avoid rate limiting
+                Thread.sleep(1000);
+            } catch (Exception e) {
+                logger.error("Error syncing release dates for {}: {}", tcgType, e.getMessage());
+                results.put(tcgType.name(), -1); // -1 indicates error
+            }
+        }
+
+        logger.info("Release date sync completed. Results: {}", results);
+        return results;
+    }
+
+    /**
+     * Sync release dates for a specific game/TCG type
+     */
+    private int syncReleaseDatesForGame(TCGType tcgType, String gameId) {
+        logger.info("Fetching sets from JustTCG for {}", gameId);
+
+        // Fetch all sets from JustTCG API
+        List<JustTCGSet> justTCGSets = getAllSets(gameId)
+                .collectList()
+                .block(Duration.ofMinutes(5)); // 5 minute timeout
+
+        if (justTCGSets == null || justTCGSets.isEmpty()) {
+            logger.warn("No sets found from JustTCG for {}", gameId);
+            return 0;
+        }
+
+        logger.info("Found {} sets from JustTCG for {}", justTCGSets.size(), gameId);
+
+        int updatedCount = 0;
+        for (JustTCGSet justSet : justTCGSets) {
+            if (justSet.releaseDate == null || justSet.releaseDate.isEmpty()) {
+                continue;
+            }
+
+            // Find existing set by setCode
+            Optional<TCGSet> existingOpt = tcgSetRepository.findBySetCode(justSet.id);
+            if (existingOpt.isEmpty()) {
+                logger.debug("Set {} not found in DB, skipping", justSet.id);
+                continue;
+            }
+
+            TCGSet tcgSet = existingOpt.get();
+            LocalDateTime newReleaseDate = parseReleaseDate(justSet.releaseDate);
+
+            // Only update if the date is different (and not the default "now" date)
+            // Check if current release date is today or very recent (indicating default
+            // value)
+            LocalDateTime now = LocalDateTime.now();
+            boolean isDefaultDate = tcgSet.getReleaseDate().isAfter(now.minusDays(7));
+
+            if (isDefaultDate || !tcgSet.getReleaseDate().toLocalDate().equals(newReleaseDate.toLocalDate())) {
+                logger.debug("Updating release date for {}: {} -> {}",
+                        tcgSet.getName(), tcgSet.getReleaseDate(), newReleaseDate);
+                tcgSet.setReleaseDate(newReleaseDate);
+                tcgSetRepository.save(tcgSet);
+                updatedCount++;
+            }
+        }
+
+        return updatedCount;
+    }
+
     @Transactional
     private ImportProgress getOrCreateImportProgress(TCGType tcgType) {
         ImportProgress progress = importProgressRepository.findByTcgType(tcgType)
@@ -477,7 +567,7 @@ public class JustTCGApiClient {
                     ImportProgress p = new ImportProgress(tcgType);
                     return importProgressRepository.saveAndFlush(p);
                 });
-        logger.info("Import progress loaded/created for {} with ID: {}, offset: {}", 
+        logger.info("Import progress loaded/created for {} with ID: {}, offset: {}",
                 tcgType, progress.getId(), progress.getLastOffset());
         return progress;
     }
@@ -490,14 +580,14 @@ public class JustTCGApiClient {
             ImportProgress newProgress = new ImportProgress(tcgType);
             return newProgress;
         });
-        
-        logger.info("Updating progress for {}: offset {} -> {}, complete={}", 
+
+        logger.info("Updating progress for {}: offset {} -> {}, complete={}",
                 tcgType, p.getLastOffset(), offset, complete);
         p.setLastOffset(offset);
         p.setLastUpdated(LocalDateTime.now());
         p.setComplete(complete);
         importProgressRepository.saveAndFlush(p);
-        logger.info("Progress saved for {} (ID: {}). New offset: {}, complete: {}", 
+        logger.info("Progress saved for {} (ID: {}). New offset: {}, complete: {}",
                 tcgType, p.getId(), p.getLastOffset(), p.isComplete());
     }
 
@@ -564,7 +654,7 @@ public class JustTCGApiClient {
         tcgSet.setSetCode(justTCGSet.id);
         tcgSet.setExpansion(expansion);
         tcgSet.setCardCount(justTCGSet.cardsCount != null ? justTCGSet.cardsCount : 0);
-        tcgSet.setReleaseDate(LocalDateTime.now()); // JustTCG doesn't provide release date
+        tcgSet.setReleaseDate(parseReleaseDate(justTCGSet.releaseDate));
 
         tcgSet = tcgSetRepository.save(tcgSet);
         tcgSetCache.put(cacheKey, tcgSet);
