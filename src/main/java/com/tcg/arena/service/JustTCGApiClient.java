@@ -46,7 +46,7 @@ public class JustTCGApiClient {
     // Max concurrent set imports
     private static final int MAX_CONCURRENCY = 1; // Serial processing to be safe
     // Page size for card fetching
-    private static final int PAGE_SIZE = 20;
+    private static final int PAGE_SIZE = 100;
 
     private final WebClient webClient;
 
