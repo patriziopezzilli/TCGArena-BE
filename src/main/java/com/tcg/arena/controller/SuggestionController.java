@@ -33,8 +33,8 @@ public class SuggestionController {
             @RequestBody Map<String, String> payload) {
 
         String jwt = token.startsWith("Bearer ") ? token.substring(7) : token;
-        String email = jwtTokenUtil.getUsernameFromToken(jwt);
-        User user = userRepository.findByEmail(email).orElse(null);
+        String username = jwtTokenUtil.getUsernameFromToken(jwt);
+        User user = userRepository.findByUsername(username).orElse(null);
 
         if (user == null) {
             return ResponseEntity.status(401).body("Invalid User");
