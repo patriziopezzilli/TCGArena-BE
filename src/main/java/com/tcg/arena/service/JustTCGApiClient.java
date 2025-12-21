@@ -67,14 +67,15 @@ public class JustTCGApiClient {
     private String apiKey;
 
     // Mapping from internal TCGType to JustTCG game IDs (from /games endpoint)
-    private static final Map<TCGType, String> TCG_TYPE_TO_GAME_ID = Map.of(
-            TCGType.MAGIC, "magic-the-gathering",
-            TCGType.POKEMON, "pokemon",
-            TCGType.YUGIOH, "yugioh",
-            TCGType.LORCANA, "disney-lorcana",
-            TCGType.ONE_PIECE, "one-piece-card-game",
-            TCGType.DIGIMON, "digimon-card-game",
-            TCGType.FLESH_AND_BLOOD, "flesh-and-blood-tcg");
+    private static final Map<TCGType, String> TCG_TYPE_TO_GAME_ID = Map.ofEntries(
+            Map.entry(TCGType.MAGIC, "magic-the-gathering"),
+            Map.entry(TCGType.POKEMON, "pokemon"),
+            Map.entry(TCGType.YUGIOH, "yugioh"),
+            Map.entry(TCGType.LORCANA, "disney-lorcana"),
+            Map.entry(TCGType.ONE_PIECE, "one-piece-card-game"),
+            Map.entry(TCGType.DIGIMON, "digimon-card-game"),
+            Map.entry(TCGType.RIFTBOUND, "riftbound-league-of-legends-trading-card-game")
+    );
 
     public JustTCGApiClient(@Value("${justtcg.api.base-url}") String baseUrl) {
         this.webClient = WebClient.builder()
@@ -251,14 +252,20 @@ public class JustTCGApiClient {
      * Returns Flux of JustTCGCardsResponse to allow processing per page
      */
     public Flux<JustTCGCardsResponse> getCardPagesForGame(String gameId, int startOffset) {
+        logger.info("[FLUX] getCardPagesForGame called for game: {}, startOffset: {}", gameId, startOffset);
         return getCardsPageByGame(gameId, startOffset)
+                .doOnNext(resp -> logger.debug("[FLUX] First page received, cards: {}", resp.getCards().size()))
                 .expand(response -> {
                     List<JustTCGCard> cards = response.getCards();
+                    logger.debug("[FLUX-EXPAND] Checking if we need next page. Current cards: {}, offset: {}", 
+                            cards.size(), response.currentOffset);
                     if (!cards.isEmpty()) {
                         int nextOffset = response.currentOffset + PAGE_SIZE;
+                        logger.debug("[FLUX-EXPAND] Fetching next page at offset: {}", nextOffset);
                         return getCardsPageByGame(gameId, nextOffset)
                                 .delaySubscription(Duration.ofMillis(API_DELAY_MS));
                     }
+                    logger.info("[FLUX-EXPAND] No more cards, ending stream");
                     return Mono.empty();
                 });
     }
@@ -385,6 +392,7 @@ public class JustTCGApiClient {
                     logger.info("Created/loaded {} sets in DB", setMap.size());
 
                     // Step 2: Fetch cards page by page starting from offset
+                    logger.info("Starting card fetch for {} from offset {}", gameId, startOffset);
                     return getCardPagesForGame(gameId, startOffset)
                             .concatMap(response -> { // concatMap ensures sequential processing
                                 List<JustTCGCard> cards = response.getCards();
@@ -455,6 +463,7 @@ public class JustTCGApiClient {
                     }
                 })
                 .doFinally(signal -> {
+                    logger.info("Import finalized with signal: {} for {}", signal, tcgType);
                     expansionCache.clear();
                     tcgSetCache.clear();
                 });

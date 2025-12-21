@@ -6,10 +6,8 @@ public enum TCGType {
     MAGIC("Magic: The Gathering", "Block", "Set", true, true),
     YUGIOH("Yu-Gi-Oh!", null, "Set", false, true),
     DIGIMON("Digimon", null, "Booster Set", false, true),
-    DRAGON_BALL_SUPER("Dragon Ball Super", null, "Set", false, true),
-    DRAGON_BALL_FUSION("Dragon Ball Fusion World", null, "Set", false, true),
-    FLESH_AND_BLOOD("Flesh and Blood", null, "Set", false, false),
-    LORCANA("Lorcana", null, "Set", true, false);
+    LORCANA("Lorcana", null, "Set", true, false),
+    RIFTBOUND("Riftbound: League of Legends", null, "Set", false, true);
 
     private final String displayName;
     private final String level1Label; // Era, Block, etc. (null for flat hierarchy)

@@ -72,7 +72,10 @@ public class JustTCGBatchConfiguration {
             }
 
             try {
-                Integer importedCount = justTCGApiClient.importCardsForTCG(tcgType).block();
+                logger.info(\"Starting reactive import for {}\", tcgType.getDisplayName());
+                Integer importedCount = justTCGApiClient.importCardsForTCG(tcgType)
+                        .timeout(java.time.Duration.ofHours(4)) // 4 hour timeout
+                        .block();
                 logger.info("JustTCG import completed. Imported {} cards for {}",
                         importedCount, tcgType.getDisplayName());
             } catch (Exception e) {
