@@ -1,5 +1,6 @@
 package com.tcg.arena.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.tcg.arena.model.TCGType;
 
 public class RadarUserDto {
@@ -10,6 +11,8 @@ public class RadarUserDto {
     private Double longitude;
     private TCGType favoriteTCG;
     private String profileImageUrl;
+
+    @JsonProperty("isOnline")
     private boolean isOnline; // For "Live" status
 
     public RadarUserDto() {
