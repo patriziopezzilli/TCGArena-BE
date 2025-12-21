@@ -350,10 +350,11 @@ public class JustTCGApiClient {
 
         logger.info("Starting JustTCG import for {} (game: {})", tcgType.getDisplayName(), gameId);
 
-        // Get current progress
+        // Get current progress - keep reference to update it throughout the import
         ImportProgress progress = getOrCreateImportProgress(tcgType);
+        final Long progressId = progress.getId(); // Store ID to reload entity in transactional context
         int startOffset = progress.getLastOffset();
-        logger.info("Resuming import from offset: {}", startOffset);
+        logger.info("Resuming import from offset: {} (Progress ID: {})", startOffset, progressId);
 
         // Step 1: Fetch all sets first to get full metadata (only if starting fresh or
         // needed)
@@ -393,12 +394,12 @@ public class JustTCGApiClient {
                                         logger.warn(
                                                 "Import stopped due to error at offset {}. Last successful offset: {}",
                                                 response.currentOffset, lastSuccessfulOffset[0]);
-                                        updateProgress(tcgType, lastSuccessfulOffset[0], false);
+                                        updateProgress(progressId, tcgType, lastSuccessfulOffset[0], false);
                                     } else {
                                         // Normal completion: no more cards
                                         logger.info("Import completed successfully. Total offset reached: {}",
                                                 lastSuccessfulOffset[0]);
-                                        updateProgress(tcgType, lastSuccessfulOffset[0], true);
+                                        updateProgress(progressId, tcgType, lastSuccessfulOffset[0], true);
                                     }
                                     return Mono.empty(); // Stop the stream
                                 }
@@ -428,7 +429,7 @@ public class JustTCGApiClient {
 
                                 // Save progress after successful page processing
                                 // Save CURRENT offset (where we successfully processed), not next
-                                updateProgress(tcgType, response.currentOffset, false);
+                                updateProgress(progressId, tcgType, response.currentOffset, false);
                                 logger.debug("Progress saved at offset: {} ({} cards saved)", response.currentOffset,
                                         savedInPage);
 
@@ -450,31 +451,41 @@ public class JustTCGApiClient {
                 });
     }
 
+    @Transactional
     private ImportProgress getOrCreateImportProgress(TCGType tcgType) {
-        return importProgressRepository.findByTcgType(tcgType)
+        ImportProgress progress = importProgressRepository.findByTcgType(tcgType)
                 .orElseGet(() -> {
+                    logger.info("Creating new import progress for {}", tcgType);
                     ImportProgress p = new ImportProgress(tcgType);
-                    return importProgressRepository.save(p);
+                    return importProgressRepository.saveAndFlush(p);
                 });
+        logger.info("Import progress loaded/created for {} with ID: {}, offset: {}", 
+                tcgType, progress.getId(), progress.getLastOffset());
+        return progress;
     }
 
-    // Removed @Transactional as it is ignored on private methods called internally
-    private void updateProgress(TCGType tcgType, int offset, boolean complete) {
-        importProgressRepository.findByTcgType(tcgType).ifPresentOrElse(p -> {
-            logger.info("Updating progress for {}: offset {} -> {}, complete={}", tcgType, p.getLastOffset(), offset,
-                    complete);
-            p.setLastOffset(offset);
-            p.setLastUpdated(LocalDateTime.now()); // Explicitly update timestamp
-            if (complete) {
-                p.setComplete(true);
-            } else {
-                p.setComplete(false);
-            }
-            importProgressRepository.saveAndFlush(p);
-            logger.info("Progress saved for {} (ID: {}). New offset: {}", tcgType, p.getId(), p.getLastOffset());
-        }, () -> {
-            logger.error("Could not find import progress for {}", tcgType);
+    // Update progress using ID lookup - ensures we get the managed entity
+    // If entity is not found by ID (shouldn't happen), we cannot recover as we don't have tcgType
+    // So we need to pass both ID and TCGType for safety
+    @Transactional
+    public void updateProgress(Long progressId, TCGType tcgType, int offset, boolean complete) {
+        ImportProgress p = importProgressRepository.findById(progressId).orElseGet(() -> {
+            logger.warn("Import progress with ID {} not found, creating new one for {}", progressId, tcgType);
+            ImportProgress newProgress = new ImportProgress(tcgType);
+            return importProgressRepository.saveAndFlush(newProgress);
         });
+        
+        logger.debug("Updating progress for {} (ID: {}): offset {} -> {}, complete={}", 
+                p.getTcgType(), p.getId(), p.getLastOffset(), offset, complete);
+        p.setLastOffset(offset);
+        p.setLastUpdated(LocalDateTime.now());
+        if (complete) {
+            p.setComplete(true);
+        } else {
+            p.setComplete(false);
+        }
+        importProgressRepository.saveAndFlush(p);
+        logger.info("Progress saved for {} (ID: {}). New offset: {}", p.getTcgType(), p.getId(), p.getLastOffset());
     }
 
     /**
