@@ -84,13 +84,14 @@ public class SecurityConfig {
                         .requestMatchers("/api/tournaments/request").authenticated()
                         // Public tournament endpoints
                         .requestMatchers("GET", "/api/tournaments/**").permitAll()
-                        .requestMatchers("GET", "/api/shops/**").permitAll()
+                        // Protected shop endpoints (must come BEFORE the permitAll wildcard!)
                         .requestMatchers("/api/shops/suggest").authenticated()
-                        .requestMatchers("/api/shops/*/subscribe").authenticated()
-                        .requestMatchers("/api/shops/*/subscribe").authenticated()
+                        .requestMatchers("POST", "/api/shops/*/subscribe").authenticated()
                         .requestMatchers("DELETE", "/api/shops/*/subscribe").authenticated()
                         .requestMatchers("GET", "/api/shops/*/subscription").authenticated()
                         .requestMatchers("GET", "/api/shops/subscriptions").authenticated()
+                        // Public shop endpoints
+                        .requestMatchers("GET", "/api/shops/**").permitAll()
                         .requestMatchers("GET", "/api/expansions/**").permitAll()
                         .requestMatchers("GET", "/api/sets/**").permitAll()
                         .requestMatchers("GET", "/api/decks/public").permitAll()
