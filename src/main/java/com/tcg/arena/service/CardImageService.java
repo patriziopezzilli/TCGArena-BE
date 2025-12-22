@@ -30,7 +30,7 @@ public class CardImageService {
     private boolean isSyncing = false;
 
     @Async
-    public void syncImages() {
+    public void syncImages(String tcgTypeFilter, Integer yearFilter) {
         if (isSyncing) {
             System.out.println("Image sync already in progress.");
             return;
@@ -41,6 +41,10 @@ public class CardImageService {
 
         try {
             System.out.println("Starting card image sync to: " + storagePath);
+            if (tcgTypeFilter != null)
+                System.out.println("Filter TCG: " + tcgTypeFilter);
+            if (yearFilter != null)
+                System.out.println("Filter Year: " + yearFilter);
 
             // Create directory if not exists
             Path rootLocation = Paths.get(storagePath);
@@ -49,11 +53,32 @@ public class CardImageService {
             }
 
             List<CardTemplate> allCards = cardTemplateRepository.findAll();
-            totalCount.set(allCards.size());
 
-            System.out.println("Found " + allCards.size() + " cards to process.");
+            // Apply Filters
+            List<CardTemplate> cardsToProcess = allCards.stream()
+                    .filter(card -> {
+                        if (tcgTypeFilter != null && !tcgTypeFilter.isEmpty()) {
+                            return card.getTcgType() != null &&
+                                    card.getTcgType().name().equalsIgnoreCase(tcgTypeFilter);
+                        }
+                        return true;
+                    })
+                    .filter(card -> {
+                        if (yearFilter != null) {
+                            if (card.getExpansion() == null)
+                                return false;
+                            // Use the transient method getReleaseDate()
+                            return card.getExpansion().getReleaseDate().getYear() == yearFilter;
+                        }
+                        return true;
+                    })
+                    .toList();
 
-            for (CardTemplate card : allCards) {
+            totalCount.set(cardsToProcess.size());
+
+            System.out.println("Found " + cardsToProcess.size() + " cards to process (after filtering).");
+
+            for (CardTemplate card : cardsToProcess) {
                 try {
                     downloadImageForCard(card, rootLocation);
                 } catch (Exception e) {

@@ -16,8 +16,10 @@ public class CardImageAdminController {
     private CardImageService cardImageService;
 
     @PostMapping("/sync")
-    public ResponseEntity<String> triggerSync() {
-        cardImageService.syncImages();
+    public ResponseEntity<String> triggerSync(
+            @org.springframework.web.bind.annotation.RequestParam(required = false) String tcgType,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) Integer year) {
+        cardImageService.syncImages(tcgType, year);
         return ResponseEntity.ok("Image sync started in background.");
     }
 
