@@ -30,6 +30,7 @@ public class CardImageService {
     private boolean isSyncing = false;
 
     @Async
+    @org.springframework.transaction.annotation.Transactional
     public void syncImages(String tcgTypeFilter, Integer yearFilter) {
         if (isSyncing) {
             System.out.println("Image sync already in progress.");
