@@ -1,4 +1,4 @@
-epackage com.tcg.arena.model;
+package com.tcg.arena.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
