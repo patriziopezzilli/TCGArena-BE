@@ -62,6 +62,13 @@ public class User {
 
     private String deviceToken;
 
+    // Trade Rating System
+    @Column(nullable = false)
+    private Integer tradeRatingSum = 0; // Sum of all ratings received
+
+    @Column(nullable = false)
+    private Integer tradeRatingCount = 0; // Number of ratings received
+
     // Getters and Setters
     public Long getId() {
         return id;
@@ -227,5 +234,40 @@ public class User {
                     .reduce((a, b) -> a + "," + b)
                     .orElse(null);
         }
+    }
+
+    public Integer getTradeRatingSum() {
+        return tradeRatingSum != null ? tradeRatingSum : 0;
+    }
+
+    public void setTradeRatingSum(Integer tradeRatingSum) {
+        this.tradeRatingSum = tradeRatingSum;
+    }
+
+    public Integer getTradeRatingCount() {
+        return tradeRatingCount != null ? tradeRatingCount : 0;
+    }
+
+    public void setTradeRatingCount(Integer tradeRatingCount) {
+        this.tradeRatingCount = tradeRatingCount;
+    }
+
+    // Computed average trade rating (1-5 stars)
+    @JsonProperty("trade_rating")
+    public Double getTradeRating() {
+        if (tradeRatingCount == null || tradeRatingCount == 0) {
+            return null;
+        }
+        return (double) tradeRatingSum / tradeRatingCount;
+    }
+
+    // Helper method to add a new rating
+    public void addTradeRating(int rating) {
+        if (this.tradeRatingSum == null)
+            this.tradeRatingSum = 0;
+        if (this.tradeRatingCount == null)
+            this.tradeRatingCount = 0;
+        this.tradeRatingSum += rating;
+        this.tradeRatingCount += 1;
     }
 }

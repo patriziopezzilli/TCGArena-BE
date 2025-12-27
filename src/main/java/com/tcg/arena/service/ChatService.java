@@ -170,16 +170,24 @@ public class ChatService {
         conversation.setIsReadOnly(true);
         conversationRepository.save(conversation);
 
-        // Award points to the other participant
+        // Award points and rating to the other participant
         User otherUser = conversation.getParticipants().stream()
                 .filter(u -> !u.getId().equals(userId))
                 .findFirst()
                 .orElse(null);
 
         if (otherUser != null && pointsToAssign > 0) {
+            // Award points
             otherUser.setPoints(otherUser.getPoints() + pointsToAssign);
+
+            // Add trade rating (points are used as rating 1-5)
+            otherUser.addTradeRating(pointsToAssign);
+
             userRepository.save(otherUser);
-            System.out.println("🎯 ChatService: Awarded " + pointsToAssign + " points to user " + otherUser.getId());
+            System.out.println(
+                    "🎯 ChatService: Awarded " + pointsToAssign + " points and rating to user " + otherUser.getId());
+            System.out.println("📊 ChatService: User " + otherUser.getId() + " now has trade rating: "
+                    + otherUser.getTradeRating());
         }
 
         return convertToDto(conversation, userId);
