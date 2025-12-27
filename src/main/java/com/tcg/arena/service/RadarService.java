@@ -9,8 +9,7 @@ import com.tcg.arena.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -58,30 +57,9 @@ public class RadarService {
                     return dist <= radiusKm;
                 })
                 .map(this::convertToRadarDto)
-                .collect(Collectors.toCollection(ArrayList::new)); // Use ArrayList to allow modification
-
-        // MOCK DATA: Inject fake users for testing/demo purposes if list is empty or
-        // minimal
-        // This ensures the user sees specific "Ghost" users to Verify the feature
-        if (nearbyUsers.isEmpty()) {
-            nearbyUsers.add(createMockUser(99991L, latitude + 0.002, longitude + 0.002, "Ghost Trainer A"));
-            nearbyUsers.add(createMockUser(99992L, latitude - 0.003, longitude + 0.001, "Ghost Trainer B"));
-            nearbyUsers.add(createMockUser(99993L, latitude + 0.001, longitude - 0.003, "Ghost Trainer C"));
-        }
+                .collect(Collectors.toList());
 
         return nearbyUsers;
-    }
-
-    private RadarUserDto createMockUser(Long id, double lat, double lon, String displayName) {
-        RadarUserDto dto = new RadarUserDto();
-        dto.setId(id);
-        dto.setUsername("Ghost");
-        dto.setDisplayName(displayName);
-        dto.setLatitude(lat);
-        dto.setLongitude(lon);
-        dto.setOnline(true);
-        dto.setFavoriteTCG(com.tcg.arena.model.TCGType.POKEMON);
-        return dto;
     }
 
     // Send Ping
@@ -118,13 +96,21 @@ public class RadarService {
         dto.setHaveList(tradeListEntryRepository.findByUserAndType(user, TradeListType.HAVE)
                 .stream().map(this::toRadarTradeEntry).collect(Collectors.toList()));
 
-        // Fetch cards from LISTA type decks
-        dto.setCards(deckRepository.findByOwnerIdOrderByDateCreatedDesc(user.getId())
+        // Fetch cards from ALL public decks
+        Map<Long, RadarUserCard> cardMap = new HashMap<>();
+        deckRepository.findByOwnerIdOrderByDateCreatedDesc(user.getId())
                 .stream()
-                .filter(deck -> deck.getDeckType() == DeckType.LISTA)
+                .filter(deck -> deck.getIsPublic())
                 .flatMap(deck -> deck.getCards().stream())
-                .map(this::toRadarUserCard)
-                .collect(Collectors.toList()));
+                .forEach(card -> {
+                    RadarUserCard existing = cardMap.get(card.getCardId());
+                    if (existing != null) {
+                        existing.setQuantity(existing.getQuantity() + card.getQuantity());
+                    } else {
+                        cardMap.put(card.getCardId(), toRadarUserCard(card));
+                    }
+                });
+        dto.setCards(new ArrayList<>(cardMap.values()));
 
         return dto;
     }
