@@ -1,4 +1,4 @@
-package com.tcg.arena.model;
+epackage com.tcg.arena.model;
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
@@ -27,8 +27,19 @@ public class ChatConversation {
     @Column(columnDefinition = "TEXT")
     private String contextJson; // JSON string for card details if type is TRADE
 
+    @Enumerated(EnumType.STRING)
+    @Column
+    private ChatStatus status; // ACTIVE, COMPLETED
+
+    @Column
+    private Boolean isReadOnly; // Lock chat when trade is completed
+
     public enum ChatType {
         FREE, TRADE
+    }
+
+    public enum ChatStatus {
+        ACTIVE, COMPLETED
     }
 
     public ChatConversation() {
@@ -73,5 +84,21 @@ public class ChatConversation {
 
     public void setContextJson(String contextJson) {
         this.contextJson = contextJson;
+    }
+
+    public ChatStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(ChatStatus status) {
+        this.status = status;
+    }
+
+    public Boolean getIsReadOnly() {
+        return isReadOnly;
+    }
+
+    public void setIsReadOnly(Boolean isReadOnly) {
+        this.isReadOnly = isReadOnly;
     }
 }

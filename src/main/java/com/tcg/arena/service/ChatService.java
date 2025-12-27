@@ -118,6 +118,8 @@ public class ChatService {
         dto.setLastMessageAt(conversation.getLastMessageAt());
         dto.setType(conversation.getType().name());
         dto.setContextJson(conversation.getContextJson());
+        dto.setStatus(conversation.getStatus() != null ? conversation.getStatus().name() : "ACTIVE");
+        dto.setIsReadOnly(conversation.getIsReadOnly() != null ? conversation.getIsReadOnly() : false);
 
         // Map participants to simple RadarUserDto style (reusing DTO logic or
         // simplifying)
@@ -145,5 +147,41 @@ public class ChatService {
         dto.setTimestamp(message.getTimestamp());
         dto.setRead(message.isRead());
         return dto;
+    }
+
+    @Transactional
+    public ChatConversationDto completeTrade(Long userId, Long conversationId, int pointsToAssign) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        ChatConversation conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+
+        // Validate participation
+        if (!conversation.getParticipants().contains(user)) {
+            throw new RuntimeException("User is not a participant");
+        }
+
+        // Validate it's a trade conversation
+        if (conversation.getType() != ChatConversation.ChatType.TRADE) {
+            throw new RuntimeException("Can only complete trade conversations");
+        }
+
+        // Mark as completed and readonly
+        conversation.setStatus(ChatConversation.ChatStatus.COMPLETED);
+        conversation.setIsReadOnly(true);
+        conversationRepository.save(conversation);
+
+        // Award points to the other participant
+        User otherUser = conversation.getParticipants().stream()
+                .filter(u -> !u.getId().equals(userId))
+                .findFirst()
+                .orElse(null);
+
+        if (otherUser != null && pointsToAssign > 0) {
+            otherUser.setPoints(otherUser.getPoints() + pointsToAssign);
+            userRepository.save(otherUser);
+            System.out.println("🎯 ChatService: Awarded " + pointsToAssign + " points to user " + otherUser.getId());
+        }
+
+        return convertToDto(conversation, userId);
     }
 }

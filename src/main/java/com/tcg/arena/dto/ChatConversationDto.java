@@ -59,4 +59,23 @@ public class ChatConversationDto {
     public void setLastMessagePreview(String lastMessagePreview) {
         this.lastMessagePreview = lastMessagePreview;
     }
+
+    private String status; // ACTIVE, COMPLETED
+    private Boolean isReadOnly;
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public Boolean getIsReadOnly() {
+        return isReadOnly;
+    }
+
+    public void setIsReadOnly(Boolean isReadOnly) {
+        this.isReadOnly = isReadOnly;
+    }
 }

@@ -63,4 +63,14 @@ public class ChatController {
         Long userId = getUserIdFromRequest(request);
         return ResponseEntity.ok(chatService.getMessages(userId, conversationId));
     }
+
+    @PostMapping("/{conversationId}/complete")
+    public ResponseEntity<ChatConversationDto> completeTrade(
+            @PathVariable Long conversationId,
+            @RequestBody CompleteTradeRequest completeRequest,
+            HttpServletRequest request) {
+        Long userId = getUserIdFromRequest(request);
+        int points = completeRequest.getPoints() != null ? completeRequest.getPoints() : 0;
+        return ResponseEntity.ok(chatService.completeTrade(userId, conversationId, points));
+    }
 }
