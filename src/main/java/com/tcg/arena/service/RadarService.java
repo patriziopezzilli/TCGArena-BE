@@ -1,9 +1,10 @@
 package com.tcg.arena.service;
 
 import com.tcg.arena.dto.LocationUpdateRequest;
-import com.tcg.arena.dto.RadarUserDto;
-import com.tcg.arena.model.User;
-import com.tcg.arena.model.UserLocation;
+import com.tcg.arena.dto.*;
+import com.tcg.arena.model.*;
+import com.tcg.arena.repository.DeckRepository;
+import com.tcg.arena.repository.TradeListEntryRepository;
 import com.tcg.arena.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -18,9 +19,11 @@ public class RadarService {
     @Autowired
     private UserRepository userRepository;
 
-    // @Autowired
-    // private NotificationService notificationService; // Assuming it exists for
-    // "Ping"
+    @Autowired
+    private TradeListEntryRepository tradeListEntryRepository;
+
+    @Autowired
+    private DeckRepository deckRepository;
 
     // Update user location
     public void updateUserLocation(Long userId, LocationUpdateRequest request) {
@@ -93,27 +96,62 @@ public class RadarService {
     private RadarUserDto convertToRadarDto(User user) {
         RadarUserDto dto = new RadarUserDto();
         dto.setId(user.getId());
-        // PRIVACY: Mask user details
-        dto.setUsername("Anonymous");
-        dto.setDisplayName("Trainer");
-        dto.setProfileImageUrl(null); // Hide exact identity
+        dto.setUsername(user.getUsername());
+        dto.setDisplayName(user.getDisplayName());
+        dto.setProfileImageUrl(user.getProfileImageUrl());
 
         if (user.getLocation() != null) {
-            // PRIVACY: Fuzz location slightly (random offset ~50-100m)
-            // For MVP, deterministic pseudo-random fuzz based on ID would be better, but
-            // simple random for now
-            double fuzz = 0.001;
-            dto.setLatitude(user.getLocation().getLatitude() + (Math.random() - 0.5) * fuzz);
-            dto.setLongitude(user.getLocation().getLongitude() + (Math.random() - 0.5) * fuzz);
+            dto.setLatitude(user.getLocation().getLatitude());
+            dto.setLongitude(user.getLocation().getLongitude());
         }
 
-        // Assuming user has getFavoriteGame() returning TCGType
         if (user.getFavoriteTCGTypes() != null && !user.getFavoriteTCGTypes().isEmpty()) {
             dto.setFavoriteTCG(user.getFavoriteTCGTypes().get(0));
         } else {
-            dto.setFavoriteTCG(com.tcg.arena.model.TCGType.MAGIC); // Default
+            dto.setFavoriteTCG(TCGType.MAGIC);
         }
-        dto.setOnline(true); // For now hardcoded or check lastActive
+        dto.setOnline(true);
+
+        // Fetch trade lists
+        dto.setWantList(tradeListEntryRepository.findByUserAndType(user, TradeListType.WANT)
+                .stream().map(this::toRadarTradeEntry).collect(Collectors.toList()));
+        dto.setHaveList(tradeListEntryRepository.findByUserAndType(user, TradeListType.HAVE)
+                .stream().map(this::toRadarTradeEntry).collect(Collectors.toList()));
+
+        // Fetch cards from LISTA type decks
+        dto.setCards(deckRepository.findByOwnerIdOrderByDateCreatedDesc(user.getId())
+                .stream()
+                .filter(deck -> deck.getDeckType() == DeckType.LISTA)
+                .flatMap(deck -> deck.getCards().stream())
+                .map(this::toRadarUserCard)
+                .collect(Collectors.toList()));
+
+        return dto;
+    }
+
+    private RadarTradeEntry toRadarTradeEntry(TradeListEntry entry) {
+        RadarTradeEntry dto = new RadarTradeEntry();
+        dto.setId(entry.getId());
+        dto.setCardTemplateId(entry.getCardTemplate().getId());
+        dto.setCardName(entry.getCardTemplate().getName());
+        dto.setImageUrl(entry.getCardTemplate().getImageUrl());
+        dto.setTcgType(entry.getCardTemplate().getTcgType());
+        dto.setRarity(entry.getCardTemplate().getRarity() != null ? entry.getCardTemplate().getRarity().name() : null);
+        return dto;
+    }
+
+    private RadarUserCard toRadarUserCard(DeckCard card) {
+        RadarUserCard dto = new RadarUserCard();
+        dto.setCardId(card.getCardId());
+        dto.setCardName(card.getCardName());
+        dto.setImageUrl(card.getCardImageUrl());
+        dto.setQuantity(card.getQuantity());
+        dto.setCondition(card.getCondition().name());
+        dto.setRarity(card.getRarity());
+        dto.setSetName(card.getSetName());
+        if (card.getCardTemplate() != null) {
+            dto.setTcgType(card.getCardTemplate().getTcgType());
+        }
         return dto;
     }
 

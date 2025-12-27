@@ -15,6 +15,10 @@ public class RadarUserDto {
     @JsonProperty("isOnline")
     private boolean isOnline; // For "Live" status
 
+    private java.util.List<RadarTradeEntry> wantList;
+    private java.util.List<RadarTradeEntry> haveList;
+    private java.util.List<RadarUserCard> cards;
+
     public RadarUserDto() {
     }
 
@@ -92,5 +96,29 @@ public class RadarUserDto {
 
     public void setOnline(boolean online) {
         isOnline = online;
+    }
+
+    public java.util.List<RadarTradeEntry> getWantList() {
+        return wantList;
+    }
+
+    public void setWantList(java.util.List<RadarTradeEntry> wantList) {
+        this.wantList = wantList;
+    }
+
+    public java.util.List<RadarTradeEntry> getHaveList() {
+        return haveList;
+    }
+
+    public void setHaveList(java.util.List<RadarTradeEntry> haveList) {
+        this.haveList = haveList;
+    }
+
+    public java.util.List<RadarUserCard> getCards() {
+        return cards;
+    }
+
+    public void setCards(java.util.List<RadarUserCard> cards) {
+        this.cards = cards;
     }
 }
