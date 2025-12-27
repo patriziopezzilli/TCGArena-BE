@@ -91,25 +91,35 @@ public class RadarService {
         dto.setOnline(true);
 
         // Fetch trade lists
-        dto.setWantList(tradeListEntryRepository.findByUserAndType(user, TradeListType.WANT)
-                .stream().map(this::toRadarTradeEntry).collect(Collectors.toList()));
-        dto.setHaveList(tradeListEntryRepository.findByUserAndType(user, TradeListType.HAVE)
-                .stream().map(this::toRadarTradeEntry).collect(Collectors.toList()));
+        List<TradeListEntry> wantEntries = tradeListEntryRepository.findByUserAndType(user, TradeListType.WANT);
+        List<TradeListEntry> haveEntries = tradeListEntryRepository.findByUserAndType(user, TradeListType.HAVE);
+        System.out.println("🔍 RadarService: User " + user.getId() + " - WANT entries: " + wantEntries.size()
+                + ", HAVE entries: " + haveEntries.size());
 
-        // Fetch cards from ALL public decks
+        dto.setWantList(wantEntries.stream().map(this::toRadarTradeEntry).collect(Collectors.toList()));
+        dto.setHaveList(haveEntries.stream().map(this::toRadarTradeEntry).collect(Collectors.toList()));
+
+        // Fetch cards from ALL decks (no public filter per user request)
+        List<Deck> allDecks = deckRepository.findByOwnerIdOrderByDateCreatedDesc(user.getId());
+
+        System.out.println("🔍 RadarService: User " + user.getId() + " - Total decks: " + allDecks.size());
+
         Map<Long, RadarUserCard> cardMap = new HashMap<>();
-        deckRepository.findByOwnerIdOrderByDateCreatedDesc(user.getId())
-                .stream()
-                .filter(deck -> deck.getIsPublic())
-                .flatMap(deck -> deck.getCards().stream())
-                .forEach(card -> {
-                    RadarUserCard existing = cardMap.get(card.getCardId());
-                    if (existing != null) {
-                        existing.setQuantity(existing.getQuantity() + card.getQuantity());
-                    } else {
-                        cardMap.put(card.getCardId(), toRadarUserCard(card));
-                    }
-                });
+        int totalCards = 0;
+        for (Deck deck : allDecks) {
+            totalCards += deck.getCards().size();
+            for (DeckCard card : deck.getCards()) {
+                RadarUserCard existing = cardMap.get(card.getCardId());
+                if (existing != null) {
+                    existing.setQuantity(existing.getQuantity() + card.getQuantity());
+                } else {
+                    cardMap.put(card.getCardId(), toRadarUserCard(card));
+                }
+            }
+        }
+        System.out.println("🔍 RadarService: User " + user.getId() + " - Total cards from decks: " + totalCards
+                + ", Unique cards: " + cardMap.size());
+
         dto.setCards(new ArrayList<>(cardMap.values()));
 
         return dto;

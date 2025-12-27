@@ -1,5 +1,6 @@
 package com.tcg.arena.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDateTime;
 
 public class ChatMessageDto {
@@ -8,6 +9,7 @@ public class ChatMessageDto {
     private Long senderId;
     private String content;
     private LocalDateTime timestamp;
+    @JsonProperty("isRead")
     private boolean isRead;
 
     // Getters and Setters
