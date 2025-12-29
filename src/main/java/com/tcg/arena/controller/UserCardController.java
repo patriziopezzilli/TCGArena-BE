@@ -8,6 +8,8 @@ import com.tcg.arena.model.UserCard;
 import com.tcg.arena.model.UserCardDeck;
 import com.tcg.arena.repository.DeckRepository;
 import com.tcg.arena.repository.UserCardDeckRepository;
+import com.tcg.arena.model.DeckCard;
+import java.util.Iterator;
 import com.tcg.arena.service.CardTemplateService;
 import com.tcg.arena.service.UserCardService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -317,6 +319,46 @@ public class UserCardController {
 
         UserCardDeck assignment = new UserCardDeck(userCard, deck);
         UserCardDeck saved = userCardDeckRepository.save(assignment);
+
+        // SYNC LOGIC: Also update DeckCard list for visibility (Legacy/View support)
+        boolean found = false;
+        if (deck.getCards() == null) {
+            deck.setCards(new java.util.ArrayList<>());
+        }
+
+        for (DeckCard dc : deck.getCards()) {
+            // Check if matches Template and Condition/Grading
+            boolean gradeMatch = (dc.getIsGraded() == null ? false : dc.getIsGraded()) == userCard.getIsGraded();
+            // Simplified match: mostly Template + Condition
+            if (dc.getCardId().equals(userCard.getCardTemplate().getId())
+                    && dc.getCondition() == userCard.getCondition()
+                    && gradeMatch) {
+
+                dc.setQuantity(dc.getQuantity() + 1);
+                found = true;
+                break;
+            }
+        }
+
+        if (!found) {
+            DeckCard newDc = new DeckCard();
+            newDc.setDeck(deck);
+            newDc.setCardId(userCard.getCardTemplate().getId());
+            newDc.setQuantity(1);
+            newDc.setCardName(userCard.getCardTemplate().getName());
+            newDc.setCardImageUrl(userCard.getCardTemplate().getImageUrl());
+            newDc.setCondition(userCard.getCondition());
+            // Sync grading info
+            newDc.setIsGraded(userCard.getIsGraded());
+            newDc.setGradeService(userCard.getGradeService());
+            newDc.setGrade(userCard.getGradeScore() != null ? String.valueOf(userCard.getGradeScore()) : null);
+            newDc.setNationality(null); // Dictionary default
+
+            deck.getCards().add(newDc);
+        }
+
+        deckRepository.save(deck);
+
         return ResponseEntity.ok(saved);
     }
 
@@ -354,6 +396,35 @@ public class UserCardController {
         }
 
         userCardDeckRepository.delete(assignmentOpt.get());
+
+        // SYNC LOGIC: Update DeckCard list
+        Optional<Deck> deckOpt = deckRepository.findById(deckId);
+        if (deckOpt.isPresent()) {
+            Deck deck = deckOpt.get();
+            if (deck.getCards() != null) {
+                Iterator<DeckCard> iterator = deck.getCards().iterator();
+                while (iterator.hasNext()) {
+                    DeckCard dc = iterator.next();
+                    boolean gradeMatch = (dc.getIsGraded() == null ? false : dc.getIsGraded()) == userCard
+                            .getIsGraded();
+
+                    if (dc.getCardId().equals(userCard.getCardTemplate().getId())
+                            && dc.getCondition() == userCard.getCondition()
+                            && gradeMatch) {
+
+                        int newQty = dc.getQuantity() - 1;
+                        if (newQty <= 0) {
+                            iterator.remove();
+                        } else {
+                            dc.setQuantity(newQty);
+                        }
+                        deckRepository.save(deck);
+                        break;
+                    }
+                }
+            }
+        }
+
         return ResponseEntity.noContent().build();
     }
 
