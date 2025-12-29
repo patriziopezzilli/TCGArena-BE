@@ -10,6 +10,7 @@ public class ChatConversationDto {
     private String type; // FREE, TRADE
     private String contextJson;
     private String lastMessagePreview;
+    private Integer unreadCount;
 
     // Getters and Setters
     public Long getId() {
@@ -58,6 +59,14 @@ public class ChatConversationDto {
 
     public void setLastMessagePreview(String lastMessagePreview) {
         this.lastMessagePreview = lastMessagePreview;
+    }
+
+    public Integer getUnreadCount() {
+        return unreadCount;
+    }
+
+    public void setUnreadCount(Integer unreadCount) {
+        this.unreadCount = unreadCount;
     }
 
     private String status; // ACTIVE, COMPLETED

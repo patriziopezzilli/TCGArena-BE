@@ -28,6 +28,9 @@ public class ChatService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private NotificationService notificationService;
+
     // Quick helper to reuse Radar DTO mappings if needed, or implement simple
     // mapping
     @Autowired
@@ -94,6 +97,23 @@ public class ChatService {
         conversation.setLastMessageAt(message.getTimestamp());
         conversationRepository.save(conversation);
 
+        // Send push notification to recipient
+        User recipient = conversation.getParticipants().stream()
+                .filter(u -> !u.getId().equals(userId))
+                .findFirst()
+                .orElse(null);
+
+        if (recipient != null) {
+            String title = "Nuovo messaggio da " + sender.getDisplayName();
+            String preview = content.length() > 50 ? content.substring(0, 47) + "..." : content;
+            try {
+                notificationService.sendPushNotification(recipient.getId(), title, preview);
+            } catch (Exception e) {
+                // Log but don't fail the message send
+                System.err.println("Failed to send push notification: " + e.getMessage());
+            }
+        }
+
         return convertToMessageDto(message);
     }
 
@@ -112,6 +132,24 @@ public class ChatService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
+    public void markConversationAsRead(Long userId, Long conversationId) {
+        ChatConversation conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+
+        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        if (!conversation.getParticipants().contains(user)) {
+            throw new RuntimeException("User is not a participant");
+        }
+
+        List<ChatMessage> unreadMessages = messageRepository.findUnreadByConversationAndRecipient(conversationId,
+                userId);
+        for (ChatMessage msg : unreadMessages) {
+            msg.setRead(true);
+        }
+        messageRepository.saveAll(unreadMessages);
+    }
+
     private ChatConversationDto convertToDto(ChatConversation conversation, Long currentUserId) {
         ChatConversationDto dto = new ChatConversationDto();
         dto.setId(conversation.getId());
@@ -120,6 +158,14 @@ public class ChatService {
         dto.setContextJson(conversation.getContextJson());
         dto.setStatus(conversation.getStatus() != null ? conversation.getStatus().name() : "ACTIVE");
         dto.setIsReadOnly(conversation.getIsReadOnly() != null ? conversation.getIsReadOnly() : false);
+
+        // Set unread count for current user
+        Long unreadCount = messageRepository.countUnreadByConversationAndRecipient(conversation.getId(), currentUserId);
+        dto.setUnreadCount(unreadCount != null ? unreadCount.intValue() : 0);
+
+        // Set last message preview
+        messageRepository.findTopByConversationIdOrderByTimestampDesc(conversation.getId())
+                .ifPresent(lastMsg -> dto.setLastMessagePreview(lastMsg.getContent()));
 
         // Map participants to simple RadarUserDto style (reusing DTO logic or
         // simplifying)

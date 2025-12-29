@@ -73,4 +73,13 @@ public class ChatController {
         int points = completeRequest.getPoints() != null ? completeRequest.getPoints() : 0;
         return ResponseEntity.ok(chatService.completeTrade(userId, conversationId, points));
     }
+
+    @PostMapping("/{conversationId}/read")
+    public ResponseEntity<Void> markAsRead(
+            @PathVariable Long conversationId,
+            HttpServletRequest request) {
+        Long userId = getUserIdFromRequest(request);
+        chatService.markConversationAsRead(userId, conversationId);
+        return ResponseEntity.ok().build();
+    }
 }
