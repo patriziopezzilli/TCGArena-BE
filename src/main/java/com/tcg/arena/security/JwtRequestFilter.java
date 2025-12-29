@@ -53,7 +53,10 @@ public class JwtRequestFilter extends OncePerRequestFilter {
             boolean isShopSubscriptionEndpoint = path.equals("/api/shops/subscriptions") ||
                     path.matches("/api/shops/\\d+/subscription");
 
-            skip = (path.startsWith("/api/cards/") ||
+            // Don't skip authentication for protected card endpoints
+            boolean isProtectedCardEndpoint = path.startsWith("/api/cards/collection");
+
+            skip = ((path.startsWith("/api/cards/") && !isProtectedCardEndpoint) ||
                     (path.startsWith("/api/tournaments/") && !isTournamentManagement) ||
                     (path.startsWith("/api/shops/") && !isShopSubscriptionEndpoint) ||
                     path.startsWith("/api/expansions/") ||
