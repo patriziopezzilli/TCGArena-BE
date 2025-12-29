@@ -313,8 +313,12 @@ public class UserCardController {
         }
 
         // Check if already assigned
-        if (userCardDeckRepository.existsByUserCardIdAndDeckId(userCardId, deckId)) {
-            return ResponseEntity.status(409).build(); // Conflict
+        Optional<UserCardDeck> existingAssignment = userCardDeckRepository.findByUserCardIdAndDeckId(userCardId,
+                deckId);
+        if (existingAssignment.isPresent()) {
+            // Already assigned: treat as success (idempotent) without duplicating sync
+            // logic
+            return ResponseEntity.ok(existingAssignment.get());
         }
 
         UserCardDeck assignment = new UserCardDeck(userCard, deck);
