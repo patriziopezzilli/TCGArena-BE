@@ -75,6 +75,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**", "/api/public/**", "/api/admin/**", "/health", "/swagger-ui/**",
                                 "/v3/api-docs/**")
                         .permitAll()
+                        // Protected card endpoints
+                        .requestMatchers("/api/cards/collection").authenticated()
+                        .requestMatchers("/api/cards/collection/**").authenticated()
                         // Public GET endpoints for browsing content
                         .requestMatchers("GET", "/api/cards/**").permitAll()
                         // Protected tournament endpoints (must come BEFORE the general permitAll)

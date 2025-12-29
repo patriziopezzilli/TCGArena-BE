@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -143,6 +144,9 @@ public class UserCardController {
             @ApiResponse(responseCode = "200", description = "Successfully retrieved user's card collection")
     })
     public ResponseEntity<List<UserCard>> getUserCollection(@AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         String username = userDetails.getUsername();
         Optional<User> userOpt = userCardService.getUserByUsername(username);
         if (userOpt.isPresent()) {
