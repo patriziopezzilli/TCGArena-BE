@@ -38,9 +38,10 @@ public class TradeService {
     public void addCardToList(Long userId, Long cardTemplateId, TradeListType type) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        
+
         // Check if already exists
-        Optional<TradeListEntry> existing = tradeListEntryRepository.findByUserAndCardTemplateIdAndType(user, cardTemplateId, type);
+        Optional<TradeListEntry> existing = tradeListEntryRepository.findByUserAndCardTemplateIdAndType(user,
+                cardTemplateId, type);
         if (existing.isPresent()) {
             return;
         }
@@ -59,8 +60,9 @@ public class TradeService {
     public void removeCardFromList(Long userId, Long cardTemplateId, TradeListType type) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        
-        Optional<TradeListEntry> existing = tradeListEntryRepository.findByUserAndCardTemplateIdAndType(user, cardTemplateId, type);
+
+        Optional<TradeListEntry> existing = tradeListEntryRepository.findByUserAndCardTemplateIdAndType(user,
+                cardTemplateId, type);
         existing.ifPresent(tradeListEntryRepository::delete);
     }
 
@@ -77,7 +79,7 @@ public class TradeService {
                 .filter(e -> e.getType() == TradeListType.WANT)
                 .map(e -> e.getCardTemplate().getId())
                 .collect(Collectors.toSet());
-        
+
         Set<Long> myHaveIds = myEntries.stream()
                 .filter(e -> e.getType() == TradeListType.HAVE)
                 .map(e -> e.getCardTemplate().getId())
@@ -88,8 +90,10 @@ public class TradeService {
 
         // 1. Find users who HAVE what I WANT
         if (!myWantIds.isEmpty()) {
-            // Ideally use a custom query here: SELECT e FROM TradeListEntry e WHERE e.type = HAVE AND e.cardTemplate.id IN :ids
-            // For now, let's fetch all entries of type HAVE (might be large, optimization needed later)
+            // Ideally use a custom query here: SELECT e FROM TradeListEntry e WHERE e.type
+            // = HAVE AND e.cardTemplate.id IN :ids
+            // For now, let's fetch all entries of type HAVE (might be large, optimization
+            // needed later)
             // Or better:
             List<TradeListEntry> potentialMatches = tradeListEntryRepository.findAll().stream()
                     .filter(e -> e.getType() == TradeListType.HAVE)
@@ -118,7 +122,7 @@ public class TradeService {
                 User otherUser = entry.getUser();
                 if (isWithinRadius(currentUser, otherUser, radiusKm)) {
                     matchesMap.computeIfAbsent(otherUser, k -> new ArrayList<>()).add(entry);
-                    
+
                     String currentType = matchTypeMap.get(otherUser);
                     if (currentType != null && currentType.equals("THEY_HAVE_WHAT_I_WANT")) {
                         matchTypeMap.put(otherUser, "BOTH");
@@ -133,15 +137,17 @@ public class TradeService {
         List<TradeMatch> existingMatches = tradeMatchRepository.findAllMatchesForUser(currentUser);
         for (TradeMatch match : existingMatches) {
             User otherUser = match.getUser1().equals(currentUser) ? match.getUser2() : match.getUser1();
-            
+
             // If already found by radar, skip (it's already in matchesMap)
             if (matchesMap.containsKey(otherUser)) {
                 continue;
             }
 
-            // If not found by radar, check if it's worth keeping (has messages or is COMPLETED/CANCELLED)
+            // If not found by radar, check if it's worth keeping (has messages or is
+            // COMPLETED/CANCELLED)
             boolean hasMessages = tradeMessageRepository.existsByMatchId(match.getId());
-            boolean isRelevant = hasMessages || match.getStatus() == TradeStatus.COMPLETED || match.getStatus() == TradeStatus.CANCELLED;
+            boolean isRelevant = hasMessages || match.getStatus() == TradeStatus.COMPLETED
+                    || match.getStatus() == TradeStatus.CANCELLED;
 
             if (isRelevant) {
                 matchesMap.put(otherUser, Collections.emptyList()); // No current matched cards
@@ -166,28 +172,28 @@ public class TradeService {
             dto.setOtherUserName(otherUser.getUsername()); // Or display name
             dto.setOtherUserAvatar("person.crop.circle"); // Placeholder
             dto.setDistance(distance);
-            
+
             List<com.tcg.arena.dto.TradeListEntryDTO> cardDtos = entries.stream()
-                .map(e -> {
-                    com.tcg.arena.dto.TradeListEntryDTO d = new com.tcg.arena.dto.TradeListEntryDTO();
-                    d.setId(e.getId());
-                    d.setCardTemplateId(e.getCardTemplate().getId());
-                    d.setCardName(e.getCardTemplate().getName());
-                    d.setImageUrl(getFullImageUrl(e.getCardTemplate()));
-                    d.setType(e.getType());
-                    d.setTcgType(e.getCardTemplate().getTcgType().name());
-                    d.setRarity(e.getCardTemplate().getRarity().name());
-                    return d;
-                })
-                .collect(Collectors.toList());
+                    .map(e -> {
+                        com.tcg.arena.dto.TradeListEntryDTO d = new com.tcg.arena.dto.TradeListEntryDTO();
+                        d.setId(e.getId());
+                        d.setCardTemplateId(e.getCardTemplate().getId());
+                        d.setCardName(e.getCardTemplate().getName());
+                        d.setImageUrl(getFullImageUrl(e.getCardTemplate()));
+                        d.setType(e.getType());
+                        d.setTcgType(e.getCardTemplate().getTcgType().name());
+                        d.setRarity(e.getCardTemplate().getRarity().name());
+                        return d;
+                    })
+                    .collect(Collectors.toList());
 
             dto.setMatchedCards(cardDtos);
             dto.setType(type);
             dto.setStatus(match.getStatus().name());
-            
+
             results.add(dto);
         }
-        
+
         return results;
     }
 
@@ -227,11 +233,12 @@ public class TradeService {
         if (template.getTcgplayerId() != null && !template.getTcgplayerId().isEmpty()) {
             return "https://tcgplayer-cdn.tcgplayer.com/product/" + template.getTcgplayerId() + "_in_1000x1000.jpg";
         }
-        
+
         // 2. Fallback: Image URL field
         String baseUrl = template.getImageUrl();
-        if (baseUrl == null) return null;
-        
+        if (baseUrl == null)
+            return null;
+
         // Logic from iOS Card.swift
         if (baseUrl.toLowerCase().contains("tcgplayer")) {
             return baseUrl;
@@ -243,7 +250,8 @@ public class TradeService {
     }
 
     private boolean isWithinRadius(User u1, User u2, double radiusKm) {
-        if (u2.getLocation() == null || u2.getLocation().getLatitude() == null) return false;
+        if (u2.getLocation() == null || u2.getLocation().getLatitude() == null)
+            return false;
         double distance = calculateDistance(u1, u2);
         return distance <= radiusKm * 1000; // radiusKm to meters
     }
@@ -262,8 +270,8 @@ public class TradeService {
         double deltaLambda = (lon2 - lon1) * Math.PI / 180;
 
         double a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
-                   Math.cos(phi1) * Math.cos(phi2) *
-                   Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+                Math.cos(phi1) * Math.cos(phi2) *
+                        Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
         double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
         return R * c;
@@ -276,7 +284,7 @@ public class TradeService {
     public void sendMessage(Long matchId, Long senderId, String content) {
         TradeMatch match = tradeMatchRepository.findById(matchId)
                 .orElseThrow(() -> new RuntimeException("Match not found"));
-        
+
         User sender = userRepository.findById(senderId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -306,7 +314,8 @@ public class TradeService {
             throw new RuntimeException("User not part of this trade match");
         }
 
-        List<com.tcg.arena.dto.TradeMessageDTO> messages = tradeMessageRepository.findByMatchIdOrderBySentAtAsc(matchId).stream()
+        List<com.tcg.arena.dto.TradeMessageDTO> messages = tradeMessageRepository.findByMatchIdOrderBySentAtAsc(matchId)
+                .stream()
                 .map(msg -> {
                     com.tcg.arena.dto.TradeMessageDTO dto = new com.tcg.arena.dto.TradeMessageDTO();
                     dto.setId(msg.getId());
@@ -318,31 +327,44 @@ public class TradeService {
                     return dto;
                 })
                 .collect(Collectors.toList());
-        
+
         return new com.tcg.arena.dto.TradeChatResponseDTO(messages, match.getStatus().name());
     }
 
     @Transactional
-    public void completeTrade(Long matchId, Long userId) {
+    public void completeTrade(Long matchId, Long userId, Integer points) {
         TradeMatch match = tradeMatchRepository.findById(matchId)
                 .orElseThrow(() -> new RuntimeException("Match not found"));
-        
+
         if (!match.getUser1().getId().equals(userId) && !match.getUser2().getId().equals(userId)) {
             throw new RuntimeException("User not part of this trade match");
+        }
+
+        // Identify the other user to rate
+        User ratedUser = match.getUser1().getId().equals(userId) ? match.getUser2() : match.getUser1();
+
+        // Apply rating if provided (1-5 stars)
+        if (points != null && points >= 1 && points <= 5) {
+            ratedUser.addTradeRating(points);
+            userRepository.save(ratedUser);
         }
 
         // 1. Identify matched cards to remove and summarize
         User u1 = match.getUser1();
         User u2 = match.getUser2();
-        
+
         List<TradeListEntry> u1Entries = tradeListEntryRepository.findByUser(u1);
         List<TradeListEntry> u2Entries = tradeListEntryRepository.findByUser(u2);
-        
-        Set<Long> u1Want = u1Entries.stream().filter(e -> e.getType() == TradeListType.WANT).map(e -> e.getCardTemplate().getId()).collect(Collectors.toSet());
-        Set<Long> u1Have = u1Entries.stream().filter(e -> e.getType() == TradeListType.HAVE).map(e -> e.getCardTemplate().getId()).collect(Collectors.toSet());
-        
-        Set<Long> u2Want = u2Entries.stream().filter(e -> e.getType() == TradeListType.WANT).map(e -> e.getCardTemplate().getId()).collect(Collectors.toSet());
-        Set<Long> u2Have = u2Entries.stream().filter(e -> e.getType() == TradeListType.HAVE).map(e -> e.getCardTemplate().getId()).collect(Collectors.toSet());
+
+        Set<Long> u1Want = u1Entries.stream().filter(e -> e.getType() == TradeListType.WANT)
+                .map(e -> e.getCardTemplate().getId()).collect(Collectors.toSet());
+        Set<Long> u1Have = u1Entries.stream().filter(e -> e.getType() == TradeListType.HAVE)
+                .map(e -> e.getCardTemplate().getId()).collect(Collectors.toSet());
+
+        Set<Long> u2Want = u2Entries.stream().filter(e -> e.getType() == TradeListType.WANT)
+                .map(e -> e.getCardTemplate().getId()).collect(Collectors.toSet());
+        Set<Long> u2Have = u2Entries.stream().filter(e -> e.getType() == TradeListType.HAVE)
+                .map(e -> e.getCardTemplate().getId()).collect(Collectors.toSet());
 
         List<TradeListEntry> toRemove = new ArrayList<>();
         StringBuilder summary = new StringBuilder("🤝 Scambio Concluso!\n\nCarte scambiate:\n");
@@ -351,12 +373,14 @@ public class TradeService {
         // U1 gets what U2 has
         for (TradeListEntry e : u2Entries) {
             if (e.getType() == TradeListType.HAVE && u1Want.contains(e.getCardTemplate().getId())) {
-                summary.append("- ").append(e.getCardTemplate().getName()).append(" (da ").append(u2.getUsername()).append(" a ").append(u1.getUsername()).append(")\n");
+                summary.append("- ").append(e.getCardTemplate().getName()).append(" (da ").append(u2.getUsername())
+                        .append(" a ").append(u1.getUsername()).append(")\n");
                 toRemove.add(e);
                 // Also remove the WANT entry from U1
                 u1Entries.stream()
-                    .filter(x -> x.getType() == TradeListType.WANT && x.getCardTemplate().getId().equals(e.getCardTemplate().getId()))
-                    .findFirst().ifPresent(toRemove::add);
+                        .filter(x -> x.getType() == TradeListType.WANT
+                                && x.getCardTemplate().getId().equals(e.getCardTemplate().getId()))
+                        .findFirst().ifPresent(toRemove::add);
                 hasTrades = true;
             }
         }
@@ -364,12 +388,14 @@ public class TradeService {
         // U2 gets what U1 has
         for (TradeListEntry e : u1Entries) {
             if (e.getType() == TradeListType.HAVE && u2Want.contains(e.getCardTemplate().getId())) {
-                summary.append("- ").append(e.getCardTemplate().getName()).append(" (da ").append(u1.getUsername()).append(" a ").append(u2.getUsername()).append(")\n");
+                summary.append("- ").append(e.getCardTemplate().getName()).append(" (da ").append(u1.getUsername())
+                        .append(" a ").append(u2.getUsername()).append(")\n");
                 toRemove.add(e);
                 // Also remove the WANT entry from U2
                 u2Entries.stream()
-                    .filter(x -> x.getType() == TradeListType.WANT && x.getCardTemplate().getId().equals(e.getCardTemplate().getId()))
-                    .findFirst().ifPresent(toRemove::add);
+                        .filter(x -> x.getType() == TradeListType.WANT
+                                && x.getCardTemplate().getId().equals(e.getCardTemplate().getId()))
+                        .findFirst().ifPresent(toRemove::add);
                 hasTrades = true;
             }
         }
@@ -378,24 +404,26 @@ public class TradeService {
             tradeListEntryRepository.deleteAll(toRemove);
             sendMessage(matchId, userId, summary.toString());
         }
-        
+
         match.setStatus(TradeStatus.COMPLETED);
         tradeMatchRepository.save(match);
 
         // Award Loyalty Points
-        rewardService.earnPoints(match.getUser1().getId(), 50, "Scambio completato con " + match.getUser2().getUsername());
-        rewardService.earnPoints(match.getUser2().getId(), 50, "Scambio completato con " + match.getUser1().getUsername());
+        rewardService.earnPoints(match.getUser1().getId(), 50,
+                "Scambio completato con " + match.getUser2().getUsername());
+        rewardService.earnPoints(match.getUser2().getId(), 50,
+                "Scambio completato con " + match.getUser1().getUsername());
     }
 
     @Transactional
     public void cancelTrade(Long matchId, Long userId) {
         TradeMatch match = tradeMatchRepository.findById(matchId)
                 .orElseThrow(() -> new RuntimeException("Match not found"));
-        
+
         if (!match.getUser1().getId().equals(userId) && !match.getUser2().getId().equals(userId)) {
             throw new RuntimeException("User not part of this trade match");
         }
-        
+
         match.setStatus(TradeStatus.CANCELLED);
         tradeMatchRepository.save(match);
     }
@@ -404,7 +432,7 @@ public class TradeService {
     public void startChat(Long matchId, Long userId) {
         TradeMatch match = tradeMatchRepository.findById(matchId)
                 .orElseThrow(() -> new RuntimeException("Match not found"));
-        
+
         if (!match.getUser1().getId().equals(userId) && !match.getUser2().getId().equals(userId)) {
             throw new RuntimeException("User not part of this trade match");
         }
@@ -413,7 +441,7 @@ public class TradeService {
         if (match.getStatus() != TradeStatus.ACTIVE) {
             match.setStatus(TradeStatus.ACTIVE);
             tradeMatchRepository.save(match);
-            
+
             try {
                 sendMessage(match.getId(), userId, "🔄 Nuova trattativa iniziata");
             } catch (Exception e) {

@@ -19,6 +19,10 @@ public class RadarUserDto {
     private java.util.List<RadarTradeEntry> haveList;
     private java.util.List<RadarUserCard> cards;
 
+    // Trade Rating Statistics
+    private Double tradeRating;
+    private Integer tradeRatingCount;
+
     public RadarUserDto() {
     }
 
@@ -120,5 +124,21 @@ public class RadarUserDto {
 
     public void setCards(java.util.List<RadarUserCard> cards) {
         this.cards = cards;
+    }
+
+    public Double getTradeRating() {
+        return tradeRating;
+    }
+
+    public void setTradeRating(Double tradeRating) {
+        this.tradeRating = tradeRating;
+    }
+
+    public Integer getTradeRatingCount() {
+        return tradeRatingCount;
+    }
+
+    public void setTradeRatingCount(Integer tradeRatingCount) {
+        this.tradeRatingCount = tradeRatingCount;
     }
 }

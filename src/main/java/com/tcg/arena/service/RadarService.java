@@ -122,6 +122,10 @@ public class RadarService {
 
         dto.setCards(new ArrayList<>(cardMap.values()));
 
+        // Trade Rating Statistics
+        dto.setTradeRating(user.getTradeRating());
+        dto.setTradeRatingCount(user.getTradeRatingCount());
+
         return dto;
     }
 

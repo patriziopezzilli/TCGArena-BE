@@ -1,7 +1,6 @@
 package com.tcg.arena.controller;
 
 import com.tcg.arena.dto.TradeMatchDTO;
-import com.tcg.arena.model.TradeListEntry;
 import com.tcg.arena.model.TradeListType;
 import com.tcg.arena.model.User;
 import com.tcg.arena.service.TradeService;
@@ -110,12 +109,14 @@ public class TradeController {
         @PostMapping("/complete/{matchId}")
         public ResponseEntity<?> completeTrade(
                         Authentication authentication,
-                        @PathVariable Long matchId) {
+                        @PathVariable Long matchId,
+                        @RequestBody(required = false) com.tcg.arena.dto.CompleteTradeRequest request) {
 
                 User user = userService.getUserByUsername(authentication.getName())
                                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-                tradeService.completeTrade(matchId, user.getId());
+                Integer points = request != null ? request.getPoints() : null;
+                tradeService.completeTrade(matchId, user.getId(), points);
                 return ResponseEntity.ok().build();
         }
 
