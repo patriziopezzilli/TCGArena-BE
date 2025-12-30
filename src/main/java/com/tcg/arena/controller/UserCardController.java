@@ -442,23 +442,33 @@ public class UserCardController {
     public ResponseEntity<List<DeckAssignmentDto>> getCardDecks(
             @Parameter(description = "User card ID") @PathVariable Long userCardId,
             @AuthenticationPrincipal UserDetails userDetails) {
+        System.out.println("🔍 getCardDecks called with userCardId: " + userCardId);
+
         String username = userDetails.getUsername();
+        System.out.println("🔍 getCardDecks username: " + username);
+
         Optional<User> userOpt = userCardService.getUserByUsername(username);
         if (userOpt.isEmpty()) {
+            System.out.println("❌ getCardDecks: User not found for username: " + username);
             return ResponseEntity.notFound().build();
         }
 
         Optional<UserCard> userCardOpt = userCardService.getUserCardById(userCardId);
         if (userCardOpt.isEmpty()) {
+            System.out.println("❌ getCardDecks: UserCard not found for id: " + userCardId);
             return ResponseEntity.notFound().build();
         }
 
         UserCard userCard = userCardOpt.get();
         if (!userCard.getOwner().getId().equals(userOpt.get().getId())) {
+            System.out.println("❌ getCardDecks: User " + userOpt.get().getId() + " does not own card owned by "
+                    + userCard.getOwner().getId());
             return ResponseEntity.status(403).build();
         }
 
         List<UserCardDeck> assignments = userCardDeckRepository.findByUserCardId(userCardId);
+        System.out.println("✅ getCardDecks: Found " + assignments.size() + " deck assignments");
+
         List<DeckAssignmentDto> dtos = assignments.stream()
                 .map(a -> new DeckAssignmentDto(a.getDeck()))
                 .collect(Collectors.toList());
