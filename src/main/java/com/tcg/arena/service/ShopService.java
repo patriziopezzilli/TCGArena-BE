@@ -36,6 +36,10 @@ public class ShopService {
         return shopRepository.findByOwnerId(ownerId);
     }
 
+    public List<Shop> searchUnverifiedShops(String name) {
+        return shopRepository.findByNameContainingIgnoreCaseAndIsVerifiedFalseAndOwnerIdIsNull(name);
+    }
+
     public Shop saveShop(Shop shop) {
         return shopRepository.save(shop);
     }
@@ -63,7 +67,7 @@ public class ShopService {
         if (durationMinutes == null || durationMinutes < 1 || durationMinutes > 1440) { // Max 24 hours
             throw new IllegalArgumentException("Reservation duration must be between 1 and 1440 minutes");
         }
-        
+
         return shopRepository.findById(shopId).map(shop -> {
             shop.setReservationDurationMinutes(durationMinutes);
             return shopRepository.save(shop);
@@ -75,9 +79,8 @@ public class ShopService {
      */
     public Integer getReservationDuration(Long shopId) {
         return shopRepository.findById(shopId)
-            .map(shop -> shop.getReservationDurationMinutes() != null ? 
-                 shop.getReservationDurationMinutes() : 30)
-            .orElse(30); // Default to 30 minutes if shop not found
+                .map(shop -> shop.getReservationDurationMinutes() != null ? shop.getReservationDurationMinutes() : 30)
+                .orElse(30); // Default to 30 minutes if shop not found
     }
 
     public boolean deleteShop(Long id) {

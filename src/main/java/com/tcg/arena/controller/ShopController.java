@@ -38,7 +38,7 @@ public class ShopController {
 
     @Autowired
     private UserService userService;
-    
+
     @Autowired
     private ShopSuggestionRepository shopSuggestionRepository;
 
@@ -54,9 +54,17 @@ public class ShopController {
     @Operation(summary = "Get shop by ID", description = "Retrieves a specific shop by its ID")
     public ResponseEntity<ShopDTO> getShopById(@Parameter(description = "ID of the shop") @PathVariable Long id) {
         return shopService.getShopById(id)
-            .map(ShopDTO::new)
-            .map(ResponseEntity::ok)
-            .orElse(ResponseEntity.notFound().build());
+                .map(ShopDTO::new)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/public/unverified/search")
+    @Operation(summary = "Search unverified shops", description = "Search for unverified shops that can be claimed")
+    public List<ShopDTO> searchUnverifiedShops(@RequestParam String q) {
+        return shopService.searchUnverifiedShops(q).stream()
+                .map(ShopDTO::new)
+                .collect(Collectors.toList());
     }
 
     @PostMapping
@@ -70,14 +78,15 @@ public class ShopController {
 
     @PutMapping("/{id}")
     @Operation(summary = "Update shop", description = "Updates an existing shop")
-    public ResponseEntity<ShopDTO> updateShop(@Parameter(description = "ID of the shop") @PathVariable Long id, @RequestBody ShopDTO shopDTO) {
+    public ResponseEntity<ShopDTO> updateShop(@Parameter(description = "ID of the shop") @PathVariable Long id,
+            @RequestBody ShopDTO shopDTO) {
         return shopService.getShopById(id)
-            .map(shop -> {
-                updateShopFromDTO(shop, shopDTO);
-                Shop updatedShop = shopService.saveShop(shop);
-                return ResponseEntity.ok(new ShopDTO(updatedShop));
-            })
-            .orElse(ResponseEntity.notFound().build());
+                .map(shop -> {
+                    updateShopFromDTO(shop, shopDTO);
+                    Shop updatedShop = shopService.saveShop(shop);
+                    return ResponseEntity.ok(new ShopDTO(updatedShop));
+                })
+                .orElse(ResponseEntity.notFound().build());
     }
 
     private void updateShopFromDTO(Shop shop, ShopDTO dto) {
@@ -92,7 +101,7 @@ public class ShopController {
         shop.setIsVerified(dto.getIsVerified());
         shop.setActive(dto.getActive());
         shop.setOwnerId(dto.getOwnerId());
-        
+
         // Handle opening hours - prefer structured over legacy
         if (dto.getOpeningHoursStructured() != null) {
             shop.setOpeningHoursStructured(dto.getOpeningHoursStructured());
@@ -101,7 +110,7 @@ public class ShopController {
             shop.setOpeningHours(dto.getOpeningHours());
             shop.setOpeningDays(dto.getOpeningDays());
         }
-        
+
         shop.setInstagramUrl(dto.getInstagramUrl());
         shop.setFacebookUrl(dto.getFacebookUrl());
         shop.setTwitterUrl(dto.getTwitterUrl());
@@ -126,24 +135,27 @@ public class ShopController {
     @PostMapping("/{shopId}/subscribe")
     @Operation(summary = "Subscribe to shop", description = "Subscribes the authenticated user to a shop for notifications")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Successfully subscribed to shop"),
-        @ApiResponse(responseCode = "400", description = "User already subscribed")
+            @ApiResponse(responseCode = "200", description = "Successfully subscribed to shop"),
+            @ApiResponse(responseCode = "400", description = "User already subscribed")
     })
-    public ResponseEntity<Map<String, String>> subscribeToShop(@Parameter(description = "ID of the shop") @PathVariable Long shopId,
-                                                                 Authentication authentication) {
+    public ResponseEntity<Map<String, String>> subscribeToShop(
+            @Parameter(description = "ID of the shop") @PathVariable Long shopId,
+            Authentication authentication) {
         User user = getCurrentUser(authentication);
         ShopSubscription subscription = subscriptionService.subscribeToShop(user.getId(), shopId);
-        return ResponseEntity.ok(Map.of("message", "Successfully subscribed to shop", "subscriptionId", subscription.getId().toString()));
+        return ResponseEntity.ok(Map.of("message", "Successfully subscribed to shop", "subscriptionId",
+                subscription.getId().toString()));
     }
 
     @DeleteMapping("/{shopId}/subscribe")
     @Operation(summary = "Unsubscribe from shop", description = "Unsubscribes the authenticated user from a shop")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Successfully unsubscribed from shop"),
-        @ApiResponse(responseCode = "404", description = "Subscription not found")
+            @ApiResponse(responseCode = "200", description = "Successfully unsubscribed from shop"),
+            @ApiResponse(responseCode = "404", description = "Subscription not found")
     })
-    public ResponseEntity<Map<String, String>> unsubscribeFromShop(@Parameter(description = "ID of the shop") @PathVariable Long shopId,
-                                                                     Authentication authentication) {
+    public ResponseEntity<Map<String, String>> unsubscribeFromShop(
+            @Parameter(description = "ID of the shop") @PathVariable Long shopId,
+            Authentication authentication) {
         User user = getCurrentUser(authentication);
         boolean unsubscribed = subscriptionService.unsubscribeFromShop(user.getId(), shopId);
         if (unsubscribed) {
@@ -155,8 +167,9 @@ public class ShopController {
 
     @GetMapping("/{shopId}/subscription")
     @Operation(summary = "Check subscription status", description = "Checks if the authenticated user is subscribed to a shop")
-    public ResponseEntity<Map<String, Boolean>> checkSubscription(@Parameter(description = "ID of the shop") @PathVariable Long shopId,
-                                                                    Authentication authentication) {
+    public ResponseEntity<Map<String, Boolean>> checkSubscription(
+            @Parameter(description = "ID of the shop") @PathVariable Long shopId,
+            Authentication authentication) {
         User user = getCurrentUser(authentication);
         boolean isSubscribed = subscriptionService.isUserSubscribedToShop(user.getId(), shopId);
         return ResponseEntity.ok(Map.of("subscribed", isSubscribed));
@@ -171,12 +184,12 @@ public class ShopController {
     }
 
     // MARK: - Shop Suggestion Endpoints
-    
+
     @PostMapping("/suggest")
     @Operation(summary = "Suggest a shop", description = "Allows users to suggest a shop in their area that's not yet in the system")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "201", description = "Suggestion created successfully"),
-        @ApiResponse(responseCode = "400", description = "Invalid request data")
+            @ApiResponse(responseCode = "201", description = "Suggestion created successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid request data")
     })
     public ResponseEntity<?> suggestShop(@RequestBody ShopSuggestionDTO request, Authentication authentication) {
         try {
@@ -185,16 +198,16 @@ public class ShopController {
             if (authentication != null) {
                 System.out.println("🔍 Principal: " + authentication.getPrincipal());
             }
-            
+
             User user = getCurrentUser(authentication);
-            
+
             if (request.getShopName() == null || request.getShopName().trim().isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Shop name is required"));
             }
             if (request.getCity() == null || request.getCity().trim().isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("error", "City is required"));
             }
-            
+
             ShopSuggestion suggestion = new ShopSuggestion();
             suggestion.setShopName(request.getShopName().trim());
             suggestion.setCity(request.getCity().trim());
@@ -202,23 +215,23 @@ public class ShopController {
             suggestion.setLongitude(request.getLongitude());
             suggestion.setUserId(user.getId());
             suggestion.setStatus(ShopSuggestion.SuggestionStatus.PENDING);
-            
+
             ShopSuggestion saved = shopSuggestionRepository.save(suggestion);
-            
+
             return ResponseEntity.status(HttpStatus.CREATED)
-                .body(Map.of(
-                    "message", "Grazie per il suggerimento! Lo esamineremo presto.",
-                    "suggestionId", saved.getId()
-                ));
+                    .body(Map.of(
+                            "message", "Grazie per il suggerimento! Lo esamineremo presto.",
+                            "suggestionId", saved.getId()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(Map.of("error", "Failed to save suggestion: " + e.getMessage()));
+                    .body(Map.of("error", "Failed to save suggestion: " + e.getMessage()));
         }
     }
 
     @GetMapping("/{shopId}/subscribers")
     @Operation(summary = "Get shop subscribers", description = "Retrieves all users subscribed to a shop (merchant only)")
-    public ResponseEntity<List<User>> getShopSubscribers(@Parameter(description = "ID of the shop") @PathVariable Long shopId) {
+    public ResponseEntity<List<User>> getShopSubscribers(
+            @Parameter(description = "ID of the shop") @PathVariable Long shopId) {
         // TODO: Check if user is merchant/owner of the shop
         List<User> subscribers = subscriptionService.getShopSubscriberUsers(shopId);
         return ResponseEntity.ok(subscribers);
@@ -226,7 +239,8 @@ public class ShopController {
 
     @GetMapping("/{shopId}/subscriber-count")
     @Operation(summary = "Get subscriber count", description = "Gets the number of active subscribers for a shop")
-    public ResponseEntity<Map<String, Long>> getSubscriberCount(@Parameter(description = "ID of the shop") @PathVariable Long shopId) {
+    public ResponseEntity<Map<String, Long>> getSubscriberCount(
+            @Parameter(description = "ID of the shop") @PathVariable Long shopId) {
         Long count = subscriptionService.getSubscriberCount(shopId);
         return ResponseEntity.ok(Map.of("count", count));
     }
@@ -236,45 +250,44 @@ public class ShopController {
     @GetMapping("/{shopId}/reservation-settings")
     @Operation(summary = "Get reservation settings", description = "Gets the reservation settings for a shop")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Successfully retrieved reservation settings"),
-        @ApiResponse(responseCode = "404", description = "Shop not found")
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved reservation settings"),
+            @ApiResponse(responseCode = "404", description = "Shop not found")
     })
-    public ResponseEntity<Map<String, Object>> getReservationSettings(@Parameter(description = "ID of the shop") @PathVariable Long shopId) {
+    public ResponseEntity<Map<String, Object>> getReservationSettings(
+            @Parameter(description = "ID of the shop") @PathVariable Long shopId) {
         Integer duration = shopService.getReservationDuration(shopId);
         return ResponseEntity.ok(Map.of(
-            "reservationDurationMinutes", duration,
-            "defaultDurationMinutes", 30
-        ));
+                "reservationDurationMinutes", duration,
+                "defaultDurationMinutes", 30));
     }
 
     @PutMapping("/{shopId}/reservation-settings")
     @Operation(summary = "Update reservation settings", description = "Updates the reservation settings for a shop")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Successfully updated reservation settings"),
-        @ApiResponse(responseCode = "400", description = "Invalid duration value"),
-        @ApiResponse(responseCode = "404", description = "Shop not found")
+            @ApiResponse(responseCode = "200", description = "Successfully updated reservation settings"),
+            @ApiResponse(responseCode = "400", description = "Invalid duration value"),
+            @ApiResponse(responseCode = "404", description = "Shop not found")
     })
     public ResponseEntity<Map<String, Object>> updateReservationSettings(
             @Parameter(description = "ID of the shop") @PathVariable Long shopId,
             @RequestBody Map<String, Integer> settings) {
-        
+
         Integer durationMinutes = settings.get("reservationDurationMinutes");
         if (durationMinutes == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "reservationDurationMinutes is required"));
         }
-        
+
         try {
             Shop updatedShop = shopService.updateReservationDuration(shopId, durationMinutes)
-                .orElse(null);
-            
+                    .orElse(null);
+
             if (updatedShop == null) {
                 return ResponseEntity.notFound().build();
             }
-            
+
             return ResponseEntity.ok(Map.of(
-                "message", "Reservation settings updated successfully",
-                "reservationDurationMinutes", updatedShop.getReservationDurationMinutes()
-            ));
+                    "message", "Reservation settings updated successfully",
+                    "reservationDurationMinutes", updatedShop.getReservationDurationMinutes()));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

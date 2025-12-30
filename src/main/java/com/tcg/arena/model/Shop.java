@@ -9,7 +9,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "shops")
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class Shop {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -40,12 +40,12 @@ public class Shop {
     @Column(nullable = false)
     private Boolean active = false;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private Long ownerId;
 
     @Deprecated // Use openingHoursStructured instead
     private String openingHours; // e.g., "9:00-18:00"
-    
+
     @Deprecated // Use openingHoursStructured instead
     private String openingDays; // e.g., "Mon-Fri,Sat"
 
@@ -69,7 +69,8 @@ public class Shop {
     private String tcgTypes;
 
     // Services offered (stored as comma-separated string)
-    // e.g., "BUY_CARDS,SELL_CARDS,TRADE,TOURNAMENTS,CARD_GRADING,PREORDERS,SEALED_PRODUCTS,ACCESSORIES,PLAY_AREA,EVENTS"
+    // e.g.,
+    // "BUY_CARDS,SELL_CARDS,TRADE,TOURNAMENTS,CARD_GRADING,PREORDERS,SEALED_PRODUCTS,ACCESSORIES,PLAY_AREA,EVENTS"
     @Column(length = 1000)
     private String services;
 
@@ -81,50 +82,125 @@ public class Shop {
     private List<ShopInventory> inventory = new ArrayList<>();
 
     // Getters and Setters
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
+    public Long getId() {
+        return id;
+    }
 
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public void setId(Long id) {
+        this.id = id;
+    }
 
-    public String getDescription() { return description; }
-    public void setDescription(String description) { this.description = description; }
+    public String getName() {
+        return name;
+    }
 
-    public String getAddress() { return address; }
-    public void setAddress(String address) { this.address = address; }
+    public void setName(String name) {
+        this.name = name;
+    }
 
-    public Double getLatitude() { return latitude; }
-    public void setLatitude(Double latitude) { this.latitude = latitude; }
+    public String getDescription() {
+        return description;
+    }
 
-    public Double getLongitude() { return longitude; }
-    public void setLongitude(Double longitude) { this.longitude = longitude; }
+    public void setDescription(String description) {
+        this.description = description;
+    }
 
-    public String getPhoneNumber() { return phoneNumber; }
-    public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
+    public String getAddress() {
+        return address;
+    }
 
-    public String getWebsiteUrl() { return websiteUrl; }
-    public void setWebsiteUrl(String websiteUrl) { this.websiteUrl = websiteUrl; }
+    public void setAddress(String address) {
+        this.address = address;
+    }
 
-    public ShopType getType() { return type; }
-    public void setType(ShopType type) { this.type = type; }
+    public Double getLatitude() {
+        return latitude;
+    }
 
-    public Boolean getIsVerified() { return isVerified; }
-    public void setIsVerified(Boolean isVerified) { this.isVerified = isVerified; }
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
 
-    public Boolean getActive() { return active; }
-    public void setActive(Boolean active) { this.active = active; }
+    public Double getLongitude() {
+        return longitude;
+    }
 
-    public Long getOwnerId() { return ownerId; }
-    public void setOwnerId(Long ownerId) { this.ownerId = ownerId; }
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
+    }
 
-    public String getOpeningHours() { return openingHours; }
-    public void setOpeningHours(String openingHours) { this.openingHours = openingHours; }
+    public String getPhoneNumber() {
+        return phoneNumber;
+    }
 
-    public String getOpeningDays() { return openingDays; }
-    public void setOpeningDays(String openingDays) { this.openingDays = openingDays; }
+    public void setPhoneNumber(String phoneNumber) {
+        this.phoneNumber = phoneNumber;
+    }
 
-    public String getOpeningHoursJson() { return openingHoursJson; }
-    public void setOpeningHoursJson(String openingHoursJson) { this.openingHoursJson = openingHoursJson; }
+    public String getWebsiteUrl() {
+        return websiteUrl;
+    }
+
+    public void setWebsiteUrl(String websiteUrl) {
+        this.websiteUrl = websiteUrl;
+    }
+
+    public ShopType getType() {
+        return type;
+    }
+
+    public void setType(ShopType type) {
+        this.type = type;
+    }
+
+    public Boolean getIsVerified() {
+        return isVerified;
+    }
+
+    public void setIsVerified(Boolean isVerified) {
+        this.isVerified = isVerified;
+    }
+
+    public Boolean getActive() {
+        return active;
+    }
+
+    public void setActive(Boolean active) {
+        this.active = active;
+    }
+
+    public Long getOwnerId() {
+        return ownerId;
+    }
+
+    public void setOwnerId(Long ownerId) {
+        this.ownerId = ownerId;
+    }
+
+    public String getOpeningHours() {
+        return openingHours;
+    }
+
+    public void setOpeningHours(String openingHours) {
+        this.openingHours = openingHours;
+    }
+
+    public String getOpeningDays() {
+        return openingDays;
+    }
+
+    public void setOpeningDays(String openingDays) {
+        this.openingDays = openingDays;
+    }
+
+    public String getOpeningHoursJson() {
+        return openingHoursJson;
+    }
+
+    public void setOpeningHoursJson(String openingHoursJson) {
+        this.openingHoursJson = openingHoursJson;
+    }
 
     // Helper methods to work with structured opening hours
     private static final ObjectMapper objectMapper = new ObjectMapper();
@@ -152,33 +228,76 @@ public class Shop {
         }
     }
 
-    public String getInstagramUrl() { return instagramUrl; }
-    public void setInstagramUrl(String instagramUrl) { this.instagramUrl = instagramUrl; }
+    public String getInstagramUrl() {
+        return instagramUrl;
+    }
 
-    public String getFacebookUrl() { return facebookUrl; }
-    public void setFacebookUrl(String facebookUrl) { this.facebookUrl = facebookUrl; }
+    public void setInstagramUrl(String instagramUrl) {
+        this.instagramUrl = instagramUrl;
+    }
 
-    public String getTwitterUrl() { return twitterUrl; }
-    public void setTwitterUrl(String twitterUrl) { this.twitterUrl = twitterUrl; }
+    public String getFacebookUrl() {
+        return facebookUrl;
+    }
 
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
+    public void setFacebookUrl(String facebookUrl) {
+        this.facebookUrl = facebookUrl;
+    }
 
-    public String getPhotoBase64() { return photoBase64; }
-    public void setPhotoBase64(String photoBase64) { this.photoBase64 = photoBase64; }
+    public String getTwitterUrl() {
+        return twitterUrl;
+    }
 
-    public List<ShopInventory> getInventory() { return inventory; }
-    public void setInventory(List<ShopInventory> inventory) { this.inventory = inventory; }
+    public void setTwitterUrl(String twitterUrl) {
+        this.twitterUrl = twitterUrl;
+    }
 
-    public String getTcgTypes() { return tcgTypes; }
-    public void setTcgTypes(String tcgTypes) { this.tcgTypes = tcgTypes; }
+    public String getEmail() {
+        return email;
+    }
 
-    public String getServices() { return services; }
-    public void setServices(String services) { this.services = services; }
+    public void setEmail(String email) {
+        this.email = email;
+    }
 
-    public Integer getReservationDurationMinutes() { return reservationDurationMinutes; }
-    public void setReservationDurationMinutes(Integer reservationDurationMinutes) { 
-        this.reservationDurationMinutes = reservationDurationMinutes; 
+    public String getPhotoBase64() {
+        return photoBase64;
+    }
+
+    public void setPhotoBase64(String photoBase64) {
+        this.photoBase64 = photoBase64;
+    }
+
+    public List<ShopInventory> getInventory() {
+        return inventory;
+    }
+
+    public void setInventory(List<ShopInventory> inventory) {
+        this.inventory = inventory;
+    }
+
+    public String getTcgTypes() {
+        return tcgTypes;
+    }
+
+    public void setTcgTypes(String tcgTypes) {
+        this.tcgTypes = tcgTypes;
+    }
+
+    public String getServices() {
+        return services;
+    }
+
+    public void setServices(String services) {
+        this.services = services;
+    }
+
+    public Integer getReservationDurationMinutes() {
+        return reservationDurationMinutes;
+    }
+
+    public void setReservationDurationMinutes(Integer reservationDurationMinutes) {
+        this.reservationDurationMinutes = reservationDurationMinutes;
     }
 
     // Helper methods to convert comma-separated strings to/from Lists

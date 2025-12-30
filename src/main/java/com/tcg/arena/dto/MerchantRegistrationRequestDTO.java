@@ -7,24 +7,34 @@ public class MerchantRegistrationRequestDTO {
     private String username;
     private String email;
     private String password;
-    
+
     @JsonProperty("displayName")
     private String displayName;
-    
+
     // Shop fields
     @JsonProperty("shopName")
     private String shopName;
-    
+
     private String address;
     private String city;
-    
+
     @JsonProperty("zipCode")
     private String zipCode;
-    
+
     private String phone;
     private String description;
 
+    private Long existingShopId;
+
     // Getters and Setters
+    public Long getExistingShopId() {
+        return existingShopId;
+    }
+
+    public void setExistingShopId(Long existingShopId) {
+        this.existingShopId = existingShopId;
+    }
+
     public String getUsername() {
         return username;
     }

@@ -166,6 +166,21 @@ public class JwtAuthenticationController {
             return ResponseEntity.badRequest().body("Email already exists");
         }
 
+        Shop shopToClaim = null;
+        if (request.getExistingShopId() != null) {
+            // Verify shop is claimable
+            Shop existingShop = shopService.getShopById(request.getExistingShopId())
+                    .orElseThrow(() -> new Exception("Shop not found"));
+
+            if (Boolean.TRUE.equals(existingShop.getIsVerified())) {
+                return ResponseEntity.badRequest().body("Shop is already verified and cannot be claimed");
+            }
+            if (existingShop.getOwnerId() != null) {
+                return ResponseEntity.badRequest().body("Shop is already claimed");
+            }
+            shopToClaim = existingShop;
+        }
+
         // Create User
         User user = new User();
         user.setEmail(request.getEmail());
@@ -178,17 +193,28 @@ public class JwtAuthenticationController {
 
         User savedUser = userService.saveUser(user);
 
-        // Create Shop
-        Shop shop = new Shop();
-        shop.setName(request.getShopName());
-        shop.setDescription(request.getDescription());
-        shop.setAddress(request.getAddress() + ", " + request.getCity() + " " + request.getZipCode());
-        shop.setPhoneNumber(request.getPhone());
-        shop.setType(ShopType.LOCAL_STORE);
-        shop.setIsVerified(false);
-        shop.setOwnerId(savedUser.getId());
-
-        Shop savedShop = shopService.saveShop(shop);
+        Shop savedShop;
+        if (shopToClaim != null) {
+            // Claim existing shop
+            shopToClaim.setOwnerId(savedUser.getId());
+            // Optionally update contact info if provided
+            if (request.getPhone() != null && !request.getPhone().isEmpty()) {
+                shopToClaim.setPhoneNumber(request.getPhone());
+            }
+            // Keep verification as false
+            savedShop = shopService.saveShop(shopToClaim);
+        } else {
+            // Create New Shop
+            Shop shop = new Shop();
+            shop.setName(request.getShopName());
+            shop.setDescription(request.getDescription());
+            shop.setAddress(request.getAddress() + ", " + request.getCity() + " " + request.getZipCode());
+            shop.setPhoneNumber(request.getPhone());
+            shop.setType(ShopType.LOCAL_STORE);
+            shop.setIsVerified(false);
+            shop.setOwnerId(savedUser.getId());
+            savedShop = shopService.saveShop(shop);
+        }
 
         // Update user with shopId
         savedUser.setShopId(savedShop.getId());
