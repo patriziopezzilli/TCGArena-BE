@@ -89,6 +89,19 @@ public class ExpansionService {
         return expansionRepository.save(expansion);
     }
 
+    /**
+     * Search expansions by title (case-insensitive)
+     * 
+     * @param query Search query string
+     * @return List of matching expansions, ordered by most recent first
+     */
+    public List<Expansion> searchExpansions(String query) {
+        if (query == null || query.trim().length() < 2) {
+            return List.of();
+        }
+        return expansionRepository.searchByTitle(query.trim());
+    }
+
     public Optional<Expansion> updateExpansion(Long id, Expansion expansionDetails) {
         return expansionRepository.findById(id).map(expansion -> {
             expansion.setTitle(expansionDetails.getTitle());

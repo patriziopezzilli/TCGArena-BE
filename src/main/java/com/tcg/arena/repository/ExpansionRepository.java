@@ -36,4 +36,10 @@ public interface ExpansionRepository extends JpaRepository<Expansion, Long> {
      */
     @Query("SELECT DISTINCT e FROM Expansion e LEFT JOIN FETCH e.sets s WHERE YEAR(s.releaseDate) = :year")
     List<Expansion> findAllWithSetsByYear(@Param("year") int year);
+
+    /**
+     * Search expansions by title (case-insensitive), ordered by most recent first
+     */
+    @Query("SELECT DISTINCT e FROM Expansion e LEFT JOIN FETCH e.sets s WHERE LOWER(e.title) LIKE LOWER(CONCAT('%', :query, '%')) ORDER BY e.id DESC")
+    List<Expansion> searchByTitle(@Param("query") String query);
 }

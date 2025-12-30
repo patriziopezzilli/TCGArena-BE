@@ -30,6 +30,9 @@ public class CardController {
         @Autowired
         private CardTemplateRepository cardTemplateRepository;
 
+        @Autowired
+        private com.tcg.arena.service.ExpansionService expansionService;
+
         @GetMapping
         @Operation(summary = "Get all card templates", description = "Retrieves a paginated list of all available card templates in the system")
         @ApiResponses(value = {
@@ -107,6 +110,47 @@ public class CardController {
                 }
                 List<CardTemplate> results = cardTemplateService.searchCardTemplates(query.trim());
                 return ResponseEntity.ok(results);
+        }
+
+        @GetMapping("/unified-search")
+        @Operation(summary = "Unified search", description = "Search for both card templates and expansions by name (minimum 2 characters required). Returns combined results ordered by date.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Search completed successfully, returns cards and expansions"),
+                        @ApiResponse(responseCode = "400", description = "Query string is too short (minimum 2 characters required)")
+        })
+        public ResponseEntity<?> unifiedSearch(
+                        @Parameter(description = "Search query (minimum 2 characters)") @RequestParam(name = "q") String query) {
+                if (query == null || query.trim().length() < 2) {
+                        return ResponseEntity.badRequest().body("Search query must be at least 2 characters long");
+                }
+
+                String trimmedQuery = query.trim();
+
+                // Search cards - sorted by most recent first
+                List<CardTemplate> cards = cardTemplateService.searchCardTemplates(trimmedQuery);
+
+                // Search expansions
+                List<com.tcg.arena.model.Expansion> expansions = expansionService.searchExpansions(trimmedQuery);
+
+                // Convert expansions to DTOs with card counts
+                java.util.Map<String, Long> setCodeCounts = cardTemplateService.getAllCardCountsBySetCode();
+                java.util.Map<Long, Long> expansionIdCounts = cardTemplateService.getAllCardCountsByExpansionId();
+
+                List<com.tcg.arena.dto.ExpansionDTO> expansionDTOs = expansions.stream()
+                                .map(exp -> new com.tcg.arena.dto.ExpansionDTO(exp, setCodeCounts, expansionIdCounts))
+                                .filter(dto -> {
+                                        // Only include expansions with cards
+                                        int totalCards = dto.getSets().stream()
+                                                        .mapToInt(set -> set.getCardCount() != null ? set.getCardCount()
+                                                                        : 0)
+                                                        .sum();
+                                        return totalCards > 0;
+                                })
+                                .collect(java.util.stream.Collectors.toList());
+
+                com.tcg.arena.dto.UnifiedSearchDTO result = new com.tcg.arena.dto.UnifiedSearchDTO(cards,
+                                expansionDTOs);
+                return ResponseEntity.ok(result);
         }
 
         @PostMapping("/smart-scan")
