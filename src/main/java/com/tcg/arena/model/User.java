@@ -264,11 +264,6 @@ public class User {
     // Computed average trade rating (1-5 stars)
     @JsonProperty("trade_rating")
     public Double getTradeRating() {
-        System.out.println("🔍 DEBUG getTradeRating for " + username + 
-            ": sum=" + tradeRatingSum + " (field), count=" + tradeRatingCount + " (field)");
-        
-        // Use field values directly instead of getters to see raw data
-        // Use field values directly
         Integer sum = tradeRatingSum;
         Integer count = tradeRatingCount;
         
@@ -285,6 +280,10 @@ public class User {
         
         // Validate rating is in valid range (1-5)
         if (rating < 1.0 || rating > 5.0) {
+            return null;
+        }
+        
+        return rating;
     }
 
     // Helper method to add a new rating
