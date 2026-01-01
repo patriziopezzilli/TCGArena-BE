@@ -24,11 +24,9 @@ public class CommunityPull {
     private TCGType tcgType;
 
     // Storing image as Base64 string in DB as requested
-    // Using simple TEXT might be too small (64KB), so we rely on columnDefinition
-    // or implicit LOB handling.
-    // In MySQL @Lob often maps to LONGTEXT.
-    @Lob
-    @Column(name = "image_base64", columnDefinition = "LONGTEXT", nullable = false)
+    // PostgreSQL uses TEXT type which can store up to 1GB
+    // For MySQL compatibility, use LONGTEXT in columnDefinition
+    @Column(name = "image_base64", columnDefinition = "TEXT", nullable = false)
     private String imageBase64;
 
     @Column(name = "created_at")
