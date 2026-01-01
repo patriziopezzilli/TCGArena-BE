@@ -29,6 +29,7 @@ public class User {
     private String password;
 
     private String profileImageUrl;
+    private String bio;
 
     @Column(nullable = false)
     private LocalDateTime dateJoined;
@@ -116,6 +117,14 @@ public class User {
 
     public void setProfileImageUrl(String profileImageUrl) {
         this.profileImageUrl = profileImageUrl;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
     }
 
     public LocalDateTime getDateJoined() {

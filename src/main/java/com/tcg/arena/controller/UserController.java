@@ -46,16 +46,12 @@ public class UserController {
         }
 
         @GetMapping("/{id}")
-        @Operation(summary = "Get user by ID", description = "Retrieves a specific user by their unique ID")
-        @ApiResponses(value = {
-                        @ApiResponse(responseCode = "200", description = "User found and returned"),
-                        @ApiResponse(responseCode = "404", description = "User not found")
-        })
-        public ResponseEntity<User> getUserById(
-                        @Parameter(description = "Unique identifier of the user") @PathVariable Long id) {
-                return userService.getUserById(id)
-                                .map(ResponseEntity::ok)
-                                .orElse(ResponseEntity.notFound().build());
+        @Operation(summary = "Get user by ID", description = "Retrieves a specific user by their unique ID with stats")
+        public ResponseEntity<UserWithStatsDTO> getUserById(@PathVariable Long id) {
+                return userService.getUserById(id).map(user -> {
+                        UserStats stats = userStatsService.getOrCreateUserStats(user);
+                        return ResponseEntity.ok(UserWithStatsDTO.fromUserAndStats(user, stats));
+                }).orElse(ResponseEntity.notFound().build());
         }
 
         @GetMapping("/search")

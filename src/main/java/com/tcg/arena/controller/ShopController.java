@@ -183,6 +183,16 @@ public class ShopController {
         return subscriptionService.getUserSubscriptions(userId);
     }
 
+    @GetMapping("/user/{userId}/subscriptions")
+    @Operation(summary = "Get specific user subscriptions", description = "Retrieves all shops a specific user is subscribed to")
+    public List<ShopDTO> getSpecificUserSubscriptions(@PathVariable Long userId) {
+        return subscriptionService.getUserSubscriptions(userId).stream()
+                .map(sub -> shopService.getShopById(sub.getShopId()))
+                .filter(java.util.Optional::isPresent)
+                .map(opt -> new ShopDTO(opt.get()))
+                .collect(Collectors.toList());
+    }
+
     // MARK: - Shop Suggestion Endpoints
 
     @PostMapping("/suggest")

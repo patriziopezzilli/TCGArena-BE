@@ -20,6 +20,7 @@ public class UserWithStatsDTO {
     private String username;
     private String displayName;
     private String profileImageUrl;
+    private String bio;
     private LocalDateTime dateJoined;
     private Boolean isPremium;
     private Boolean isMerchant;
@@ -28,6 +29,8 @@ public class UserWithStatsDTO {
     private TCGType favoriteGame;
     private List<TCGType> favoriteGames;
     private UserLocation location;
+    private Double tradeRating;
+    private Integer tradeRatingCount;
 
     // Embedded stats
     private UserStatsDTO stats;
@@ -56,6 +59,9 @@ public class UserWithStatsDTO {
         dto.favoriteGame = user.getFavoriteGame();
         dto.favoriteGames = user.getFavoriteTCGTypes();
         dto.location = user.getLocation();
+        dto.bio = user.getBio();
+        dto.tradeRating = user.getTradeRating();
+        dto.tradeRatingCount = user.getTradeRatingCount();
 
         // Build stats DTO
         if (stats != null) {
@@ -121,6 +127,14 @@ public class UserWithStatsDTO {
         this.profileImageUrl = profileImageUrl;
     }
 
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
+    }
+
     public LocalDateTime getDateJoined() {
         return dateJoined;
     }
@@ -183,6 +197,22 @@ public class UserWithStatsDTO {
 
     public void setLocation(UserLocation location) {
         this.location = location;
+    }
+
+    public Double getTradeRating() {
+        return tradeRating;
+    }
+
+    public void setTradeRating(Double tradeRating) {
+        this.tradeRating = tradeRating;
+    }
+
+    public Integer getTradeRatingCount() {
+        return tradeRatingCount;
+    }
+
+    public void setTradeRatingCount(Integer tradeRatingCount) {
+        this.tradeRatingCount = tradeRatingCount;
     }
 
     public UserStatsDTO getStats() {
