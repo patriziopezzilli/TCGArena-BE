@@ -12,6 +12,7 @@ public class CommunityPullDTO {
     private String imageBase64;
     private LocalDateTime createdAt;
     private int likesCount;
+    @com.fasterxml.jackson.annotation.JsonProperty("isLikedByCurrentUser")
     private boolean isLikedByCurrentUser;
 
     // Constructors, Getters, Setters

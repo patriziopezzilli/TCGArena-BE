@@ -67,7 +67,6 @@ public class RadarService {
         userRepository.findById(fromUserId).ifPresent(fromUser -> {
             // Logic to send push notification via NotificationService
             // notificationService.sendPing(toUserId, fromUser.getDisplayName());
-            System.out.println("PING from " + fromUserId + " to " + toUserId);
         });
     }
 
@@ -93,8 +92,6 @@ public class RadarService {
         // Fetch trade lists
         List<TradeListEntry> wantEntries = tradeListEntryRepository.findByUserAndType(user, TradeListType.WANT);
         List<TradeListEntry> haveEntries = tradeListEntryRepository.findByUserAndType(user, TradeListType.HAVE);
-        System.out.println("🔍 RadarService: User " + user.getId() + " - WANT entries: " + wantEntries.size()
-                + ", HAVE entries: " + haveEntries.size());
 
         dto.setWantList(wantEntries.stream().map(this::toRadarTradeEntry).collect(Collectors.toList()));
         dto.setHaveList(haveEntries.stream().map(this::toRadarTradeEntry).collect(Collectors.toList()));
@@ -102,12 +99,8 @@ public class RadarService {
         // Fetch cards from ALL decks (no public filter per user request)
         List<Deck> allDecks = deckRepository.findByOwnerIdOrderByDateCreatedDesc(user.getId());
 
-        System.out.println("🔍 RadarService: User " + user.getId() + " - Total decks: " + allDecks.size());
-
         Map<Long, RadarUserCard> cardMap = new HashMap<>();
-        int totalCards = 0;
         for (Deck deck : allDecks) {
-            totalCards += deck.getCards().size();
             for (DeckCard card : deck.getCards()) {
                 RadarUserCard existing = cardMap.get(card.getCardId());
                 if (existing != null) {
@@ -117,8 +110,6 @@ public class RadarService {
                 }
             }
         }
-        System.out.println("🔍 RadarService: User " + user.getId() + " - Total cards from decks: " + totalCards
-                + ", Unique cards: " + cardMap.size());
 
         dto.setCards(new ArrayList<>(cardMap.values()));
 
