@@ -4,6 +4,7 @@ import com.tcg.arena.dto.*;
 import com.tcg.arena.model.*;
 import com.tcg.arena.repository.ChatConversationRepository;
 import com.tcg.arena.repository.ChatMessageRepository;
+import com.tcg.arena.repository.PendingReviewRepository;
 import com.tcg.arena.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,9 @@ public class ChatService {
     // mapping
     @Autowired
     private RadarService radarService;
+
+    @Autowired
+    private PendingReviewRepository pendingReviewRepository;
 
     @Transactional(readOnly = true)
     public List<ChatConversationDto> getUserConversations(Long userId) {
@@ -232,6 +236,24 @@ public class ChatService {
                     "🎯 ChatService: Awarded " + pointsToAssign + " points and rating to user " + otherUser.getId());
             System.out.println("📊 ChatService: User " + otherUser.getId() + " now has trade rating: "
                     + otherUser.getTradeRating());
+
+            // Create pending review for the OTHER user to review the COMPLETER
+            // The other user needs to leave a review for the user who completed the trade
+            PendingReview pendingReview = new PendingReview(
+                    conversationId,
+                    otherUser, // reviewer (other user)
+                    user, // reviewee (user who completed)
+                    conversation.getContextJson() // trade context
+            );
+            pendingReviewRepository.save(pendingReview);
+            System.out.println("📝 ChatService: Created pending review for user " + otherUser.getId()
+                    + " to review user " + userId);
+
+            // Send notification to the other user
+            notificationService.sendPushNotification(
+                    otherUser.getId(),
+                    "Trattativa completata!",
+                    "Lascia una recensione per " + user.getDisplayName());
         }
 
         return convertToDto(conversation, userId);
