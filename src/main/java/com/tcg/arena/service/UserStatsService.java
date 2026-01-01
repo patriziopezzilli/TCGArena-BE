@@ -10,6 +10,7 @@ import com.tcg.arena.repository.TournamentParticipantRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -23,7 +24,6 @@ public class UserStatsService {
 
     @Autowired
     private UserStatsRepository userStatsRepository;
-
 
     @Autowired
     private DeckRepository deckRepository;
@@ -56,13 +56,12 @@ public class UserStatsService {
     private UserStats updateUserStats(UserStats stats) {
         User user = stats.getUser();
 
-
         // Calculate total cards in all decks (sum of DeckCard quantities)
         List<Deck> userDecks = deckRepository.findByOwnerIdOrderByDateCreatedDesc(user.getId());
         int totalCards = userDecks.stream()
-            .flatMap(deck -> deck.getCards().stream())
-            .mapToInt(deckCard -> deckCard.getQuantity() != null ? deckCard.getQuantity() : 0)
-            .sum();
+                .flatMap(deck -> deck.getCards().stream())
+                .mapToInt(deckCard -> deckCard.getQuantity() != null ? deckCard.getQuantity() : 0)
+                .sum();
         stats.setTotalCards(totalCards);
 
         // Calculate total decks
@@ -122,22 +121,22 @@ public class UserStatsService {
 
     @Cacheable(value = "leaderboard", key = "'overall_' + #limit")
     public List<UserStats> getLeaderboard(int limit) {
-        return userStatsRepository.findTopPlayers(limit);
+        return userStatsRepository.findTopPlayers(PageRequest.of(0, limit));
     }
 
     @Cacheable(value = "leaderboard", key = "'active_' + #limit")
     public List<UserStats> getActivePlayersLeaderboard(int limit) {
-        return userStatsRepository.findActivePlayersByWinRate(limit);
+        return userStatsRepository.findMostActivePlayers(PageRequest.of(0, limit));
     }
 
     @Cacheable(value = "leaderboard", key = "'collection_' + #limit")
     public List<UserStats> getTopCollectors(int limit) {
-        return userStatsRepository.findTopCollectors(limit);
+        return userStatsRepository.findTopCollectors(PageRequest.of(0, limit));
     }
 
     @Cacheable(value = "leaderboard", key = "'tournament_' + #limit")
     public List<UserStats> getTopTournamentPlayers(int limit) {
-        return userStatsRepository.findTopTournamentPlayers(limit);
+        return userStatsRepository.findTopTournamentPlayers(PageRequest.of(0, limit));
     }
 
     @CacheEvict(value = "leaderboard", allEntries = true)
