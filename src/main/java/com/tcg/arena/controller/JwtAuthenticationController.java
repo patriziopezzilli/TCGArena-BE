@@ -5,12 +5,15 @@ import com.tcg.arena.dto.MerchantRegistrationResponseDTO;
 import com.tcg.arena.dto.RefreshTokenRequest;
 import com.tcg.arena.dto.RefreshTokenResponse;
 import com.tcg.arena.dto.RegisterRequestDTO;
+import com.tcg.arena.model.PasswordResetToken;
 import com.tcg.arena.model.Shop;
 import com.tcg.arena.model.ShopType;
 import com.tcg.arena.model.User;
+import com.tcg.arena.repository.PasswordResetTokenRepository;
 import com.tcg.arena.security.JwtTokenUtil;
 import com.tcg.arena.security.JwtUserDetailsService;
 import com.tcg.arena.service.DeckService;
+import com.tcg.arena.service.EmailService;
 import com.tcg.arena.service.ShopService;
 import com.tcg.arena.service.UserService;
 import org.slf4j.Logger;
@@ -23,11 +26,14 @@ import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -55,6 +61,12 @@ public class JwtAuthenticationController {
 
     @Autowired
     private DeckService deckService;
+
+    @Autowired
+    private EmailService emailService;
+
+    @Autowired
+    private PasswordResetTokenRepository passwordResetTokenRepository;
 
     @PostMapping("/login")
     public ResponseEntity<?> createAuthenticationToken(@RequestBody JwtRequest authenticationRequest) throws Exception {
@@ -261,6 +273,114 @@ public class JwtAuthenticationController {
         response.put("user", savedUser);
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        
+        if (email == null || email.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Email is required"));
+        }
+
+        Optional<User> userOpt = userService.getUserByEmail(email);
+        if (!userOpt.isPresent()) {
+            // Per sicurezza, non rivelare se l'email esiste o meno
+            return ResponseEntity.ok(Map.of("message", "If the email exists, an OTP has been sent"));
+        }
+
+        try {
+            // Genera OTP a 6 cifre
+            String otp = generateOTP();
+            
+            // Elimina eventuali token precedenti per questa email
+            passwordResetTokenRepository.deleteByEmail(email);
+            
+            // Salva nuovo token
+            PasswordResetToken token = new PasswordResetToken(email, otp);
+            passwordResetTokenRepository.save(token);
+            
+            // Invia email
+            emailService.sendOtpEmail(email, otp);
+            
+            logger.info("Password reset OTP sent to: {}", email);
+            return ResponseEntity.ok(Map.of("message", "OTP sent to your email"));
+        } catch (Exception e) {
+            logger.error("Error sending password reset OTP", e);
+            return ResponseEntity.internalServerError().body(Map.of("message", "Failed to send OTP"));
+        }
+    }
+
+    @PostMapping("/verify-otp")
+    public ResponseEntity<?> verifyOtp(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String otp = request.get("otp");
+
+        if (email == null || otp == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Email and OTP are required"));
+        }
+
+        Optional<PasswordResetToken> tokenOpt = passwordResetTokenRepository.findByEmailAndOtpAndUsedFalse(email, otp);
+        
+        if (!tokenOpt.isPresent()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Invalid or expired OTP"));
+        }
+
+        PasswordResetToken token = tokenOpt.get();
+        if (token.isExpired()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "OTP has expired"));
+        }
+
+        return ResponseEntity.ok(Map.of("message", "OTP verified successfully"));
+    }
+
+    @PostMapping("/reset-password")
+    @Transactional
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
+        String email = request.get("email");
+        String otp = request.get("otp");
+        String newPassword = request.get("newPassword");
+
+        if (email == null || otp == null || newPassword == null) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Email, OTP and new password are required"));
+        }
+
+        if (newPassword.length() < 6) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Password must be at least 6 characters"));
+        }
+
+        Optional<PasswordResetToken> tokenOpt = passwordResetTokenRepository.findByEmailAndOtpAndUsedFalse(email, otp);
+        
+        if (!tokenOpt.isPresent()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Invalid or expired OTP"));
+        }
+
+        PasswordResetToken token = tokenOpt.get();
+        if (token.isExpired()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "OTP has expired"));
+        }
+
+        Optional<User> userOpt = userService.getUserByEmail(email);
+        if (!userOpt.isPresent()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "User not found"));
+        }
+
+        User user = userOpt.get();
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userService.saveUser(user);
+
+        // Marca il token come usato
+        token.setUsed(true);
+        passwordResetTokenRepository.save(token);
+
+        logger.info("Password reset successful for user: {}", email);
+        return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
+    }
+
+    private String generateOTP() {
+        SecureRandom random = new SecureRandom();
+        int otp = 100000 + random.nextInt(900000); // Genera numero tra 100000 e 999999
+        return String.valueOf(otp);
     }
 
     private void authenticate(String username, String password) throws Exception {
