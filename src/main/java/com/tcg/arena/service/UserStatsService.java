@@ -119,22 +119,22 @@ public class UserStatsService {
                 .orElse(user.getFavoriteGame());
     }
 
-    @Cacheable(value = "leaderboard", key = "'overall_' + #limit")
+    @Cacheable(value = "leaderboard", key = "'v2_overall_' + #limit")
     public List<UserStats> getLeaderboard(int limit) {
         return userStatsRepository.findTopPlayers(PageRequest.of(0, limit));
     }
 
-    @Cacheable(value = "leaderboard", key = "'active_' + #limit")
+    @Cacheable(value = "leaderboard", key = "'v2_active_' + #limit")
     public List<UserStats> getActivePlayersLeaderboard(int limit) {
         return userStatsRepository.findMostActivePlayers(PageRequest.of(0, limit));
     }
 
-    @Cacheable(value = "leaderboard", key = "'collection_' + #limit")
+    @Cacheable(value = "leaderboard", key = "'v2_collection_' + #limit")
     public List<UserStats> getTopCollectors(int limit) {
         return userStatsRepository.findTopCollectors(PageRequest.of(0, limit));
     }
 
-    @Cacheable(value = "leaderboard", key = "'tournament_' + #limit")
+    @Cacheable(value = "leaderboard", key = "'v2_tournament_' + #limit")
     public List<UserStats> getTopTournamentPlayers(int limit) {
         return userStatsRepository.findTopTournamentPlayers(PageRequest.of(0, limit));
     }
