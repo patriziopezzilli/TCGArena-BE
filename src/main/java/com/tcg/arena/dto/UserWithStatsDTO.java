@@ -63,11 +63,6 @@ public class UserWithStatsDTO {
         dto.bio = user.getBio();
         dto.tradeRating = user.getTradeRating();
         dto.tradeRatingCount = user.getTradeRatingCount();
-        
-        // Debug log for trade rating
-        System.out.println("📤 DTO for " + user.getUsername() + 
-            " - tradeRating: " + dto.tradeRating + 
-            ", tradeRatingCount: " + dto.tradeRatingCount);
 
         // Build stats DTO
         if (stats != null) {

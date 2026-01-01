@@ -246,22 +246,18 @@ public class User {
     }
 
     public Integer getTradeRatingSum() {
-        System.out.println("🔍 DEBUG getTradeRatingSum for " + username + ": " + tradeRatingSum);
         return tradeRatingSum != null ? tradeRatingSum : 0;
     }
 
     public void setTradeRatingSum(Integer tradeRatingSum) {
-        System.out.println("🔍 DEBUG setTradeRatingSum for " + username + ": " + tradeRatingSum);
         this.tradeRatingSum = tradeRatingSum;
     }
 
     public Integer getTradeRatingCount() {
-        System.out.println("🔍 DEBUG getTradeRatingCount for " + username + ": " + tradeRatingCount);
         return tradeRatingCount != null ? tradeRatingCount : 0;
     }
 
     public void setTradeRatingCount(Integer tradeRatingCount) {
-        System.out.println("🔍 DEBUG setTradeRatingCount for " + username + ": " + tradeRatingCount);
         this.tradeRatingCount = tradeRatingCount;
     }
 
@@ -272,35 +268,23 @@ public class User {
             ": sum=" + tradeRatingSum + " (field), count=" + tradeRatingCount + " (field)");
         
         // Use field values directly instead of getters to see raw data
+        // Use field values directly
         Integer sum = tradeRatingSum;
         Integer count = tradeRatingCount;
         
-        System.out.println("🔍 DEBUG getTradeRating direct fields: sum=" + sum + ", count=" + count);
-        
         if (count == null || count == 0) {
-            System.out.println("🔍 DEBUG returning null (count is null or 0)");
             return null;
         }
         
         // Defensive: if sum is invalid (negative or 0 when count > 0), return null
         if (sum == null || sum <= 0) {
-            System.out.println("⚠️ WARNING: Invalid tradeRatingSum for user " + username + 
-                ": sum=" + sum + ", count=" + count);
             return null;
         }
         
         double rating = (double) sum / count;
         
-        System.out.println("🔍 DEBUG calculated rating: " + rating);
-        
         // Validate rating is in valid range (1-5)
         if (rating < 1.0 || rating > 5.0) {
-            System.out.println("⚠️ WARNING: Calculated rating out of range for user " + username + 
-                ": rating=" + rating + " (sum=" + sum + ", count=" + count + ")");
-            return null;
-        }
-        
-        return rating;
     }
 
     // Helper method to add a new rating
