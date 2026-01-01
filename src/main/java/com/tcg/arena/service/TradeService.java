@@ -449,4 +449,33 @@ public class TradeService {
             }
         }
     }
+
+    /**
+     * Get all public trade listings for the community trade board.
+     * Supports optional filtering by TCG type and list type.
+     */
+    public List<com.tcg.arena.dto.PublicTradeListingDTO> getPublicListings(String tcgType, String listType) {
+        List<TradeListEntry> allEntries = tradeListEntryRepository.findAll();
+
+        return allEntries.stream()
+                .filter(entry -> {
+                    // Filter by TCG type if specified
+                    if (tcgType != null && !tcgType.isEmpty()) {
+                        if (entry.getCardTemplate() == null || entry.getCardTemplate().getTcgType() == null) {
+                            return false;
+                        }
+                        return entry.getCardTemplate().getTcgType().name().equalsIgnoreCase(tcgType);
+                    }
+                    return true;
+                })
+                .filter(entry -> {
+                    // Filter by list type (WANT/HAVE) if specified
+                    if (listType != null && !listType.isEmpty()) {
+                        return entry.getType().name().equalsIgnoreCase(listType);
+                    }
+                    return true;
+                })
+                .map(com.tcg.arena.dto.PublicTradeListingDTO::fromEntity)
+                .collect(Collectors.toList());
+    }
 }

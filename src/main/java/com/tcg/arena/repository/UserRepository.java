@@ -10,7 +10,13 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmail(String email);
+
     Optional<User> findByUsername(String username);
+
     List<User> findAllByOrderByPointsDesc();
+
     List<User> findAllByOrderByDateJoinedDesc();
+
+    // Count users registered after a given date
+    long countByDateJoinedAfter(java.time.LocalDateTime since);
 }

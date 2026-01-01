@@ -20,4 +20,12 @@ public interface ChatConversationRepository extends JpaRepository<ChatConversati
     // Find a direct conversation (FREE) between two users
     @Query("SELECT c FROM ChatConversation c WHERE c.type = 'FREE' AND :user1 MEMBER OF c.participants AND :user2 MEMBER OF c.participants AND SIZE(c.participants) = 2")
     Optional<ChatConversation> findFreeConversation(@Param("user1") User user1, @Param("user2") User user2);
+
+    // Count total unread messages for a user across all their conversations
+    // Query messages where user is a participant but not the sender and message is
+    // unread
+    @Query(value = "SELECT COALESCE(COUNT(*), 0) FROM chat_messages m " +
+            "JOIN chat_conversation_participants cp ON cp.conversation_id = m.conversation_id " +
+            "WHERE cp.user_id = :userId AND m.sender_id != :userId AND m.is_read = false", nativeQuery = true)
+    int countUnreadByUserId(@Param("userId") Long userId);
 }

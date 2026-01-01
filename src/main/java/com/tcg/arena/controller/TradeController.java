@@ -143,4 +143,15 @@ public class TradeController {
                 tradeService.startChat(matchId, user.getId());
                 return ResponseEntity.ok().build();
         }
+
+        /**
+         * Get all public trade listings for the trade board
+         * Returns all WANT and HAVE listings from all users
+         */
+        @GetMapping("/listings/public")
+        public ResponseEntity<List<com.tcg.arena.dto.PublicTradeListingDTO>> getPublicListings(
+                        @RequestParam(required = false) String tcgType,
+                        @RequestParam(required = false) String listType) {
+                return ResponseEntity.ok(tradeService.getPublicListings(tcgType, listType));
+        }
 }

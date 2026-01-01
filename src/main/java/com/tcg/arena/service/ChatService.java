@@ -4,14 +4,12 @@ import com.tcg.arena.dto.*;
 import com.tcg.arena.model.*;
 import com.tcg.arena.repository.ChatConversationRepository;
 import com.tcg.arena.repository.ChatMessageRepository;
-import com.tcg.arena.repository.TradeListEntryRepository;
 import com.tcg.arena.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
