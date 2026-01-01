@@ -1,5 +1,6 @@
 package com.tcg.arena.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.tcg.arena.model.TCGType;
 import com.tcg.arena.model.User;
 import com.tcg.arena.model.UserLocation;
@@ -62,6 +63,11 @@ public class UserWithStatsDTO {
         dto.bio = user.getBio();
         dto.tradeRating = user.getTradeRating();
         dto.tradeRatingCount = user.getTradeRatingCount();
+        
+        // Debug log for trade rating
+        System.out.println("📤 DTO for " + user.getUsername() + 
+            " - tradeRating: " + dto.tradeRating + 
+            ", tradeRatingCount: " + dto.tradeRatingCount);
 
         // Build stats DTO
         if (stats != null) {
@@ -199,6 +205,7 @@ public class UserWithStatsDTO {
         this.location = location;
     }
 
+    @JsonProperty("trade_rating")
     public Double getTradeRating() {
         return tradeRating;
     }
@@ -207,6 +214,7 @@ public class UserWithStatsDTO {
         this.tradeRating = tradeRating;
     }
 
+    @JsonProperty("tradeRatingCount")
     public Integer getTradeRatingCount() {
         return tradeRatingCount;
     }
