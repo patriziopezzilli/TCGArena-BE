@@ -23,12 +23,53 @@ public class FirebaseMessagingService {
     public void initializeFirebase() {
         try {
             // Initialize Firebase with service account key
-            // Load from project root or environment variable
+            // Try multiple locations
+            java.io.InputStream serviceAccount = null;
+            String loadedFrom = "";
+
+            // 1. Try environment variable path
             String firebaseKeyPath = System.getenv("FIREBASE_SERVICE_ACCOUNT_PATH");
-            if (firebaseKeyPath == null || firebaseKeyPath.isEmpty()) {
-                firebaseKeyPath = "firebase-service-account.json";
+            if (firebaseKeyPath != null && !firebaseKeyPath.isEmpty()) {
+                java.io.File file = new java.io.File(firebaseKeyPath);
+                if (file.exists()) {
+                    serviceAccount = new FileInputStream(file);
+                    loadedFrom = "env path: " + firebaseKeyPath;
+                }
             }
-            FileInputStream serviceAccount = new FileInputStream(firebaseKeyPath);
+
+            // 2. Try classpath (src/main/resources)
+            if (serviceAccount == null) {
+                serviceAccount = getClass().getClassLoader().getResourceAsStream("firebase-service-account.json");
+                if (serviceAccount != null) {
+                    loadedFrom = "classpath";
+                }
+            }
+
+            // 3. Try current working directory
+            if (serviceAccount == null) {
+                java.io.File cwdFile = new java.io.File("firebase-service-account.json");
+                if (cwdFile.exists()) {
+                    serviceAccount = new FileInputStream(cwdFile);
+                    loadedFrom = "cwd: " + cwdFile.getAbsolutePath();
+                }
+            }
+
+            // 4. Try project root (absolute path for development)
+            if (serviceAccount == null) {
+                java.io.File devFile = new java.io.File(
+                        "/Users/patriziopezzilli/Documents/Sviluppo/TCGArena-BE/firebase-service-account.json");
+                if (devFile.exists()) {
+                    serviceAccount = new FileInputStream(devFile);
+                    loadedFrom = "dev path";
+                }
+            }
+
+            if (serviceAccount == null) {
+                logger.warn("⚠️ Firebase service account not found. Push notifications will be disabled.");
+                logger.warn(
+                        "   Place firebase-service-account.json in src/main/resources/ or set FIREBASE_SERVICE_ACCOUNT_PATH");
+                return;
+            }
 
             FirebaseOptions options = FirebaseOptions.builder()
                     .setCredentials(GoogleCredentials.fromStream(serviceAccount))
@@ -36,11 +77,10 @@ public class FirebaseMessagingService {
 
             if (FirebaseApp.getApps().isEmpty()) {
                 FirebaseApp.initializeApp(options);
+                logger.info("✅ Firebase initialized successfully from " + loadedFrom);
             }
         } catch (IOException e) {
-            logger.error("Failed to initialize Firebase: " + e.getMessage());
-            // For development, we'll continue without Firebase initialization
-            // In production, this should throw an exception
+            logger.error("❌ Failed to initialize Firebase: " + e.getMessage());
         }
     }
 
