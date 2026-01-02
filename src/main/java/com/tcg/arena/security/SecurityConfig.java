@@ -75,6 +75,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**", "/api/public/**", "/api/admin/**", "/health", "/swagger-ui/**",
                                 "/v3/api-docs/**")
                         .permitAll()
+                        // WebSocket endpoints
+                        .requestMatchers("/ws/**", "/api/arena-chat/**").permitAll()
                         // Protected card endpoints
                         .requestMatchers("/api/cards/collection").authenticated()
                         .requestMatchers("/api/cards/collection/**").authenticated()
