@@ -85,6 +85,7 @@ echo -e "${YELLOW}[4/4] Avviando l'applicazione...${NC}"
 cd "$SCRIPT_DIR/target"
 
 # Avvia in background con nohup
+export FIREBASE_SERVICE_ACCOUNT_PATH="/root/TCGArena-BE/firebase-service-account.json"
 nohup java -jar $JAR_NAME > app.log 2>&1 &
 
 NEW_PID=$!
