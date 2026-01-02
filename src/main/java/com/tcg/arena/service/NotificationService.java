@@ -85,9 +85,14 @@ public class NotificationService {
         for (DeviceToken deviceToken : deviceTokens) {
             try {
                 firebaseMessagingService.sendPushNotification(deviceToken.getToken(), title, message);
+            } catch (FirebaseMessagingService.InvalidTokenException e) {
+                // Remove invalid token from database
+                logger.info("🗑️  Removing invalid device token for user {}", userId);
+                deviceTokenRepository.delete(deviceToken);
             } catch (Exception e) {
-                logger.error("Failed to send push notification to device {}: {}", deviceToken.getToken(),
-                        e.getMessage());
+                logger.error("Failed to send push notification to device {}: {}", 
+                    deviceToken.getToken().substring(0, Math.min(20, deviceToken.getToken().length())),
+                    e.getMessage());
             }
         }
     }
@@ -105,9 +110,13 @@ public class NotificationService {
             for (DeviceToken deviceToken : deviceTokens) {
                 try {
                     firebaseMessagingService.sendPushNotification(deviceToken.getToken(), title, message);
+                } catch (FirebaseMessagingService.InvalidTokenException e) {
+                    logger.info("🗑️  Removing invalid device token for user {}", subscription.getUserId());
+                    deviceTokenRepository.delete(deviceToken);
                 } catch (Exception e) {
-                    logger.error("Failed to send push notification to device {}: {}", deviceToken.getToken(),
-                            e.getMessage());
+                    logger.error("Failed to send push notification to device {}: {}", 
+                        deviceToken.getToken().substring(0, Math.min(20, deviceToken.getToken().length())),
+                        e.getMessage());
                 }
             }
         }
@@ -301,6 +310,10 @@ public class NotificationService {
             try {
                 firebaseMessagingService.sendPushNotification(deviceToken.getToken(), title, message);
                 successCount++;
+            } catch (FirebaseMessagingService.InvalidTokenException e) {
+                failCount++;
+                logger.info("🗑️  Removing invalid device token during broadcast");
+                deviceTokenRepository.delete(deviceToken);
             } catch (Exception e) {
                 failCount++;
                 logger.error("Failed to send broadcast to device {}: {}",
@@ -324,5 +337,72 @@ public class NotificationService {
                 .map(DeviceToken::getUserId)
                 .distinct()
                 .count();
+    }
+
+    /**
+     * Clean up invalid device tokens from database
+     * Tests each token with a dummy notification and removes invalid ones
+     * 
+     * @return Number of tokens removed
+     */
+    public int cleanInvalidTokens() {
+        List<DeviceToken> allTokens = deviceTokenRepository.findAll();
+        int removedCount = 0;
+        
+        logger.info("🧹 Starting cleanup of {} device tokens...", allTokens.size());
+        
+        for (DeviceToken deviceToken : allTokens) {
+            try {
+                // Try to send a test message (dry run would be ideal but not available in all Firebase versions)
+                // We'll catch the error if token is invalid
+                firebaseMessagingService.sendPushNotification(
+                    deviceToken.getToken(), 
+                    "Test", 
+                    "Token validation"
+                );
+            } catch (FirebaseMessagingService.InvalidTokenException e) {
+                logger.info("🗑️  Removing invalid token for user {}: {}", 
+                    deviceToken.getUserId(), 
+                    e.getMessage());
+                deviceTokenRepository.delete(deviceToken);
+                removedCount++;
+            } catch (Exception e) {
+                logger.warn("⚠️  Error validating token for user {}: {}", 
+                    deviceToken.getUserId(), 
+                    e.getMessage());
+            }
+        }
+        
+        logger.info("✅ Cleanup complete: {} invalid tokens removed out of {}", 
+            removedCount, allTokens.size());
+        
+        return removedCount;
+    }
+    
+    /**
+     * Get statistics about device tokens
+     */
+    public java.util.Map<String, Object> getTokenStatistics() {
+        List<DeviceToken> allTokens = deviceTokenRepository.findAll();
+        
+        long iosTokens = allTokens.stream()
+            .filter(t -> "ios".equalsIgnoreCase(t.getPlatform()))
+            .count();
+            
+        long androidTokens = allTokens.stream()
+            .filter(t -> "android".equalsIgnoreCase(t.getPlatform()))
+            .count();
+            
+        long uniqueUsers = allTokens.stream()
+            .map(DeviceToken::getUserId)
+            .distinct()
+            .count();
+            
+        return java.util.Map.of(
+            "totalTokens", allTokens.size(),
+            "iosTokens", iosTokens,
+            "androidTokens", androidTokens,
+            "uniqueUsers", uniqueUsers
+        );
     }
 }

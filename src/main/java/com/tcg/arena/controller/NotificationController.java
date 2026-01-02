@@ -128,4 +128,29 @@ public class NotificationController {
         notificationService.sendNotificationToShopSubscribers(shopId, title, message);
         return ResponseEntity.ok(Map.of("message", "Notifica inviata ai subscriber"));
     }
+
+    @PostMapping("/admin/clean-invalid-tokens")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Clean invalid device tokens", description = "Removes invalid FCM tokens from database (admin only)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Invalid tokens cleaned successfully")
+    })
+    public ResponseEntity<Map<String, Object>> cleanInvalidTokens() {
+        int removedCount = notificationService.cleanInvalidTokens();
+        return ResponseEntity.ok(Map.of(
+            "message", "Token non validi rimossi",
+            "removedTokens", removedCount
+        ));
+    }
+
+    @GetMapping("/admin/token-statistics")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Get device token statistics", description = "Returns statistics about registered device tokens (admin only)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Statistics retrieved successfully")
+    })
+    public ResponseEntity<Map<String, Object>> getTokenStatistics() {
+        Map<String, Object> stats = notificationService.getTokenStatistics();
+        return ResponseEntity.ok(stats);
+    }
 }

@@ -17,6 +17,22 @@ import java.io.IOException;
 @Service
 public class FirebaseMessagingService {
 
+    /**
+     * Exception thrown when a device token is invalid or unregistered
+     */
+    public static class InvalidTokenException extends Exception {
+        private final String token;
+        
+        public InvalidTokenException(String message, String token) {
+            super(message);
+            this.token = token;
+        }
+        
+        public String getToken() {
+            return token;
+        }
+    }
+
     private static final Logger logger = LoggerFactory.getLogger(FirebaseMessagingService.class);
 
     @PostConstruct
@@ -84,8 +100,20 @@ public class FirebaseMessagingService {
         }
     }
 
-    public void sendPushNotification(String deviceToken, String title, String body) {
+    /**
+     * Send push notification to a device
+     * @param deviceToken FCM device token
+     * @param title Notification title
+     * @param body Notification body
+     * @throws InvalidTokenException if token is invalid or unregistered
+     */
+    public void sendPushNotification(String deviceToken, String title, String body) throws InvalidTokenException {
         try {
+            if (FirebaseApp.getApps().isEmpty()) {
+                logger.warn("Firebase not initialized, skipping notification");
+                return;
+            }
+
             Notification notification = Notification.builder()
                     .setTitle(title)
                     .setBody(body)
@@ -97,10 +125,28 @@ public class FirebaseMessagingService {
                     .build();
 
             String response = FirebaseMessaging.getInstance().send(message);
-            logger.info("Successfully sent message: " + response);
+            logger.debug("✅ Push sent to token ...{}: {}", 
+                deviceToken.substring(Math.max(0, deviceToken.length() - 10)), response);
+        } catch (com.google.firebase.messaging.FirebaseMessagingException e) {
+            String errorCode = e.getMessagingErrorCode() != null ? e.getMessagingErrorCode().name() : "UNKNOWN";
+            String tokenPreview = deviceToken.substring(0, Math.min(20, deviceToken.length())) + "...";
+            
+            // Check if token is invalid or unregistered
+            if (errorCode.contains("UNREGISTERED") || 
+                errorCode.contains("INVALID") ||
+                e.getMessage().contains("not a valid FCM registration token")) {
+                logger.warn("🗑️  Invalid FCM token detected: {} - Error: {}", tokenPreview, errorCode);
+                throw new InvalidTokenException("Invalid or unregistered FCM token", deviceToken);
+            }
+            
+            // Authentication errors
+            if (e.getMessage().contains("401") || e.getMessage().contains("Unauthorized")) {
+                logger.error("🔐 Firebase authentication failed - Check service account credentials");
+            }
+            
+            logger.error("❌ Failed to send push to {}: {} - {}", tokenPreview, errorCode, e.getMessage());
         } catch (Exception e) {
-            logger.error("Failed to send push notification: " + e.getMessage());
-            // Fallback: could implement APNs or other push service
+            logger.error("❌ Unexpected error sending push: {}", e.getMessage());
         }
     }
 
