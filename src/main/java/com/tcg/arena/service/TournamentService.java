@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.Arrays;
+import java.util.Random;
+import com.tcg.arena.dto.WebGuestRegistrationRequest;
 
 @Service
 public class TournamentService {
@@ -150,7 +152,127 @@ public class TournamentService {
     }
 
     public Tournament saveTournament(Tournament tournament) {
+        // Generate unique registration code if not set
+        if (tournament.getRegistrationCode() == null || tournament.getRegistrationCode().isEmpty()) {
+            tournament.setRegistrationCode(generateUniqueCode());
+        }
         return tournamentRepository.save(tournament);
+    }
+
+    /**
+     * Generate a unique 5-character alphanumeric code
+     */
+    private String generateUniqueCode() {
+        String chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // Excluding confusing chars (0, O, 1, I)
+        Random random = new Random();
+        String code;
+        int attempts = 0;
+        do {
+            StringBuilder sb = new StringBuilder(5);
+            for (int i = 0; i < 5; i++) {
+                sb.append(chars.charAt(random.nextInt(chars.length())));
+            }
+            code = sb.toString();
+            attempts++;
+        } while (tournamentRepository.findByRegistrationCode(code).isPresent() && attempts < 100);
+        return code;
+    }
+
+    /**
+     * Find tournament by public registration code
+     */
+    public Optional<Tournament> findByRegistrationCode(String code) {
+        if (code == null || code.length() != 5) {
+            return Optional.empty();
+        }
+        Optional<Tournament> tournamentOpt = tournamentRepository.findByRegistrationCode(code.toUpperCase());
+        if (tournamentOpt.isPresent()) {
+            Tournament tournament = tournamentOpt.get();
+            long participantCount = participantRepository.countByTournamentIdAndStatusIn(
+                    tournament.getId(),
+                    Arrays.asList(ParticipantStatus.REGISTERED, ParticipantStatus.CHECKED_IN));
+            tournament.setCurrentParticipants((int) participantCount);
+        }
+        return tournamentOpt;
+    }
+
+    /**
+     * Register a guest user via web form (public endpoint)
+     * Creates guest user with real email, registers to tournament with auto
+     * check-in
+     */
+    public TournamentParticipant registerGuestByCode(String code, WebGuestRegistrationRequest request) {
+        // Find tournament by code
+        Tournament tournament = findByRegistrationCode(code)
+                .orElseThrow(() -> new RuntimeException("Codice torneo non valido"));
+
+        // Validate tournament status
+        if (tournament.getStatus() == TournamentStatus.IN_PROGRESS) {
+            throw new RuntimeException("Il torneo è già iniziato. Le iscrizioni sono chiuse.");
+        }
+        if (tournament.getStatus() == TournamentStatus.COMPLETED) {
+            throw new RuntimeException("Il torneo è terminato.");
+        }
+        if (tournament.getStatus() == TournamentStatus.CANCELLED) {
+            throw new RuntimeException("Il torneo è stato annullato.");
+        }
+
+        // Check if email is already registered for this tournament
+        Optional<User> existingUser = userRepository.findByEmail(request.getEmail());
+        if (existingUser.isPresent()) {
+            Optional<TournamentParticipant> existingParticipant = participantRepository
+                    .findByTournamentIdAndUserId(tournament.getId(), existingUser.get().getId());
+            if (existingParticipant.isPresent()) {
+                throw new RuntimeException("Questa email è già registrata per questo torneo.");
+            }
+        }
+
+        // Check capacity
+        long registeredCount = participantRepository.countByTournamentIdAndStatusIn(
+                tournament.getId(),
+                Arrays.asList(ParticipantStatus.REGISTERED, ParticipantStatus.CHECKED_IN));
+        if (registeredCount >= tournament.getMaxParticipants()) {
+            throw new RuntimeException("Il torneo ha raggiunto il numero massimo di partecipanti.");
+        }
+
+        // Create or reuse user
+        User user;
+        if (existingUser.isPresent()) {
+            user = existingUser.get();
+        } else {
+            // Create guest user with real email
+            user = new User();
+            String baseName = (request.getFirstName() + " " + request.getLastName()).trim();
+            if (baseName.isEmpty())
+                baseName = "Guest";
+            user.setDisplayName(baseName);
+
+            String timestamp = String.valueOf(System.currentTimeMillis());
+            user.setUsername("webguest_" + timestamp);
+            user.setEmail(request.getEmail());
+            user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+            user.setDateJoined(LocalDateTime.now());
+            user.setIsPremium(false);
+            user.setIsMerchant(false);
+            user.setPoints(0);
+            user = userRepository.save(user);
+        }
+
+        // Register participant with auto check-in
+        TournamentParticipant participant = new TournamentParticipant();
+        participant.setTournamentId(tournament.getId());
+        participant.setUserId(user.getId());
+        participant.setRegistrationDate(LocalDateTime.now());
+        participant.setCheckInCode(UUID.randomUUID().toString());
+        participant.setStatus(ParticipantStatus.CHECKED_IN); // Auto check-in for web guests
+        participant.setCheckedInAt(LocalDateTime.now());
+
+        TournamentParticipant savedParticipant = participantRepository.save(participant);
+
+        // TODO: Send confirmation email
+        System.out.println("[WEB GUEST] Registered " + request.getEmail() + " for tournament " + tournament.getTitle());
+
+        return savedParticipant;
     }
 
     public TournamentParticipant registerForTournament(Long tournamentId, Long userId) {

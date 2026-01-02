@@ -48,11 +48,11 @@ public class Tournament {
 
     // Approval workflow fields
     private Long createdByUserId; // User who created/requested the tournament
-    
+
     private Long approvedByUserId; // Shop owner/merchant who approved the tournament
-    
+
     private LocalDateTime approvalDate; // When the tournament was approved
-    
+
     @Column(length = 500)
     private String rejectionReason; // Reason for rejection (if REJECTED status)
 
@@ -67,6 +67,10 @@ public class Tournament {
 
     @Column(length = 500)
     private String externalRegistrationUrl; // URL for external registration (e.g., Pokemon Companion)
+
+    // Public registration code (5 uppercase alphanumeric characters)
+    @Column(unique = true, length = 5)
+    private String registrationCode;
 
     @OneToMany(mappedBy = "tournamentId", cascade = CascadeType.ALL)
     private List<TournamentParticipant> participants = new ArrayList<>();
@@ -246,5 +250,13 @@ public class Tournament {
 
     public void setRejectionReason(String rejectionReason) {
         this.rejectionReason = rejectionReason;
+    }
+
+    public String getRegistrationCode() {
+        return registrationCode;
+    }
+
+    public void setRegistrationCode(String registrationCode) {
+        this.registrationCode = registrationCode;
     }
 }

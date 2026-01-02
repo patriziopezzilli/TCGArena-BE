@@ -87,6 +87,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/tournaments/*/approve").authenticated()
                         .requestMatchers("/api/tournaments/*/reject").authenticated()
                         .requestMatchers("/api/tournaments/request").authenticated()
+                        // Public tournament code registration (for web guests)
+                        .requestMatchers("POST", "/api/tournaments/code/*/register").permitAll()
                         // Public tournament endpoints
                         .requestMatchers("GET", "/api/tournaments/**").permitAll()
                         // Protected shop endpoints (must come BEFORE the permitAll wildcard!)

@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import com.tcg.arena.dto.ManualRegistrationRequest;
+import com.tcg.arena.dto.WebGuestRegistrationRequest;
 
 @RestController
 @RequestMapping("/api/tournaments")
@@ -39,21 +40,22 @@ public class TournamentController {
     public List<Tournament> getAllTournaments() {
         Optional<User> currentUser = userService.getCurrentUser();
         List<Tournament> allTournaments = tournamentService.getAllTournaments();
-        
-        // Filter out PENDING_APPROVAL and REJECTED tournaments unless user is creator or organizer
+
+        // Filter out PENDING_APPROVAL and REJECTED tournaments unless user is creator
+        // or organizer
         if (currentUser.isEmpty()) {
             // Anonymous user - show only approved tournaments
             return allTournaments.stream()
-                    .filter(t -> t.getStatus() != com.tcg.arena.model.TournamentStatus.PENDING_APPROVAL 
+                    .filter(t -> t.getStatus() != com.tcg.arena.model.TournamentStatus.PENDING_APPROVAL
                             && t.getStatus() != com.tcg.arena.model.TournamentStatus.REJECTED)
                     .toList();
         }
-        
+
         Long userId = currentUser.get().getId();
         return allTournaments.stream()
                 .filter(t -> {
                     // Show all approved tournaments
-                    if (t.getStatus() != com.tcg.arena.model.TournamentStatus.PENDING_APPROVAL 
+                    if (t.getStatus() != com.tcg.arena.model.TournamentStatus.PENDING_APPROVAL
                             && t.getStatus() != com.tcg.arena.model.TournamentStatus.REJECTED) {
                         return true;
                     }
@@ -76,10 +78,12 @@ public class TournamentController {
         }
 
         if (!Boolean.TRUE.equals(currentUser.get().getIsMerchant())) {
-            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Solo i merchant possono accedere a questa risorsa"));
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Solo i merchant possono accedere a questa risorsa"));
         }
 
-        List<Tournament> pendingRequests = tournamentService.getPendingTournamentRequestsForMerchant(currentUser.get().getId());
+        List<Tournament> pendingRequests = tournamentService
+                .getPendingTournamentRequestsForMerchant(currentUser.get().getId());
         return ResponseEntity.ok(pendingRequests);
     }
 
@@ -104,7 +108,7 @@ public class TournamentController {
     public List<Tournament> getUpcomingTournaments() {
         Optional<User> currentUser = userService.getCurrentUser();
         List<Tournament> upcomingTournaments = tournamentService.getUpcomingTournaments();
-        
+
         System.out.println("🔍 GET /tournaments/upcoming called");
         System.out.println("   User authenticated: " + currentUser.isPresent());
         if (currentUser.isPresent()) {
@@ -112,23 +116,24 @@ public class TournamentController {
         }
         System.out.println("   Total upcoming tournaments from DB: " + upcomingTournaments.size());
         upcomingTournaments.forEach(t -> {
-            System.out.println("   - Tournament: " + t.getTitle() + " | Status: " + t.getStatus() + " | CreatedBy: " + t.getCreatedByUserId());
+            System.out.println("   - Tournament: " + t.getTitle() + " | Status: " + t.getStatus() + " | CreatedBy: "
+                    + t.getCreatedByUserId());
         });
-        
+
         // Filter based on user permissions (same logic as getAllTournaments)
         if (currentUser.isEmpty()) {
             List<Tournament> filtered = upcomingTournaments.stream()
-                    .filter(t -> t.getStatus() != com.tcg.arena.model.TournamentStatus.PENDING_APPROVAL 
+                    .filter(t -> t.getStatus() != com.tcg.arena.model.TournamentStatus.PENDING_APPROVAL
                             && t.getStatus() != com.tcg.arena.model.TournamentStatus.REJECTED)
                     .toList();
             System.out.println("   Filtered for anonymous user: " + filtered.size() + " tournaments");
             return filtered;
         }
-        
+
         Long userId = currentUser.get().getId();
         List<Tournament> filtered = upcomingTournaments.stream()
                 .filter(t -> {
-                    if (t.getStatus() != com.tcg.arena.model.TournamentStatus.PENDING_APPROVAL 
+                    if (t.getStatus() != com.tcg.arena.model.TournamentStatus.PENDING_APPROVAL
                             && t.getStatus() != com.tcg.arena.model.TournamentStatus.REJECTED) {
                         return true;
                     }
@@ -158,6 +163,44 @@ public class TournamentController {
     })
     public List<Tournament> getPastTournaments() {
         return tournamentService.getPastTournaments();
+    }
+
+    // ========== PUBLIC REGISTRATION CODE ENDPOINTS (NO AUTH REQUIRED) ==========
+
+    @GetMapping("/code/{code}")
+    @Operation(summary = "Get tournament by registration code", description = "Public endpoint - Retrieves tournament details by public registration code. No authentication required.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Tournament found"),
+            @ApiResponse(responseCode = "404", description = "Tournament not found or invalid code")
+    })
+    public ResponseEntity<?> getTournamentByCode(
+            @Parameter(description = "5-character registration code") @PathVariable String code) {
+        return tournamentService.findByRegistrationCode(code)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/code/{code}/register")
+    @Operation(summary = "Register guest for tournament", description = "Public endpoint - Registers a guest user for a tournament using registration code. No authentication required. Auto check-in is applied.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully registered for tournament"),
+            @ApiResponse(responseCode = "400", description = "Invalid data, tournament full, or registration closed"),
+            @ApiResponse(responseCode = "404", description = "Invalid tournament code")
+    })
+    public ResponseEntity<?> registerGuestByCode(
+            @Parameter(description = "5-character registration code") @PathVariable String code,
+            @RequestBody WebGuestRegistrationRequest request) {
+        try {
+            TournamentParticipant participant = tournamentService.registerGuestByCode(code, request);
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Iscrizione completata con successo!",
+                    "participantId", participant.getId()));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "error", e.getMessage()));
+        }
     }
 
     @PostMapping
@@ -669,35 +712,85 @@ public class TournamentController {
         private Long shopId; // The shop where the tournament is requested
 
         // Getters and setters
-        public String getTitle() { return title; }
-        public void setTitle(String title) { this.title = title; }
-        
-        public String getDescription() { return description; }
-        public void setDescription(String description) { this.description = description; }
-        
-        public String getTcgType() { return tcgType; }
-        public void setTcgType(String tcgType) { this.tcgType = tcgType; }
-        
-        public String getType() { return type; }
-        public void setType(String type) { this.type = type; }
-        
-        public String getStartDate() { return startDate; }
-        public void setStartDate(String startDate) { this.startDate = startDate; }
-        
-        public String getEndDate() { return endDate; }
-        public void setEndDate(String endDate) { this.endDate = endDate; }
-        
-        public Integer getMaxParticipants() { return maxParticipants; }
-        public void setMaxParticipants(Integer maxParticipants) { this.maxParticipants = maxParticipants; }
-        
-        public Double getEntryFee() { return entryFee; }
-        public void setEntryFee(Double entryFee) { this.entryFee = entryFee; }
-        
-        public String getPrizePool() { return prizePool; }
-        public void setPrizePool(String prizePool) { this.prizePool = prizePool; }
-        
-        public Long getShopId() { return shopId; }
-        public void setShopId(Long shopId) { this.shopId = shopId; }
+        public String getTitle() {
+            return title;
+        }
+
+        public void setTitle(String title) {
+            this.title = title;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+
+        public void setDescription(String description) {
+            this.description = description;
+        }
+
+        public String getTcgType() {
+            return tcgType;
+        }
+
+        public void setTcgType(String tcgType) {
+            this.tcgType = tcgType;
+        }
+
+        public String getType() {
+            return type;
+        }
+
+        public void setType(String type) {
+            this.type = type;
+        }
+
+        public String getStartDate() {
+            return startDate;
+        }
+
+        public void setStartDate(String startDate) {
+            this.startDate = startDate;
+        }
+
+        public String getEndDate() {
+            return endDate;
+        }
+
+        public void setEndDate(String endDate) {
+            this.endDate = endDate;
+        }
+
+        public Integer getMaxParticipants() {
+            return maxParticipants;
+        }
+
+        public void setMaxParticipants(Integer maxParticipants) {
+            this.maxParticipants = maxParticipants;
+        }
+
+        public Double getEntryFee() {
+            return entryFee;
+        }
+
+        public void setEntryFee(Double entryFee) {
+            this.entryFee = entryFee;
+        }
+
+        public String getPrizePool() {
+            return prizePool;
+        }
+
+        public void setPrizePool(String prizePool) {
+            this.prizePool = prizePool;
+        }
+
+        public Long getShopId() {
+            return shopId;
+        }
+
+        public void setShopId(Long shopId) {
+            this.shopId = shopId;
+        }
     }
 
     /**
@@ -706,8 +799,13 @@ public class TournamentController {
     public static class TournamentRejectionDTO {
         private String reason;
 
-        public String getReason() { return reason; }
-        public void setReason(String reason) { this.reason = reason; }
+        public String getReason() {
+            return reason;
+        }
+
+        public void setReason(String reason) {
+            this.reason = reason;
+        }
     }
 
     /**
