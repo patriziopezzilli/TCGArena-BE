@@ -5,6 +5,7 @@ import com.tcg.arena.model.User;
 import com.tcg.arena.repository.UserRepository;
 import com.tcg.arena.service.GlobalChatService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -89,12 +90,54 @@ class GlobalChatRestController {
     @Autowired
     private GlobalChatService chatService;
 
+    @Autowired
+    private org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
+
+    @Autowired
+    private UserRepository userRepository;
+
     /**
      * Get recent messages (for initial load when connecting).
      */
     @GetMapping("/messages")
     public ResponseEntity<List<GlobalChatMessageDto>> getRecentMessages() {
         return ResponseEntity.ok(chatService.getRecentMessages());
+    }
+
+    /**
+     * Send a new message via REST (broadcasts to WebSocket subscribers).
+     */
+    @org.springframework.web.bind.annotation.PostMapping("/messages")
+    public ResponseEntity<?> sendMessage(
+            @org.springframework.web.bind.annotation.RequestBody SendMessageRequest request,
+            java.security.Principal principal) {
+
+        if (principal == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Not authenticated"));
+        }
+
+        User user = userRepository.findByUsername(principal.getName()).orElse(null);
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "User not found"));
+        }
+
+        // Check rate limit
+        if (!chatService.canUserSendMessage(user.getId())) {
+            int remaining = chatService.getSecondsUntilNextMessage(user.getId());
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body(Map.of("error", "Rate limited", "secondsRemaining", remaining));
+        }
+
+        // Send message
+        GlobalChatMessageDto message = chatService.sendMessage(user.getId(), request.getContent());
+        if (message == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Failed to send message"));
+        }
+
+        // Broadcast to all WebSocket subscribers
+        messagingTemplate.convertAndSend("/topic/arena-chat", message);
+
+        return ResponseEntity.ok(message);
     }
 
     /**
@@ -114,5 +157,20 @@ class GlobalChatRestController {
         response.put("canSend", chatService.canUserSendMessage(userId));
         response.put("secondsRemaining", chatService.getSecondsUntilNextMessage(userId));
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Request DTO for sending messages.
+     */
+    public static class SendMessageRequest {
+        private String content;
+
+        public String getContent() {
+            return content;
+        }
+
+        public void setContent(String content) {
+            this.content = content;
+        }
     }
 }
