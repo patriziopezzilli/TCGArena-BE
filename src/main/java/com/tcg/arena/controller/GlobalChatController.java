@@ -83,7 +83,7 @@ public class GlobalChatController {
  * REST controller for chat-related HTTP endpoints.
  */
 @RestController
-@RequestMapping("/api/arena-chat")
+@RequestMapping("/api/global-chat")
 class GlobalChatRestController {
 
     @Autowired

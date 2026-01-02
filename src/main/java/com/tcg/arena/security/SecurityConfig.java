@@ -76,7 +76,7 @@ public class SecurityConfig {
                                 "/v3/api-docs/**")
                         .permitAll()
                         // WebSocket endpoints
-                        .requestMatchers("/ws/**", "/api/arena-chat/**").permitAll()
+                        .requestMatchers("/ws/**", "/api/global-chat/**").permitAll()
                         // Protected card endpoints
                         .requestMatchers("/api/cards/collection").authenticated()
                         .requestMatchers("/api/cards/collection/**").authenticated()
