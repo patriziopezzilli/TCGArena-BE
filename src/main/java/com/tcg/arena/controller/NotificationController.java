@@ -109,8 +109,8 @@ public class NotificationController {
     })
     public ResponseEntity<Map<String, String>> sendTestPushNotification(Authentication authentication) {
         Long userId = getUserIdFromAuth(authentication);
-        notificationService.sendPushNotification(userId, "Notifica di Test",
-                "Questa è una notifica di test da TCG Arena!");
+        notificationService.sendPushNotification(userId, "Notifica di Test 🔔",
+                "Questa è una notifica di test da TCG Arena! Se la vedi, tutto funziona correttamente.");
         return ResponseEntity.ok(Map.of("message", "Notifica di test inviata"));
     }
 

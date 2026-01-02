@@ -22,12 +22,12 @@ public class FirebaseMessagingService {
      */
     public static class InvalidTokenException extends Exception {
         private final String token;
-        
+
         public InvalidTokenException(String message, String token) {
             super(message);
             this.token = token;
         }
-        
+
         public String getToken() {
             return token;
         }
@@ -102,12 +102,27 @@ public class FirebaseMessagingService {
 
     /**
      * Send push notification to a device
+     * 
      * @param deviceToken FCM device token
-     * @param title Notification title
-     * @param body Notification body
+     * @param title       Notification title
+     * @param body        Notification body
      * @throws InvalidTokenException if token is invalid or unregistered
      */
     public void sendPushNotification(String deviceToken, String title, String body) throws InvalidTokenException {
+        sendPushNotification(deviceToken, title, body, null);
+    }
+
+    /**
+     * Send push notification to a device with data payload
+     * 
+     * @param deviceToken FCM device token
+     * @param title       Notification title
+     * @param body        Notification body
+     * @param data        Optional data payload
+     * @throws InvalidTokenException if token is invalid or unregistered
+     */
+    public void sendPushNotification(String deviceToken, String title, String body, java.util.Map<String, String> data)
+            throws InvalidTokenException {
         try {
             if (FirebaseApp.getApps().isEmpty()) {
                 logger.warn("Firebase not initialized, skipping notification");
@@ -119,26 +134,52 @@ public class FirebaseMessagingService {
                     .setBody(body)
                     .build();
 
-            Message message = Message.builder()
-                    .setToken(deviceToken)
-                    .setNotification(notification)
+            // Configurazione iOS: suono e badge
+            com.google.firebase.messaging.ApnsConfig apnsConfig = com.google.firebase.messaging.ApnsConfig.builder()
+                    .setAps(com.google.firebase.messaging.Aps.builder()
+                            .setSound("default")
+                            .setBadge(1)
+                            .build())
                     .build();
 
+            // Configurazione Android: suono, vibrazione e priority alta
+            com.google.firebase.messaging.AndroidConfig androidConfig = com.google.firebase.messaging.AndroidConfig
+                    .builder()
+                    .setPriority(com.google.firebase.messaging.AndroidConfig.Priority.HIGH)
+                    .setNotification(com.google.firebase.messaging.AndroidNotification.builder()
+                            .setSound("default")
+                            .setDefaultSound(true)
+                            .setDefaultVibrateTimings(true)
+                            .build())
+                    .build();
+
+            Message.Builder messageBuilder = Message.builder()
+                    .setToken(deviceToken)
+                    .setNotification(notification)
+                    .setApnsConfig(apnsConfig)
+                    .setAndroidConfig(androidConfig);
+
+            if (data != null && !data.isEmpty()) {
+                messageBuilder.putAllData(data);
+            }
+
+            Message message = messageBuilder.build();
+
             String response = FirebaseMessaging.getInstance().send(message);
-            logger.info("✅ Push sent successfully to token ...{}: {}", 
-                deviceToken.substring(Math.max(0, deviceToken.length() - 10)), response);
+            logger.info("✅ Push sent successfully to token ...{}: {}",
+                    deviceToken.substring(Math.max(0, deviceToken.length() - 10)), response);
         } catch (com.google.firebase.messaging.FirebaseMessagingException e) {
             String errorCode = e.getMessagingErrorCode() != null ? e.getMessagingErrorCode().name() : "UNKNOWN";
             String tokenPreview = deviceToken.substring(0, Math.min(20, deviceToken.length())) + "...";
-            
+
             // Check if token is invalid or unregistered
-            if (errorCode.contains("UNREGISTERED") || 
-                errorCode.contains("INVALID") ||
-                e.getMessage().contains("not a valid FCM registration token")) {
+            if (errorCode.contains("UNREGISTERED") ||
+                    errorCode.contains("INVALID") ||
+                    e.getMessage().contains("not a valid FCM registration token")) {
                 logger.warn("🗑️  Invalid FCM token detected: {} - Error: {}", tokenPreview, errorCode);
                 throw new InvalidTokenException("Invalid or unregistered FCM token", deviceToken);
             }
-            
+
             // Authentication errors (401)
             if (e.getMessage().contains("401") || e.getMessage().contains("Unauthorized")) {
                 logger.error("🔐 Firebase authentication failed (HTTP 401)");
@@ -148,7 +189,7 @@ public class FirebaseMessagingService {
                 logger.error("   3. Token is for a different Firebase project");
                 logger.error("   → Enable API at: https://console.cloud.google.com/apis/library/fcm.googleapis.com");
             }
-            
+
             logger.error("❌ Failed to send push to {}: {} - {}", tokenPreview, errorCode, e.getMessage());
             logger.error("   Full error details: {}", e.toString());
         } catch (Exception e) {
@@ -174,24 +215,25 @@ public class FirebaseMessagingService {
             logger.error("Failed to send push notification to topic: " + e.getMessage());
         }
     }
-    
+
     /**
      * Verify Firebase configuration and credentials
+     * 
      * @return Map with configuration status
      */
     public java.util.Map<String, Object> verifyConfiguration() {
         java.util.Map<String, Object> status = new java.util.HashMap<>();
-        
+
         try {
             // Check if Firebase is initialized
             boolean isInitialized = !FirebaseApp.getApps().isEmpty();
             status.put("initialized", isInitialized);
-            
+
             if (isInitialized) {
                 FirebaseApp app = FirebaseApp.getInstance();
                 status.put("projectId", app.getOptions().getProjectId());
                 status.put("status", "Firebase initialized successfully");
-                
+
                 // Try to get FirebaseMessaging instance to verify permissions
                 try {
                     FirebaseMessaging.getInstance();
@@ -206,12 +248,12 @@ public class FirebaseMessagingService {
                 status.put("status", "Firebase NOT initialized");
                 status.put("error", "Service account file not found or invalid");
             }
-            
+
         } catch (Exception e) {
             status.put("initialized", false);
             status.put("error", "Error checking Firebase configuration: " + e.getMessage());
         }
-        
+
         return status;
     }
 }

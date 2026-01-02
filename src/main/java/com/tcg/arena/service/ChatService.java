@@ -109,7 +109,7 @@ public class ChatService {
             String title = "Nuovo messaggio da " + sender.getDisplayName();
             String preview = content.length() > 50 ? content.substring(0, 47) + "..." : content;
             try {
-                notificationService.sendPushNotification(recipient.getId(), title, preview);
+                notificationService.sendChatNotification(recipient.getId(), title, preview, conversationId);
             } catch (Exception e) {
                 // Log but don't fail the message send
                 System.err.println("Failed to send push notification: " + e.getMessage());

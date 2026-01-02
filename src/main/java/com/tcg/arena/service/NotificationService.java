@@ -77,6 +77,12 @@ public class NotificationService {
 
     // Send push notification to user using Firebase Cloud Messaging
     public void sendPushNotification(Long userId, String title, String message) {
+        sendPushNotification(userId, title, message, null);
+    }
+
+    // Send push notification to user using Firebase Cloud Messaging with data
+    // payload
+    public void sendPushNotification(Long userId, String title, String message, java.util.Map<String, String> data) {
         // Create in-app notification
         createNotification(userId, title, message, "push");
 
@@ -84,7 +90,7 @@ public class NotificationService {
         List<DeviceToken> deviceTokens = getUserDeviceTokens(userId);
         for (DeviceToken deviceToken : deviceTokens) {
             try {
-                firebaseMessagingService.sendPushNotification(deviceToken.getToken(), title, message);
+                firebaseMessagingService.sendPushNotification(deviceToken.getToken(), title, message, data);
             } catch (FirebaseMessagingService.InvalidTokenException e) {
                 // Remove invalid token from database
                 logger.info("🗑️  Removing invalid device token for user {}", userId);
@@ -95,6 +101,17 @@ public class NotificationService {
                         e.getMessage());
             }
         }
+    }
+
+    public void sendChatNotification(Long userId, String title, String message, Long conversationId) {
+        java.util.Map<String, String> data = new java.util.HashMap<>();
+        data.put("type", "CHAT");
+        data.put("conversationId", String.valueOf(conversationId));
+
+        // Include click_action for Flutter/Android compatibility if needed
+        data.put("click_action", "FLUTTER_NOTIFICATION_CLICK");
+
+        sendPushNotification(userId, title, message, data);
     }
 
     // Send notification to all subscribers of a shop
