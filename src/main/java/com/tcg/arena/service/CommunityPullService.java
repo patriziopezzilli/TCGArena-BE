@@ -29,6 +29,9 @@ public class CommunityPullService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private NotificationService notificationService;
+
     public Page<CommunityPullDTO> getPulls(TCGType tcgType, Long currentUserId, Pageable pageable) {
         Page<CommunityPull> page;
         if (tcgType != null) {
@@ -68,6 +71,14 @@ public class CommunityPullService {
         } else {
             PullLike like = new PullLike(pull, user);
             likeRepository.save(like);
+
+            // Send notification if not liking own post
+            if (!pull.getUser().getId().equals(user.getId())) {
+                notificationService.sendPullLikeNotification(
+                        pull.getUser().getId(),
+                        user.getDisplayName(), // Using display name of the liker
+                        pull.getTcgType().getDisplayName());
+            }
         }
 
         // Refresh DTO

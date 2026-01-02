@@ -90,9 +90,9 @@ public class NotificationService {
                 logger.info("🗑️  Removing invalid device token for user {}", userId);
                 deviceTokenRepository.delete(deviceToken);
             } catch (Exception e) {
-                logger.error("Failed to send push notification to device {}: {}", 
-                    deviceToken.getToken().substring(0, Math.min(20, deviceToken.getToken().length())),
-                    e.getMessage());
+                logger.error("Failed to send push notification to device {}: {}",
+                        deviceToken.getToken().substring(0, Math.min(20, deviceToken.getToken().length())),
+                        e.getMessage());
             }
         }
     }
@@ -114,9 +114,9 @@ public class NotificationService {
                     logger.info("🗑️  Removing invalid device token for user {}", subscription.getUserId());
                     deviceTokenRepository.delete(deviceToken);
                 } catch (Exception e) {
-                    logger.error("Failed to send push notification to device {}: {}", 
-                        deviceToken.getToken().substring(0, Math.min(20, deviceToken.getToken().length())),
-                        e.getMessage());
+                    logger.error("Failed to send push notification to device {}: {}",
+                            deviceToken.getToken().substring(0, Math.min(20, deviceToken.getToken().length())),
+                            e.getMessage());
                 }
             }
         }
@@ -268,6 +268,16 @@ public class NotificationService {
 
     // ========== HELPER METHODS ==========
 
+    /**
+     * Notifica quando qualcuno mette like a un pull
+     */
+    public void sendPullLikeNotification(Long userId, String likerName, String tcgName) {
+        String title = "Nuovo Like! ❤️";
+        String message = likerName + " ha messo mi piace al tuo pull di " + tcgName;
+        sendPushNotification(userId, title, message);
+        logger.info("Sent pull like notification to user {}", userId);
+    }
+
     private String getPlacementText(int placement) {
         return switch (placement) {
             case 1 -> "1°";
@@ -348,61 +358,60 @@ public class NotificationService {
     public int cleanInvalidTokens() {
         List<DeviceToken> allTokens = deviceTokenRepository.findAll();
         int removedCount = 0;
-        
+
         logger.info("🧹 Starting cleanup of {} device tokens...", allTokens.size());
-        
+
         for (DeviceToken deviceToken : allTokens) {
             try {
-                // Try to send a test message (dry run would be ideal but not available in all Firebase versions)
+                // Try to send a test message (dry run would be ideal but not available in all
+                // Firebase versions)
                 // We'll catch the error if token is invalid
                 firebaseMessagingService.sendPushNotification(
-                    deviceToken.getToken(), 
-                    "Test", 
-                    "Token validation"
-                );
+                        deviceToken.getToken(),
+                        "Test",
+                        "Token validation");
             } catch (FirebaseMessagingService.InvalidTokenException e) {
-                logger.info("🗑️  Removing invalid token for user {}: {}", 
-                    deviceToken.getUserId(), 
-                    e.getMessage());
+                logger.info("🗑️  Removing invalid token for user {}: {}",
+                        deviceToken.getUserId(),
+                        e.getMessage());
                 deviceTokenRepository.delete(deviceToken);
                 removedCount++;
             } catch (Exception e) {
-                logger.warn("⚠️  Error validating token for user {}: {}", 
-                    deviceToken.getUserId(), 
-                    e.getMessage());
+                logger.warn("⚠️  Error validating token for user {}: {}",
+                        deviceToken.getUserId(),
+                        e.getMessage());
             }
         }
-        
-        logger.info("✅ Cleanup complete: {} invalid tokens removed out of {}", 
-            removedCount, allTokens.size());
-        
+
+        logger.info("✅ Cleanup complete: {} invalid tokens removed out of {}",
+                removedCount, allTokens.size());
+
         return removedCount;
     }
-    
+
     /**
      * Get statistics about device tokens
      */
     public java.util.Map<String, Object> getTokenStatistics() {
         List<DeviceToken> allTokens = deviceTokenRepository.findAll();
-        
+
         long iosTokens = allTokens.stream()
-            .filter(t -> "ios".equalsIgnoreCase(t.getPlatform()))
-            .count();
-            
+                .filter(t -> "ios".equalsIgnoreCase(t.getPlatform()))
+                .count();
+
         long androidTokens = allTokens.stream()
-            .filter(t -> "android".equalsIgnoreCase(t.getPlatform()))
-            .count();
-            
+                .filter(t -> "android".equalsIgnoreCase(t.getPlatform()))
+                .count();
+
         long uniqueUsers = allTokens.stream()
-            .map(DeviceToken::getUserId)
-            .distinct()
-            .count();
-            
+                .map(DeviceToken::getUserId)
+                .distinct()
+                .count();
+
         return java.util.Map.of(
-            "totalTokens", allTokens.size(),
-            "iosTokens", iosTokens,
-            "androidTokens", androidTokens,
-            "uniqueUsers", uniqueUsers
-        );
+                "totalTokens", allTokens.size(),
+                "iosTokens", iosTokens,
+                "androidTokens", androidTokens,
+                "uniqueUsers", uniqueUsers);
     }
 }

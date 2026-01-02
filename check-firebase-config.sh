@@ -10,14 +10,29 @@ if [ -f "/root/TCGArena-BE/firebase-service-account.json" ]; then
     echo "✅ File trovato: /root/TCGArena-BE/firebase-service-account.json"
     echo ""
     
-    # Estrai informazioni (senza mostrare chiavi private)
+    # Verifica che sia un JSON valido
+    echo "📋 Validazione JSON:"
+    if python3 -c "import json; json.load(open('/root/TCGArena-BE/firebase-service-account.json'))" 2>/dev/null; then
+        echo "✅ JSON valido"
+    else
+        echo "❌ JSON NON valido o malformato!"
+        echo ""
+        echo "Prime 5 righe del file:"
+        head -5 /root/TCGArena-BE/firebase-service-account.json
+        exit 1
+    fi
+    
+    echo ""
     echo "📋 Informazioni Service Account:"
-    cat /root/TCGArena-BE/firebase-service-account.json | jq -r '
-        "Project ID: " + .project_id,
-        "Client Email: " + .client_email,
-        "Type: " + .type,
-        "Auth URI: " + .auth_uri
-    ' 2>/dev/null || echo "⚠️  Impossibile parsare JSON (potrebbe essere malformato)"
+    python3 << 'EOF'
+import json
+with open('/root/TCGArena-BE/firebase-service-account.json') as f:
+    data = json.load(f)
+    print(f"Project ID: {data.get('project_id', 'N/A')}")
+    print(f"Client Email: {data.get('client_email', 'N/A')}")
+    print(f"Type: {data.get('type', 'N/A')}")
+    print(f"Private Key ID: {data.get('private_key_id', 'N/A')[:20]}...")
+EOF
     
     echo ""
     echo "📅 Data modifica file:"

@@ -125,7 +125,7 @@ public class FirebaseMessagingService {
                     .build();
 
             String response = FirebaseMessaging.getInstance().send(message);
-            logger.debug("✅ Push sent to token ...{}: {}", 
+            logger.info("✅ Push sent successfully to token ...{}: {}", 
                 deviceToken.substring(Math.max(0, deviceToken.length() - 10)), response);
         } catch (com.google.firebase.messaging.FirebaseMessagingException e) {
             String errorCode = e.getMessagingErrorCode() != null ? e.getMessagingErrorCode().name() : "UNKNOWN";
@@ -139,12 +139,18 @@ public class FirebaseMessagingService {
                 throw new InvalidTokenException("Invalid or unregistered FCM token", deviceToken);
             }
             
-            // Authentication errors
+            // Authentication errors (401)
             if (e.getMessage().contains("401") || e.getMessage().contains("Unauthorized")) {
-                logger.error("🔐 Firebase authentication failed - Check service account credentials");
+                logger.error("🔐 Firebase authentication failed (HTTP 401)");
+                logger.error("   ⚠️  POSSIBLE CAUSES:");
+                logger.error("   1. FCM v1 API not enabled on Google Cloud project");
+                logger.error("   2. Service account lacks 'Firebase Admin SDK Administrator' role");
+                logger.error("   3. Token is for a different Firebase project");
+                logger.error("   → Enable API at: https://console.cloud.google.com/apis/library/fcm.googleapis.com");
             }
             
             logger.error("❌ Failed to send push to {}: {} - {}", tokenPreview, errorCode, e.getMessage());
+            logger.error("   Full error details: {}", e.toString());
         } catch (Exception e) {
             logger.error("❌ Unexpected error sending push: {}", e.getMessage());
         }
