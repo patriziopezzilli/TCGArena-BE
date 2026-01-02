@@ -258,4 +258,30 @@ public class ChatService {
 
         return convertToDto(conversation, userId);
     }
+
+    @Transactional
+    public ChatConversationDto closeWithoutAgreement(Long userId, Long conversationId) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        ChatConversation conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+
+        // Validate participation
+        if (!conversation.getParticipants().contains(user)) {
+            throw new RuntimeException("User is not a participant");
+        }
+
+        // Validate it's a trade conversation
+        if (conversation.getType() != ChatConversation.ChatType.TRADE) {
+            throw new RuntimeException("Can only close trade conversations");
+        }
+
+        // Mark as completed and readonly WITHOUT awarding points
+        conversation.setStatus(ChatConversation.ChatStatus.COMPLETED);
+        conversation.setIsReadOnly(true);
+        conversationRepository.save(conversation);
+
+        System.out.println("❌ ChatService: Trade closed without agreement for conversation " + conversationId);
+
+        return convertToDto(conversation, userId);
+    }
 }

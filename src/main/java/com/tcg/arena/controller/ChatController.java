@@ -74,6 +74,14 @@ public class ChatController {
         return ResponseEntity.ok(chatService.completeTrade(userId, conversationId, points));
     }
 
+    @PostMapping("/{conversationId}/close-without-agreement")
+    public ResponseEntity<ChatConversationDto> closeWithoutAgreement(
+            @PathVariable Long conversationId,
+            HttpServletRequest request) {
+        Long userId = getUserIdFromRequest(request);
+        return ResponseEntity.ok(chatService.closeWithoutAgreement(userId, conversationId));
+    }
+
     @PostMapping("/{conversationId}/read")
     public ResponseEntity<Void> markAsRead(
             @PathVariable Long conversationId,
