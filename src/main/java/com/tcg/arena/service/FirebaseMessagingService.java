@@ -168,4 +168,44 @@ public class FirebaseMessagingService {
             logger.error("Failed to send push notification to topic: " + e.getMessage());
         }
     }
+    
+    /**
+     * Verify Firebase configuration and credentials
+     * @return Map with configuration status
+     */
+    public java.util.Map<String, Object> verifyConfiguration() {
+        java.util.Map<String, Object> status = new java.util.HashMap<>();
+        
+        try {
+            // Check if Firebase is initialized
+            boolean isInitialized = !FirebaseApp.getApps().isEmpty();
+            status.put("initialized", isInitialized);
+            
+            if (isInitialized) {
+                FirebaseApp app = FirebaseApp.getInstance();
+                status.put("projectId", app.getOptions().getProjectId());
+                status.put("status", "Firebase initialized successfully");
+                
+                // Try to get FirebaseMessaging instance to verify permissions
+                try {
+                    FirebaseMessaging.getInstance();
+                    status.put("messagingAvailable", true);
+                    status.put("permissions", "Service account appears to have correct permissions");
+                } catch (Exception e) {
+                    status.put("messagingAvailable", false);
+                    status.put("error", "Cannot access Firebase Messaging: " + e.getMessage());
+                    status.put("permissions", "⚠️ Service account might lack FCM permissions");
+                }
+            } else {
+                status.put("status", "Firebase NOT initialized");
+                status.put("error", "Service account file not found or invalid");
+            }
+            
+        } catch (Exception e) {
+            status.put("initialized", false);
+            status.put("error", "Error checking Firebase configuration: " + e.getMessage());
+        }
+        
+        return status;
+    }
 }

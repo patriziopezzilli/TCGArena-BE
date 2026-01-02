@@ -3,6 +3,7 @@ package com.tcg.arena.controller;
 import com.tcg.arena.model.Notification;
 import com.tcg.arena.model.User;
 import com.tcg.arena.repository.UserRepository;
+import com.tcg.arena.service.FirebaseMessagingService;
 import com.tcg.arena.service.NotificationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -28,6 +29,9 @@ public class NotificationController {
 
     @Autowired
     private UserRepository userRepository;
+    
+    @Autowired
+    private FirebaseMessagingService firebaseMessagingService;
 
     private Long getUserIdFromAuth(Authentication authentication) {
         String username = authentication.getName();
@@ -152,5 +156,16 @@ public class NotificationController {
     public ResponseEntity<Map<String, Object>> getTokenStatistics() {
         Map<String, Object> stats = notificationService.getTokenStatistics();
         return ResponseEntity.ok(stats);
+    }
+    
+    @GetMapping("/admin/firebase-status")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Check Firebase configuration", description = "Verifies Firebase initialization and permissions (admin only)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Firebase status retrieved successfully")
+    })
+    public ResponseEntity<Map<String, Object>> checkFirebaseStatus() {
+        Map<String, Object> status = firebaseMessagingService.verifyConfiguration();
+        return ResponseEntity.ok(status);
     }
 }
