@@ -41,13 +41,14 @@ public class PublicController {
     private CardTemplateRepository cardTemplateRepository;
 
     /**
-     * Get shop details for sharing
+     * Get shop details for sharing (verified shops only)
      */
     @GetMapping("/shops/{id}")
-    @Operation(summary = "Get shop for sharing", description = "Retrieves public shop details for the share page")
+    @Operation(summary = "Get shop for sharing", description = "Retrieves public shop details for the share page (verified shops only)")
     public ResponseEntity<?> getShopForSharing(
             @Parameter(description = "ID of the shop") @PathVariable Long id) {
         return shopService.getShopById(id)
+                .filter(shop -> Boolean.TRUE.equals(shop.getIsVerified()))
                 .map(shop -> {
                     ShopDTO dto = new ShopDTO(shop);
                     // Add share-specific metadata
