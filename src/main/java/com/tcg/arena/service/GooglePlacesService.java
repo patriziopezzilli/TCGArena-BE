@@ -364,7 +364,7 @@ public class GooglePlacesService {
             }
 
             // Default values
-            shop.setType(ShopType.STORE); // Default to STORE
+            shop.setType(ShopType.LOCAL_STORE); // Physical store
             shop.setIsVerified(false); // Needs manual verification
             shop.setActive(false); // Inactive until verified by admin
 
