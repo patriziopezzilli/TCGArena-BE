@@ -25,6 +25,10 @@ public class AdminShopPopulationController {
      * @param dryRun if true, only simulates the operation without inserting data
      * @param maxRequests maximum API requests (default: 950, to stay under 1000 free tier)
      * @param skipPlaceDetails if true, skips Place Details calls to save quota (faster but less data)
+     * @param apiKey secret key for authentication (configured in application.properties)
+     * @return Summary of the operation
+     */
+    @PostMapping("/populate-from-google")
     public ResponseEntity<Map<String, Object>> populateShopsFromGoogle(
             @RequestParam(defaultValue = "true") boolean dryRun,
             @RequestParam(required = false) Integer maxRequests,
@@ -42,10 +46,6 @@ public class AdminShopPopulationController {
                 );
             }
         }
-            @RequestParam(defaultValue = "true") boolean dryRun,
-            @RequestParam(required = false) Integer maxRequests,
-            @RequestParam(defaultValue = "false") boolean skipPlaceDetails,
-            @RequestParam(required = false) String apiKey) {
         
         try {
             Map<String, Object> result = googlePlacesService.populateShopsFromGooglePlaces(
@@ -57,7 +57,19 @@ public class AdminShopPopulationController {
                 Map.of(
                     "error", e.getMessage(),
                     "hint", "Configure google.places.api.key in application.properties"
-                )configuration
+                )
+            );
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(
+                Map.of(
+                    "error", "Failed to populate shops: " + e.getMessage()
+                )
+            );
+        }
+    }
+
+    /**
+     * Health check endpoint to verify API configuration
      */
     @GetMapping("/google-places-status")
     public ResponseEntity<Map<String, Object>> checkGooglePlacesStatus() {
@@ -66,18 +78,6 @@ public class AdminShopPopulationController {
             "endpoint", "POST /api/admin/shops/populate-from-google",
             "hint", "Use ?dryRun=true to test without inserting data",
             "authRequired", secretKey != null && !secretKey.isEmpty()
-        }
-    }
-
-    /**
-     * Health check endpoint to verify API key is configured
-     */
-    @GetMapping("/google-places-status")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Map<String, Object>> checkGooglePlacesStatus() {
-        // This will be implemented to check if API key is valid
-        return ResponseEntity.ok(Map.of(
-            "message", "Use POST /api/admin/shops/populate-from-google?dryRun=true to test"
         ));
     }
 }
