@@ -44,9 +44,8 @@ public class ExpansionService {
         List<Expansion> expansions;
 
         if (years == null || years.isEmpty()) {
-            // Default: current year only
-            int currentYear = java.time.Year.now().getValue();
-            expansions = expansionRepository.findAllWithSetsByYear(currentYear);
+            // Default: ALL expansions (requested by user)
+            expansions = expansionRepository.findAllWithSets();
         } else if (years.size() == 1) {
             expansions = expansionRepository.findAllWithSetsByYear(years.get(0));
         } else {

@@ -424,8 +424,18 @@ public class TradeService {
             throw new RuntimeException("User not part of this trade match");
         }
 
+        // Get the user who cancelled and the other user
+        User cancellingUser = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        User otherUser = match.getUser1().getId().equals(userId) ? match.getUser2() : match.getUser1();
+
         match.setStatus(TradeStatus.CANCELLED);
         tradeMatchRepository.save(match);
+
+        // Send notification to the other user
+        String title = "Scambio rifiutato";
+        String body = cancellingUser.getUsername() + " ha rifiutato lo scambio";
+        notificationService.sendPushNotification(otherUser.getId(), title, body);
     }
 
     @Transactional

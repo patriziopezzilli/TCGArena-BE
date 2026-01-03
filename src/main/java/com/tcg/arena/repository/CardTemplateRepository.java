@@ -57,7 +57,8 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
 
         @Query("SELECT c FROM CardTemplate c WHERE " +
                         "(c.name LIKE CONCAT('%', :query, '%') OR " +
-                        "c.setCode LIKE CONCAT('%', :query, '%')) AND " +
+                        "c.setCode LIKE CONCAT('%', :query, '%') OR " +
+                        "c.cardNumber LIKE CONCAT('%', :query, '%')) AND " +
                         EXCLUDE_NA_CONDITION)
         List<CardTemplate> searchByNameOrSetCode(@Param("query") String query);
 
@@ -66,7 +67,8 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
                         "(:expansionId IS NULL OR ct.expansion_id = :expansionId) AND " +
                         "(:setCode IS NULL OR ct.set_code = :setCode) AND " +
                         "(:rarity IS NULL OR ct.rarity = :rarity) AND " +
-                        "(:searchQuery IS NULL OR ct.name LIKE CONCAT('%', :searchQuery, '%')) AND " +
+                        "(:searchQuery IS NULL OR ct.name LIKE CONCAT('%', :searchQuery, '%') OR ct.card_number LIKE CONCAT('%', :searchQuery, '%')) AND "
+                        +
                         "ct.card_number IS NOT NULL AND ct.card_number <> 'N/A' AND ct.card_number <> '' " +
                         "ORDER BY ct.id", nativeQuery = true)
         Page<CardTemplate> findWithFilters(
