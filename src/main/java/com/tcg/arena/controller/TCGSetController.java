@@ -47,8 +47,18 @@ public class TCGSetController {
     }
 
     @GetMapping("/{id}/cards")
-    public ResponseEntity<Page<CardTemplate>> getCardTemplatesBySetId(@PathVariable Long id,
-            @PageableDefault(size = 10, sort = "dateCreated", direction = Sort.Direction.DESC) Pageable pageable) {
+    public ResponseEntity<Page<CardTemplate>> getCardTemplatesBySetId(
+            @PathVariable Long id,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int limit) {
+        
+        // Create pageable with requested parameters
+        Pageable pageable = org.springframework.data.domain.PageRequest.of(
+            page, 
+            Math.min(limit, 500), // Cap at 500 to prevent abuse
+            Sort.by(Sort.Direction.DESC, "dateCreated")
+        );
+        
         return tcgSetService.getSetById(id)
                 .map(set -> {
                     // First try to get cards by set code
