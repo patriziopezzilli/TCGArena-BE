@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Avviso di Sicurezza</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #111827;
+            background-color: #f9fafb;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+        }
+        .header {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            padding: 40px 24px;
+            text-align: center;
+        }
+        .header h1 {
+            color: white;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .header-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+        .content {
+            padding: 32px 24px;
+        }
+        .alert-box {
+            background: #fee2e2;
+            border: 2px solid #ef4444;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 24px 0;
+        }
+        .alert-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #991b1b;
+            margin-bottom: 12px;
+        }
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #fecaca;
+            font-size: 14px;
+        }
+        .detail-label {
+            color: #991b1b;
+            font-weight: 600;
+        }
+        .detail-value {
+            color: #7f1d1d;
+        }
+        .cta-button {
+            display: inline-block;
+            background: #ef4444;
+            color: white;
+            padding: 14px 32px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 16px auto;
+        }
+        .footer {
+            background: #f9fafb;
+            padding: 24px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+        .footer-text {
+            font-size: 13px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-icon">🔐</div>
+            <h1>Nuovo Accesso Rilevato</h1>
+        </div>
+        
+        <div class="content">
+            <p style="font-size: 15px; color: #374151; margin-bottom: 24px;">
+                Ciao <strong th:text="${username}">User</strong>! 
+                È stato rilevato un accesso al tuo account da un nuovo dispositivo.
+            </p>
+            
+            <div class="alert-box">
+                <p class="alert-title">📱 Dettagli Accesso</p>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Data e Ora:</span>
+                    <span class="detail-value" th:text="${loginTime}">Time</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Dispositivo:</span>
+                    <span class="detail-value" th:text="${deviceInfo}">Device</span>
+                </div>
+                
+                <div class="detail-row">
+                    <span class="detail-label">Posizione:</span>
+                    <span class="detail-value" th:text="${location}">Location</span>
+                </div>
+                
+                <div class="detail-row" style="border-bottom: none;">
+                    <span class="detail-label">IP:</span>
+                    <span class="detail-value" th:text="${ipAddress}">IP</span>
+                </div>
+            </div>
+            
+            <p style="font-size: 14px; color: #374151; margin-bottom: 24px;">
+                Se sei stato tu, puoi ignorare questa email. 
+                Se non riconosci questo accesso, <strong>cambia immediatamente la tua password</strong>.
+            </p>
+            
+            <div style="text-align: center; margin: 32px 0;">
+                <a th:href="${frontendUrl + '/account/security'}" class="cta-button" href="#">
+                    Controlla Sicurezza
+                </a>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p class="footer-text">
+                © 2026 TCG Arena • La tua sicurezza è la nostra priorità 🔒
+            </p>
+        </div>
+    </div>
+</body>
+</html>

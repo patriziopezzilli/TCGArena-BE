@@ -6,6 +6,8 @@ import com.tcg.arena.repository.CardTemplateRepository;
 import com.tcg.arena.repository.TradeListEntryRepository;
 import com.tcg.arena.repository.TradeMatchRepository;
 import com.tcg.arena.repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,6 +17,8 @@ import java.util.stream.Collectors;
 
 @Service
 public class TradeService {
+
+    private static final Logger logger = LoggerFactory.getLogger(TradeService.class);
 
     @Autowired
     private TradeListEntryRepository tradeListEntryRepository;
@@ -33,6 +37,12 @@ public class TradeService {
 
     @Autowired
     private RewardService rewardService;
+
+    @Autowired
+    private EmailService emailService;
+
+    @Autowired
+    private com.tcg.arena.repository.UserEmailPreferencesRepository emailPreferencesRepository;
 
     @Transactional
     public void addCardToList(Long userId, Long cardTemplateId, TradeListType type) {
@@ -208,6 +218,12 @@ public class TradeService {
             tradeMatchRepository.save(match);
         }
         return match;
+    }
+
+    private boolean shouldSendTradeNotification(User user) {
+        return emailPreferencesRepository.findByUser(user)
+                .map(prefs -> prefs.getTradeNotifications())
+                .orElse(true);
     }
 
     public List<com.tcg.arena.dto.TradeListEntryDTO> getUserList(Long userId, TradeListType type) {
@@ -407,6 +423,30 @@ public class TradeService {
 
         match.setStatus(TradeStatus.COMPLETED);
         tradeMatchRepository.save(match);
+
+        // Send trade completed email notifications
+        try {
+            // Email to user1
+            if (shouldSendTradeNotification(match.getUser1())) {
+                emailService.sendTradeCompleted(
+                    match.getUser1().getEmail(),
+                    match.getUser1().getUsername(),
+                    match.getUser2().getUsername(),
+                    matchId
+                );
+            }
+            // Email to user2
+            if (shouldSendTradeNotification(match.getUser2())) {
+                emailService.sendTradeCompleted(
+                    match.getUser2().getEmail(),
+                    match.getUser2().getUsername(),
+                    match.getUser1().getUsername(),
+                    matchId
+                );
+            }
+        } catch (Exception e) {
+            logger.error("Failed to send trade completed emails for match: {}", matchId, e);
+        }
 
         // Award Loyalty Points
         rewardService.earnPoints(match.getUser1().getId(), 50,

@@ -2,7 +2,12 @@ package com.tcg.arena.controller;
 
 import com.tcg.arena.dto.CommunityEventDTO;
 import com.tcg.arena.dto.CreateCommunityEventRequest;
+import com.tcg.arena.model.CommunityEvent;
+import com.tcg.arena.model.User;
 import com.tcg.arena.service.CommunityEventService;
+import com.tcg.arena.service.EmailService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -15,11 +20,19 @@ import java.util.List;
 @RequestMapping("/api/community/events")
 public class CommunityEventController {
 
+    private static final Logger logger = LoggerFactory.getLogger(CommunityEventController.class);
+
     @Autowired
     private CommunityEventService eventService;
+    
+    @Autowired
+    private EmailService emailService;
 
     @Autowired
     private com.tcg.arena.repository.UserRepository userRepository;
+    
+    @Autowired
+    private com.tcg.arena.repository.CommunityEventRepository eventRepository;
 
     /**
      * Create a new community event
@@ -75,8 +88,29 @@ public class CommunityEventController {
             @AuthenticationPrincipal UserDetails userDetails,
             @PathVariable Long id) {
         Long userId = getUserId(userDetails);
-        CommunityEventDTO event = eventService.joinEvent(userId, id);
-        return ResponseEntity.ok(event);
+        CommunityEventDTO eventDTO = eventService.joinEvent(userId, id);
+        
+        // Send confirmation email
+        try {
+            User user = userRepository.findById(userId).orElse(null);
+            if (user != null && user.getEmail() != null) {
+                // Get full event details for email
+                CommunityEvent event = eventRepository.findById(id).orElse(null);
+                if (event != null) {
+                    emailService.sendTournamentRegistration(
+                        user.getEmail(),
+                        user.getUsername(),
+                        event
+                    );
+                    logger.info("Event registration email sent to: {}", user.getEmail());
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Failed to send event registration email", e);
+            // Don't fail registration if email fails
+        }
+        
+        return ResponseEntity.ok(eventDTO);
     }
 
     /**

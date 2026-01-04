@@ -64,6 +64,12 @@ public class AdminController {
     @Autowired
     private ShopSuggestionRepository shopSuggestionRepository;
 
+    @Autowired
+    private com.tcg.arena.service.EmailService emailService;
+
+    @Autowired
+    private com.tcg.arena.repository.UserEmailPreferencesRepository emailPreferencesRepository;
+
     // ========== SHOP MANAGEMENT ENDPOINTS ==========
 
     /**
@@ -108,6 +114,23 @@ public class AdminController {
         shop.setIsVerified(true);
         Shop updatedShop = shopService.saveShop(shop);
 
+        // Send shop approved email
+        if (shop.getOwnerId() != null) {
+            try {
+                User owner = userService.getUserById(shop.getOwnerId()).orElse(null);
+                if (owner != null && shouldSendShopNotification(owner)) {
+                    emailService.sendShopApproved(
+                        owner.getEmail(),
+                        owner.getUsername(),
+                        shop.getName(),
+                        shop.getId()
+                    );
+                }
+            } catch (Exception e) {
+                // Log but don't fail activation
+            }
+        }
+
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
         response.put("message", "Shop activated successfully");
@@ -138,6 +161,57 @@ public class AdminController {
         response.put("shop", updatedShop);
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Reject a shop with reason
+     */
+    @PostMapping("/shops/{id}/reject")
+    @PreAuthorize("permitAll()")
+    @Operation(summary = "Reject shop", description = "Rejects a shop application with a reason")
+    public ResponseEntity<?> rejectShop(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        Optional<Shop> shopOpt = shopService.getShopById(id);
+        if (shopOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body("Shop not found");
+        }
+
+        Shop shop = shopOpt.get();
+        String rejectionReason = body.getOrDefault("reason", "La richiesta non soddisfa i criteri richiesti");
+        
+        // Send rejection email
+        if (shop.getOwnerId() != null) {
+            try {
+                User owner = userService.getUserById(shop.getOwnerId()).orElse(null);
+                if (owner != null && shouldSendShopNotification(owner)) {
+                    emailService.sendShopRejected(
+                        owner.getEmail(),
+                        owner.getUsername(),
+                        shop.getName(),
+                        rejectionReason
+                    );
+                }
+            } catch (Exception e) {
+                // Log but don't fail
+            }
+        }
+
+        // Delete the shop
+        shopService.deleteShop(id);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("message", "Shop rejected and deleted");
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Check if user wants shop notifications
+     */
+    private boolean shouldSendShopNotification(User user) {
+        return emailPreferencesRepository.findByUser(user)
+                .map(prefs -> prefs.getShopNotifications())
+                .orElse(true);
     }
 
     /**

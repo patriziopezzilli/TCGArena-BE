@@ -39,6 +39,12 @@ public class CommunityEventService {
     @Autowired
     private NotificationService notificationService;
 
+    @Autowired
+    private EmailService emailService;
+
+    @Autowired
+    private com.tcg.arena.repository.UserEmailPreferencesRepository emailPreferencesRepository;
+
     /**
      * Create a new community event
      */
@@ -213,13 +219,33 @@ public class CommunityEventService {
         event.setStatus(EventStatus.CANCELLED);
         eventRepository.save(event);
 
-        // Notify all participants
+        // Format date for email
+        String formattedDate = event.getEventDate().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
+
+        // Notify all participants via push and email
         for (CommunityEventParticipant participant : event.getParticipants()) {
             if (!participant.getUser().getId().equals(userId)) {
+                // Push notification
                 notificationService.sendPushNotification(
                         participant.getUser().getId(),
                         "Evento annullato",
                         "L'evento \"" + event.getTitle() + "\" è stato annullato");
+                
+                // Email notification
+                if (shouldSendEventNotification(participant.getUser())) {
+                    try {
+                        emailService.sendEventCancelled(
+                            participant.getUser().getEmail(),
+                            participant.getUser().getUsername(),
+                            event.getTitle(),
+                            formattedDate,
+                            event.getLocationName(),
+                            "L'organizzatore ha cancellato l'evento"
+                        );
+                    } catch (Exception e) {
+                        // Log but don't fail
+                    }
+                }
             }
         }
     }
@@ -230,4 +256,71 @@ public class CommunityEventService {
     public long countUpcoming() {
         return eventRepository.countUpcoming(LocalDateTime.now(), EventStatus.ACTIVE);
     }
-}
+    /**
+     * Check if user wants to receive event notifications
+     */
+    private boolean shouldSendEventNotification(User user) {
+        return emailPreferencesRepository.findByUser(user)
+                .map(prefs -> prefs.getEventNotifications())
+                .orElse(true);
+    }
+
+    /**
+     * Update event and notify participants of changes
+     */
+    @Transactional
+    public CommunityEventDTO updateEvent(Long userId, Long eventId, String newDate, String newTime, 
+                                         String newLocation, String updateNote) {
+        CommunityEvent event = eventRepository.findById(eventId)
+                .orElseThrow(() -> new RuntimeException("Event not found"));
+
+        if (!event.getCreator().getId().equals(userId)) {
+            throw new RuntimeException("Only the creator can update this event");
+        }
+
+        // Update event fields (only if provided)
+        boolean hasChanges = false;
+        if (newDate != null) {
+            event.setEventDate(LocalDateTime.parse(newDate, java.time.format.DateTimeFormatter.ISO_DATE_TIME));
+            hasChanges = true;
+        }
+        if (newLocation != null) {
+            event.setCustomLocation(newLocation);
+            hasChanges = true;
+        }
+
+        if (hasChanges) {
+            eventRepository.save(event);
+
+            // Notify all participants
+            for (CommunityEventParticipant participant : event.getParticipants()) {
+                if (!participant.getUser().getId().equals(userId)) {
+                    // Push notification
+                    notificationService.sendPushNotification(
+                            participant.getUser().getId(),
+                            "Evento modificato",
+                            "L'evento \"" + event.getTitle() + "\" è stato aggiornato");
+                    
+                    // Email notification
+                    if (shouldSendEventNotification(participant.getUser())) {
+                        try {
+                            emailService.sendEventUpdated(
+                                participant.getUser().getEmail(),
+                                participant.getUser().getUsername(),
+                                event.getTitle(),
+                                eventId,
+                                newDate != null ? event.getEventDate().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) : null,
+                                newTime,
+                                newLocation,
+                                updateNote
+                            );
+                        } catch (Exception e) {
+                            // Log but don't fail
+                        }
+                    }
+                }
+            }
+        }
+
+        return CommunityEventDTO.fromEntity(event, userId);
+    }}

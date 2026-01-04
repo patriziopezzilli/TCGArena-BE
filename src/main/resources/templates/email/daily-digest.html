@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riepilogo Giornaliero TCG Arena</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #111827;
+            background-color: #f9fafb;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+        }
+        .header {
+            background: linear-gradient(135deg, #111827 0%, #374151 100%);
+            padding: 32px 24px;
+            text-align: center;
+        }
+        .header h1 {
+            color: white;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        .header-date {
+            color: rgba(255,255,255,0.8);
+            font-size: 14px;
+        }
+        .content {
+            padding: 32px 24px;
+        }
+        .greeting {
+            font-size: 18px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 32px;
+        }
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #111827;
+            margin: 32px 0 16px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            border: 1px solid #e5e7eb;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 4px;
+        }
+        .stat-value.positive {
+            color: #10b981;
+        }
+        .stat-label {
+            font-size: 13px;
+            color: #6b7280;
+        }
+        .highlight-card {
+            background: linear-gradient(135deg, #f9fafb 0%, white 100%);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid #e5e7eb;
+        }
+        .highlight-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        .highlight-icon {
+            font-size: 24px;
+        }
+        .highlight-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #111827;
+        }
+        .highlight-desc {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 12px;
+        }
+        .highlight-action {
+            display: inline-block;
+            background: #111827;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .recommendation-card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 12px;
+            border: 1px solid #e5e7eb;
+        }
+        .recommendation-img {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            background: #f9fafb;
+        }
+        .recommendation-content {
+            padding: 16px;
+        }
+        .recommendation-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #111827;
+            margin-bottom: 4px;
+        }
+        .recommendation-desc {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 12px;
+        }
+        .platform-stats {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e5e7eb;
+        }
+        .platform-stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .platform-stat-row:last-child {
+            border-bottom: none;
+        }
+        .platform-stat-label {
+            font-size: 14px;
+            color: #6b7280;
+        }
+        .platform-stat-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: #111827;
+        }
+        .footer {
+            background: #f9fafb;
+            padding: 24px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+        .footer-text {
+            font-size: 13px;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+        .footer-link {
+            color: #111827;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        @media only screen and (max-width: 600px) {
+            .stat-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📊 Riepilogo Giornaliero</h1>
+            <div class="header-date" th:text="${digestDate}">4 Gennaio 2026</div>
+        </div>
+        
+        <!-- Content -->
+        <div class="content">
+            <p class="greeting">Ciao <span th:text="${username}">User</span>! 👋</p>
+            <p class="subtitle">Ecco cosa è successo ieri su TCG Arena</p>
+            
+            <!-- User Stats -->
+            <h2 class="section-title">
+                <span>📈</span>
+                <span>La tua attività</span>
+            </h2>
+            
+            <div class="stat-grid" th:if="${userStats != null}">
+                <div class="stat-card">
+                    <div class="stat-value positive" th:text="${userStats.newCards}">12</div>
+                    <div class="stat-label">Nuove carte</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" th:text="${userStats.newTrades}">3</div>
+                    <div class="stat-label">Nuovi scambi</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value positive" th:text="${userStats.completedTrades}">2</div>
+                    <div class="stat-label">Scambi completati</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" th:text="${userStats.messagesReceived}">8</div>
+                    <div class="stat-label">Messaggi ricevuti</div>
+                </div>
+            </div>
+            
+            <!-- Collection Value Change -->
+            <div th:if="${userStats != null and userStats.collectionValueChange != 0}" 
+                 style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); 
+                        border-radius: 12px; padding: 16px; margin-bottom: 24px; text-align: center;">
+                <div style="font-size: 14px; color: #92400e; margin-bottom: 4px;">Valore Collezione</div>
+                <div style="font-size: 24px; font-weight: 700; color: #78350f;">
+                    <span th:text="${userStats.collectionValueChange > 0 ? '+' : ''}">+</span>
+                    <span th:text="${#numbers.formatDecimal(userStats.collectionValueChange, 1, 2)}">125.50</span>€
+                </div>
+            </div>
+            
+            <!-- Highlights -->
+            <div th:if="${highlights != null and !highlights.isEmpty()}">
+                <h2 class="section-title">
+                    <span>⭐</span>
+                    <span>In evidenza</span>
+                </h2>
+                
+                <div th:each="highlight : ${highlights}" class="highlight-card">
+                    <div class="highlight-header">
+                        <span class="highlight-icon" th:text="${highlight.icon}">🔄</span>
+                        <span class="highlight-title" th:text="${highlight.title}">Nuovo match trovato!</span>
+                    </div>
+                    <p class="highlight-desc" th:text="${highlight.description}">
+                        Abbiamo trovato un utente con le carte che cerchi
+                    </p>
+                    <a th:if="${highlight.actionUrl}" 
+                       th:href="${highlight.actionUrl}" 
+                       class="highlight-action">
+                        Vedi dettagli
+                    </a>
+                </div>
+            </div>
+            
+            <!-- Recommendations -->
+            <div th:if="${recommendations != null and !recommendations.isEmpty()}">
+                <h2 class="section-title">
+                    <span>💡</span>
+                    <span>Consigliati per te</span>
+                </h2>
+                
+                <div th:each="rec : ${recommendations}" class="recommendation-card">
+                    <img th:if="${rec.imageUrl}" 
+                         th:src="${rec.imageUrl}" 
+                         th:alt="${rec.title}"
+                         class="recommendation-img" />
+                    <div class="recommendation-content">
+                        <div class="recommendation-title" th:text="${rec.title}">Torneo Pokémon</div>
+                        <p class="recommendation-desc" th:text="${rec.description}">
+                            Torneo competitivo a 5km da te
+                        </p>
+                        <a th:if="${rec.actionUrl}" 
+                           th:href="${rec.actionUrl}" 
+                           class="highlight-action">
+                            Scopri di più
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Platform Stats -->
+            <h2 class="section-title">
+                <span>🌍</span>
+                <span>TCG Arena oggi</span>
+            </h2>
+            
+            <div class="platform-stats" th:if="${platformStats != null}">
+                <div class="platform-stat-row">
+                    <span class="platform-stat-label">Nuovi utenti</span>
+                    <span class="platform-stat-value" th:text="${platformStats.newUsers}">156</span>
+                </div>
+                <div class="platform-stat-row">
+                    <span class="platform-stat-label">Scambi attivi</span>
+                    <span class="platform-stat-value" th:text="${platformStats.activeTrades}">89</span>
+                </div>
+                <div class="platform-stat-row">
+                    <span class="platform-stat-label">Eventi in programma</span>
+                    <span class="platform-stat-value" th:text="${platformStats.upcomingEvents}">12</span>
+                </div>
+                <div class="platform-stat-row">
+                    <span class="platform-stat-label">Nuovi negozi</span>
+                    <span class="platform-stat-value" th:text="${platformStats.newShops}">3</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p class="footer-text">
+                © 2026 TCG Arena • Riepilogo giornaliero
+            </p>
+            <p>
+                <a th:href="${frontendUrl}" class="footer-link" href="https://tcgarena.it">Apri l'app</a> • 
+                <a href="mailto:support@tcgarena.it" class="footer-link">Supporto</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

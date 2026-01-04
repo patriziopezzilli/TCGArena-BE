@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ti mancano su TCG Arena!</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #111827;
+            background-color: #f9fafb;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+        }
+        .header {
+            background: linear-gradient(135deg, #111827 0%, #374151 100%);
+            padding: 40px 24px;
+            text-align: center;
+        }
+        .header h1 {
+            color: white;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .hero {
+            text-align: center;
+            padding: 48px 24px;
+            background: linear-gradient(to bottom, #f9fafb 0%, white 100%);
+        }
+        .hero-emoji {
+            font-size: 72px;
+            margin-bottom: 24px;
+        }
+        .hero-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #111827;
+            margin-bottom: 12px;
+        }
+        .hero-subtitle {
+            font-size: 16px;
+            color: #6b7280;
+        }
+        .content {
+            padding: 32px 24px;
+        }
+        .feature-card {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            border: 1px solid #e5e7eb;
+        }
+        .feature-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        .feature-icon {
+            font-size: 24px;
+        }
+        .feature-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #111827;
+        }
+        .feature-desc {
+            font-size: 14px;
+            color: #6b7280;
+            margin-left: 36px;
+        }
+        .cta-button {
+            display: inline-block;
+            background: #111827;
+            color: white;
+            padding: 16px 40px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 24px 0;
+        }
+        .footer {
+            background: #f9fafb;
+            padding: 24px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+        .footer-text {
+            font-size: 13px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>TCG Arena</h1>
+        </div>
+        
+        <!-- Hero -->
+        <div class="hero">
+            <div class="hero-emoji">😢</div>
+            <h2 class="hero-title">Ti mancano, <span th:text="${username}">User</span>!</h2>
+            <p class="hero-subtitle">
+                Non ti vediamo da <strong th:text="${daysInactive}">30</strong> giorni
+            </p>
+        </div>
+        
+        <!-- Content -->
+        <div class="content">
+            <p style="font-size: 15px; color: #374151; margin-bottom: 24px; text-align: center;">
+                La community TCG Arena è cresciuta tantissimo da quando non ci sei! 
+                Ecco cosa ti sei perso:
+            </p>
+            
+            <!-- What's New -->
+            <div class="feature-card">
+                <div class="feature-header">
+                    <span class="feature-icon">🆕</span>
+                    <span class="feature-title">Nuove funzionalità</span>
+                </div>
+                <p class="feature-desc">
+                    Abbiamo aggiunto il Trade Radar, eventi nella tua zona e molto altro!
+                </p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-header">
+                    <span class="feature-icon">👥</span>
+                    <span class="feature-title">Community in crescita</span>
+                </div>
+                <p class="feature-desc">
+                    Migliaia di nuovi collezionisti si sono uniti alla piattaforma
+                </p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-header">
+                    <span class="feature-icon">🎴</span>
+                    <span class="feature-title">Nuove carte e set</span>
+                </div>
+                <p class="feature-desc">
+                    Sono uscite nuove espansioni. Aggiorna la tua collezione!
+                </p>
+            </div>
+            
+            <!-- CTA -->
+            <div style="text-align: center; margin-top: 32px;">
+                <a th:href="${frontendUrl}" class="cta-button" href="https://tcgarena.it">
+                    Torna su TCG Arena
+                </a>
+            </div>
+            
+            <p style="font-size: 14px; color: #6b7280; text-align: center; margin-top: 32px;">
+                La tua collezione ti aspetta! 🎉
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p class="footer-text">
+                © 2026 TCG Arena • Ci manchi!
+            </p>
+        </div>
+    </div>
+</body>
+</html>

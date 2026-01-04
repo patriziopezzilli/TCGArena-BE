@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evento Aggiornato</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #111827;
+            background-color: #f9fafb;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+        }
+        .header {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            padding: 40px 24px;
+            text-align: center;
+        }
+        .header h1 {
+            color: white;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .header-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+        .content {
+            padding: 32px 24px;
+        }
+        .event-box {
+            background: #dbeafe;
+            border: 2px solid #3b82f6;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 24px 0;
+        }
+        .event-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1e40af;
+            margin-bottom: 16px;
+        }
+        .change-item {
+            background: white;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+        }
+        .change-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #1e40af;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .change-value {
+            font-size: 14px;
+            color: #1e3a8a;
+        }
+        .cta-button {
+            display: inline-block;
+            background: #3b82f6;
+            color: white;
+            padding: 14px 32px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+            margin: 16px auto;
+        }
+        .footer {
+            background: #f9fafb;
+            padding: 24px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+        .footer-text {
+            font-size: 13px;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-icon">📝</div>
+            <h1>Evento Aggiornato</h1>
+        </div>
+        
+        <div class="content">
+            <p style="font-size: 15px; color: #374151; margin-bottom: 24px;">
+                Ciao <strong th:text="${username}">User</strong>! 
+                L'evento a cui sei iscritto è stato aggiornato.
+            </p>
+            
+            <div class="event-box">
+                <p class="event-title" th:text="${eventTitle}">Event Title</p>
+                
+                <div class="change-item" th:if="${newDate}">
+                    <p class="change-label">📅 Nuova Data</p>
+                    <p class="change-value" th:text="${newDate}">New Date</p>
+                </div>
+                
+                <div class="change-item" th:if="${newTime}">
+                    <p class="change-label">🕐 Nuovo Orario</p>
+                    <p class="change-value" th:text="${newTime}">New Time</p>
+                </div>
+                
+                <div class="change-item" th:if="${newLocation}">
+                    <p class="change-label">📍 Nuova Posizione</p>
+                    <p class="change-value" th:text="${newLocation}">New Location</p>
+                </div>
+                
+                <div class="change-item" th:if="${updateNote}">
+                    <p class="change-label">ℹ️ Note</p>
+                    <p class="change-value" th:text="${updateNote}">Notes</p>
+                </div>
+            </div>
+            
+            <p style="font-size: 14px; color: #374151; margin-bottom: 24px;">
+                Verifica le modifiche e assicurati di poterti ancora partecipare. 
+                Se hai domande, contatta l'organizzatore.
+            </p>
+            
+            <div style="text-align: center; margin: 32px 0;">
+                <a th:href="${frontendUrl + '/events/' + eventId}" class="cta-button" href="#">
+                    Visualizza Dettagli
+                </a>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p class="footer-text">
+                © 2026 TCG Arena • Ci vediamo all'evento! 🎉
+            </p>
+        </div>
+    </div>
+</body>
+</html>

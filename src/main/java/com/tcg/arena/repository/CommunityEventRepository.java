@@ -54,4 +54,8 @@ public interface CommunityEventRepository extends JpaRepository<CommunityEvent, 
     // Find events where user is participant
     @Query("SELECT e FROM CommunityEvent e JOIN e.participants p WHERE p.user.id = :userId AND p.status = 'JOINED' ORDER BY e.eventDate ASC")
     List<CommunityEvent> findByParticipantUserId(@Param("userId") Long userId);
+    
+    // Find events happening between two dates (for event reminders)
+    List<CommunityEvent> findByEventDateBetween(LocalDateTime startDate, LocalDateTime endDate);
 }
+

@@ -16,6 +16,7 @@ import com.tcg.arena.service.DeckService;
 import com.tcg.arena.service.EmailService;
 import com.tcg.arena.service.ShopService;
 import com.tcg.arena.service.UserService;
+import io.swagger.v3.oas.annotations.Operation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -68,18 +69,35 @@ public class JwtAuthenticationController {
     @Autowired
     private PasswordResetTokenRepository passwordResetTokenRepository;
 
+    @Autowired
+    private com.tcg.arena.service.SecurityAlertService securityAlertService;
+
+    @Autowired
+    private com.tcg.arena.service.EmailVerificationService emailVerificationService;
+
     @PostMapping("/login")
-    public ResponseEntity<?> createAuthenticationToken(@RequestBody JwtRequest authenticationRequest) throws Exception {
+    public ResponseEntity<?> createAuthenticationToken(@RequestBody JwtRequest authenticationRequest, 
+                                                       jakarta.servlet.http.HttpServletRequest request) throws Exception {
         authenticate(authenticationRequest.getUsername(), authenticationRequest.getPassword());
 
         final UserDetails userDetails = userDetailsService.loadUserByUsername(authenticationRequest.getUsername());
         final String token = jwtTokenUtil.generateToken(userDetails);
         final String refreshToken = jwtTokenUtil.generateRefreshToken(userDetails);
 
+        // Track login for security alerts
+        User user = userService.getUserByUsername(authenticationRequest.getUsername()).orElse(null);
+        if (user != null) {
+            try {
+                securityAlertService.trackLoginAndNotify(user, request);
+            } catch (Exception e) {
+                logger.error("Failed to track login for user: {}", user.getUsername(), e);
+            }
+        }
+
         Map<String, Object> response = new HashMap<>();
         response.put("token", token);
         response.put("refreshToken", refreshToken);
-        response.put("user", userService.getUserByUsername(authenticationRequest.getUsername()).orElse(null));
+        response.put("user", user);
 
         return ResponseEntity.ok(response);
     }
@@ -126,6 +144,23 @@ public class JwtAuthenticationController {
 
         User savedUser = userService.saveUser(user);
         logger.debug("User saved with ID: {}", savedUser.getId());
+
+        // Send welcome email
+        try {
+            emailService.sendWelcomeEmail(savedUser);
+            logger.info("Welcome email sent to: {}", savedUser.getEmail());
+        } catch (Exception e) {
+            logger.error("Failed to send welcome email to: {}", savedUser.getEmail(), e);
+            // Don't fail registration if email fails
+        }
+
+        // Send email verification
+        try {
+            emailVerificationService.sendVerificationEmail(savedUser);
+            logger.info("Verification email sent to: {}", savedUser.getEmail());
+        } catch (Exception e) {
+            logger.error("Failed to send verification email to: {}", savedUser.getEmail(), e);
+        }
 
         // Create starter decks for favorite TCG types
         if (registerRequest.getFavoriteGames() != null && !registerRequest.getFavoriteGames().isEmpty()) {
@@ -375,6 +410,44 @@ public class JwtAuthenticationController {
 
         logger.info("Password reset successful for user: {}", email);
         return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
+    }
+
+    /**
+     * Verify email using token
+     */
+    @PostMapping("/verify-email")
+    @Operation(summary = "Verify email", description = "Verifies user email using token from verification link")
+    public ResponseEntity<?> verifyEmail(@RequestParam String token) {
+        boolean verified = emailVerificationService.verifyEmail(token);
+        if (verified) {
+            return ResponseEntity.ok(Map.of("message", "Email verified successfully", "success", true));
+        }
+        return ResponseEntity.badRequest().body(Map.of("message", "Invalid or expired verification token", "success", false));
+    }
+
+    /**
+     * Resend email verification
+     */
+    @PostMapping("/resend-verification")
+    @Operation(summary = "Resend verification email", description = "Resends verification email to user")
+    public ResponseEntity<?> resendVerification(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Email is required"));
+        }
+
+        Optional<User> userOpt = userService.getUserByEmail(email);
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "User not found"));
+        }
+
+        try {
+            emailVerificationService.resendVerificationEmail(userOpt.get());
+            return ResponseEntity.ok(Map.of("message", "Verification email sent successfully"));
+        } catch (Exception e) {
+            logger.error("Failed to resend verification email to: {}", email, e);
+            return ResponseEntity.status(500).body(Map.of("message", "Failed to send verification email"));
+        }
     }
 
     private String generateOTP() {

@@ -3,6 +3,7 @@ package com.tcg.arena.controller;
 import com.tcg.arena.model.Tournament;
 import com.tcg.arena.model.User;
 import com.tcg.arena.model.TournamentParticipant;
+import com.tcg.arena.service.EmailService;
 import com.tcg.arena.service.TournamentService;
 import com.tcg.arena.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -10,6 +11,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,11 +29,16 @@ import com.tcg.arena.dto.WebGuestRegistrationRequest;
 @Tag(name = "Tournaments", description = "API for managing tournaments in the TCG Arena system")
 public class TournamentController {
 
+    private static final Logger logger = LoggerFactory.getLogger(TournamentController.class);
+
     @Autowired
     private TournamentService tournamentService;
 
     @Autowired
     private UserService userService;
+    
+    @Autowired
+    private EmailService emailService;
 
     @GetMapping
     @Operation(summary = "Get all tournaments", description = "Retrieves a list of all tournaments. PENDING_APPROVAL tournaments are visible only to the creator and shop owner.")
@@ -192,6 +200,45 @@ public class TournamentController {
             @RequestBody WebGuestRegistrationRequest request) {
         try {
             TournamentParticipant participant = tournamentService.registerGuestByCode(code, request);
+            
+            // Send confirmation email if email provided
+            if (request.getEmail() != null && !request.getEmail().isEmpty()) {
+                try {
+                    // Get tournament by ID
+                    Tournament tournament = tournamentService.getTournamentById(participant.getTournamentId())
+                            .orElseThrow(() -> new RuntimeException("Tournament not found"));
+                    
+                    // Convert Tournament to CommunityEvent for email template
+                    com.tcg.arena.model.CommunityEvent mockEvent = new com.tcg.arena.model.CommunityEvent();
+                    mockEvent.setId(tournament.getId());
+                    mockEvent.setTitle(tournament.getTitle());
+                    mockEvent.setEventDate(tournament.getStartDate());
+                    
+                    // Set location
+                    if (tournament.getLocation() != null && tournament.getLocation().getAddress() != null) {
+                        mockEvent.setCustomLocation(tournament.getLocation().getAddress());
+                    } else {
+                        mockEvent.setCustomLocation("Da definire");
+                    }
+                    
+                    // Build participant name
+                    String participantName = request.getFirstName();
+                    if (request.getLastName() != null && !request.getLastName().isEmpty()) {
+                        participantName += " " + request.getLastName();
+                    }
+                    
+                    emailService.sendTournamentRegistration(
+                        request.getEmail(),
+                        participantName != null ? participantName : "Partecipante",
+                        mockEvent
+                    );
+                    logger.info("Tournament registration email sent to: {}", request.getEmail());
+                } catch (Exception e) {
+                    logger.error("Failed to send tournament registration email", e);
+                    // Don't fail registration if email fails
+                }
+            }
+            
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "message", "Iscrizione completata con successo!",
