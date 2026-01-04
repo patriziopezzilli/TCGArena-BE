@@ -2,6 +2,8 @@ package com.tcg.arena.dto;
 
 import com.tcg.arena.model.CommunityEvent;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class CommunityEventDTO {
 
@@ -25,6 +27,7 @@ public class CommunityEventDTO {
     private boolean isCreator;
     private boolean isFull;
     private LocalDateTime createdAt;
+    private List<EventParticipantDTO> participants;
 
     // Default constructor
     public CommunityEventDTO() {
@@ -52,12 +55,18 @@ public class CommunityEventDTO {
         dto.setCreatedAt(event.getCreatedAt());
         dto.setFull(event.isFull());
 
+        // Convert participants to DTOs (only JOINED status)
+        List<EventParticipantDTO> participantDTOs = event.getParticipants().stream()
+                .filter(p -> p.getStatus() == com.tcg.arena.model.CommunityEventParticipant.ParticipantStatus.JOINED)
+                .map(EventParticipantDTO::fromEntity)
+                .collect(Collectors.toList());
+        dto.setParticipants(participantDTOs);
+
         // Check if current user is creator or joined
         if (currentUserId != null) {
             dto.setCreator(event.getCreator().getId().equals(currentUserId));
-            dto.setJoined(event.getParticipants().stream()
-                    .anyMatch(p -> p.getUser().getId().equals(currentUserId) &&
-                            p.getStatus() == com.tcg.arena.model.CommunityEventParticipant.ParticipantStatus.JOINED));
+            dto.setJoined(participantDTOs.stream()
+                    .anyMatch(p -> p.getUserId().equals(currentUserId)));
         }
 
         return dto;
@@ -222,5 +231,13 @@ public class CommunityEventDTO {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public List<EventParticipantDTO> getParticipants() {
+        return participants;
+    }
+
+    public void setParticipants(List<EventParticipantDTO> participants) {
+        this.participants = participants;
     }
 }
