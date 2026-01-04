@@ -47,6 +47,12 @@ public class UserStatsService {
     }
 
     private UserStats createUserStats(User user) {
+        // Double-check to avoid duplicates in concurrent scenarios
+        Optional<UserStats> existing = userStatsRepository.findByUser(user);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+        
         UserStats stats = new UserStats();
         stats.setUser(user);
         stats.setJoinDate(user.getDateJoined());

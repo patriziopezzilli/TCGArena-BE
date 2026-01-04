@@ -154,14 +154,6 @@ public class JwtAuthenticationController {
             // Don't fail registration if email fails
         }
 
-        // Send email verification
-        try {
-            emailVerificationService.sendVerificationEmail(savedUser);
-            logger.info("Verification email sent to: {}", savedUser.getEmail());
-        } catch (Exception e) {
-            logger.error("Failed to send verification email to: {}", savedUser.getEmail(), e);
-        }
-
         // Create starter decks for favorite TCG types
         if (registerRequest.getFavoriteGames() != null && !registerRequest.getFavoriteGames().isEmpty()) {
             deckService.createStarterDecksForUser(savedUser.getId(), registerRequest.getFavoriteGames());
