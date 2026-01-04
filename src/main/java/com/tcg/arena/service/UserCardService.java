@@ -248,8 +248,9 @@ public class UserCardService {
 
             // Check if card already exists in shop inventory
             List<InventoryCard> existingCards = inventoryCardRepository.findByShopIdAndCardTemplateId(shopId, cardTemplateId);
+            InventoryCard.CardCondition inventoryCondition = convertToInventoryCondition(userCard.getCondition());
             InventoryCard inventoryCard = existingCards.stream()
-                .filter(ic -> ic.getCondition() == userCard.getCondition())
+                .filter(ic -> ic.getCondition() == inventoryCondition)
                 .findFirst()
                 .orElse(null);
 
@@ -267,7 +268,7 @@ public class UserCardService {
                 inventoryCard = new InventoryCard();
                 inventoryCard.setCardTemplateId(cardTemplateId);
                 inventoryCard.setShopId(shopId);
-                inventoryCard.setCondition(userCard.getCondition());
+                inventoryCard.setCondition(convertToInventoryCondition(userCard.getCondition()));
                 inventoryCard.setNationality(userCard.getNationality());
                 inventoryCard.setQuantity(1);
                 // Set default price based on purchase price or market value
@@ -289,6 +290,20 @@ public class UserCardService {
         }
     }
 
+    /**
+     * Helper method to convert CardCondition to InventoryCard.CardCondition
+     */
+    private InventoryCard.CardCondition convertToInventoryCondition(CardCondition condition) {
+        return switch (condition) {
+            case MINT -> InventoryCard.CardCondition.MINT;
+            case NEAR_MINT -> InventoryCard.CardCondition.NEAR_MINT;
+            case LIGHTLY_PLAYED -> InventoryCard.CardCondition.LIGHT_PLAYED;
+            case MODERATELY_PLAYED -> InventoryCard.CardCondition.PLAYED;
+            case HEAVILY_PLAYED -> InventoryCard.CardCondition.PLAYED;
+            case DAMAGED -> InventoryCard.CardCondition.POOR;
+        };
+    }
+
     private void removeFromShopInventory(UserCard userCard) {
         try {
             User owner = userCard.getOwner();
@@ -307,8 +322,9 @@ public class UserCardService {
 
             // Find matching inventory card
             List<InventoryCard> existingCards = inventoryCardRepository.findByShopIdAndCardTemplateId(shopId, cardTemplateId);
+            InventoryCard.CardCondition inventoryCondition = convertToInventoryCondition(userCard.getCondition());
             InventoryCard inventoryCard = existingCards.stream()
-                .filter(ic -> ic.getCondition() == userCard.getCondition())
+                .filter(ic -> ic.getCondition() == inventoryCondition)
                 .findFirst()
                 .orElse(null);
 
