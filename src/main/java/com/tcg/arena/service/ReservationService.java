@@ -89,7 +89,7 @@ public class ReservationService {
         Reservation saved = reservationRepository.save(reservation);
 
         // Award points for reservation (+10 points)
-        rewardService.earnPoints(user.getId(), 10, "Reservation made at " + shop.getName());
+        rewardService.earnPoints(user.getId(), 10, "Prenotazione presso " + shop.getName());
 
         return new ReservationResponse(
                 saved,

@@ -59,7 +59,7 @@ public class DeckService {
         // Log deck creation activity
         userActivityService.logActivity(deck.getOwnerId(),
                 com.tcg.arena.model.ActivityType.DECK_CREATED,
-                "Created deck '" + deck.getName() + "'");
+                "Creato mazzo '" + deck.getName() + "'");
 
         return savedDeck;
     }
@@ -77,7 +77,7 @@ public class DeckService {
 
             userActivityService.logActivity(deck.getOwnerId(),
                     com.tcg.arena.model.ActivityType.DECK_UPDATED,
-                    "Updated deck '" + deck.getName() + "'");
+                    "Aggiornato mazzo '" + deck.getName() + "'");
 
             return updatedDeck;
         });
@@ -87,7 +87,7 @@ public class DeckService {
         Optional<Deck> deckOpt = deckRepository.findById(id);
         if (deckOpt.isPresent()) {
             Deck deck = deckOpt.get();
-            userActivityService.logActivity(userId, ActivityType.DECK_DELETED, "Deleted deck: " + deck.getName());
+            userActivityService.logActivity(userId, ActivityType.DECK_DELETED, "Eliminato mazzo: " + deck.getName());
             deckRepository.deleteById(id);
             return true;
         }
@@ -109,7 +109,7 @@ public class DeckService {
         deck.setDateModified(LocalDateTime.now());
         Deck savedDeck = deckRepository.save(deck);
 
-        userActivityService.logActivity(ownerId, ActivityType.DECK_CREATED, "Created new deck: " + name);
+        userActivityService.logActivity(ownerId, ActivityType.DECK_CREATED, "Creato nuovo mazzo: " + name);
 
         // Award points for deck creation (+50 for first deck, +10 for additional)
         // Only for LISTA type decks (not system Collection/Wishlist decks)
@@ -118,9 +118,9 @@ public class DeckService {
             long userListaDecks = userDecks.stream().filter(d -> d.getDeckType() == DeckType.LISTA).count();
 
             if (userListaDecks == 1) {
-                rewardService.earnPoints(ownerId, 50, "First deck created: " + name);
+                rewardService.earnPoints(ownerId, 50, "Primo mazzo creato: " + name);
             } else {
-                rewardService.earnPoints(ownerId, 10, "Deck created: " + name);
+                rewardService.earnPoints(ownerId, 10, "Mazzo creato: " + name);
             }
         }
 
@@ -152,7 +152,7 @@ public class DeckService {
 
         // Log deck update activity
         userActivityService.logActivity(userId, ActivityType.DECK_UPDATED,
-                "Added " + quantity + "x " + card.getCardTemplate().getName() + " to deck '" + deck.getName() + "'");
+                "Aggiunte " + quantity + "x " + card.getCardTemplate().getName() + " al mazzo '" + deck.getName() + "'");
 
         return savedDeck;
     }
@@ -175,7 +175,7 @@ public class DeckService {
                 Deck savedDeck = deckRepository.save(deck);
 
                 userActivityService.logActivity(userId, ActivityType.DECK_UPDATED,
-                        "Added 1x " + template.getName() + " to deck '" + deck.getName() + "'");
+                        "Aggiunta 1x " + template.getName() + " al mazzo '" + deck.getName() + "'");
 
                 return savedDeck;
             }
@@ -219,11 +219,11 @@ public class DeckService {
 
         // Log deck update activity
         userActivityService.logActivity(userId, ActivityType.DECK_UPDATED,
-                "Added 1x " + template.getName() + " to deck '" + deck.getName() + "'");
+                "Aggiunta 1x " + template.getName() + " al mazzo '" + deck.getName() + "'");
 
         // Award points for adding to wishlist (+2 points)
         if (deck.getName() != null && deck.getName().toLowerCase().contains("wishlist")) {
-            rewardService.earnPoints(userId, 2, "Card added to wishlist: " + template.getName());
+            rewardService.earnPoints(userId, 2, "Carta aggiunta alla wishlist: " + template.getName());
         }
 
         return savedDeck;
@@ -246,8 +246,8 @@ public class DeckService {
                 deckRepository.save(deck);
 
                 // Log deck update activity
-                userActivityService.logActivity(userId, ActivityType.DECK_UPDATED, "Removed " + deckCard.getQuantity()
-                        + "x " + card.getCardTemplate().getName() + " from deck '" + deck.getName() + "'");
+                userActivityService.logActivity(userId, ActivityType.DECK_UPDATED, "Rimosse " + deckCard.getQuantity()
+                        + "x " + card.getCardTemplate().getName() + " dal mazzo '" + deck.getName() + "'");
 
                 return true;
             }
@@ -365,7 +365,7 @@ public class DeckService {
 
         // Log deck update activity
         userActivityService.logActivity(userId, ActivityType.DECK_UPDATED,
-                "Removed card from deck '" + deck.getName() + "'");
+                "Rimossa carta dal mazzo '" + deck.getName() + "'");
 
         return true;
     }

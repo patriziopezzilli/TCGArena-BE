@@ -92,7 +92,7 @@ public class UserService {
         // Log user registration activity
         userActivityService.logActivity(savedUser.getId(),
                 com.tcg.arena.model.ActivityType.USER_REGISTERED,
-                "Joined TCG Arena");
+                "Si è iscritto a TCG Arena");
 
         // Migrate existing decks to have default deck type
         deckService.migrateExistingDecksToDefaultType();
@@ -114,7 +114,7 @@ public class UserService {
             // Log profile update activity
             userActivityService.logActivity(id,
                     com.tcg.arena.model.ActivityType.USER_PROFILE_UPDATED,
-                    "Updated profile information");
+                    "Aggiornato profilo");
 
             return updatedUser;
         });

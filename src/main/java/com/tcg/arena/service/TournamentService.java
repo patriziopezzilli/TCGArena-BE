@@ -319,7 +319,7 @@ public class TournamentService {
         TournamentParticipant savedParticipant = participantRepository.save(participant);
 
         // Award points for registration (+15 points)
-        rewardService.earnPoints(userId, 15, "Tournament registration: " + tournament.getTitle());
+        rewardService.earnPoints(userId, 15, "Iscrizione torneo: " + tournament.getTitle());
 
         return savedParticipant;
     }
@@ -380,7 +380,7 @@ public class TournamentService {
             // Deduct points for cancellation (-10 points)
             Tournament tournament = tournamentRepository.findById(tournamentId).orElse(null);
             String tournamentName = tournament != null ? tournament.getTitle() : "Tournament";
-            rewardService.earnPoints(participantUserId, -10, "Tournament cancellation: " + tournamentName);
+            rewardService.earnPoints(participantUserId, -10, "Cancellazione torneo: " + tournamentName);
 
             return true;
         }
@@ -579,7 +579,7 @@ public class TournamentService {
         TournamentParticipant savedParticipant = participantRepository.save(participant);
 
         // Award points for check-in (+25 points)
-        rewardService.earnPoints(userId, 25, "Tournament check-in: " + tournament.getTitle());
+        rewardService.earnPoints(userId, 25, "Check-in torneo: " + tournament.getTitle());
 
         System.out.println("[CHECKIN] ✅ Check-in successful for participant: " + savedParticipant.getId());
 
@@ -764,7 +764,7 @@ public class TournamentService {
             if (pointsToAward > 0) {
                 // Award points using rewardService to properly track the transaction
                 rewardService.earnPoints(participant.getUserId(), pointsToAward,
-                        placementText + " in tournament: " + tournament.getTitle());
+                        placementText + " nel torneo: " + tournament.getTitle());
 
                 // Send notification to winner
                 Optional<User> userOpt = userRepository.findById(participant.getUserId());

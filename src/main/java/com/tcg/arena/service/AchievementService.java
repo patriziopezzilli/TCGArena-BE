@@ -59,7 +59,7 @@ public class AchievementService {
 
             // Award points
             rewardService.earnPoints(userId, achievement.getPointsReward(),
-                "Achievement unlocked: " + achievement.getName());
+                "Achievement sbloccato: " + achievement.getName());
 
             return true;
         }

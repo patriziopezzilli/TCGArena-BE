@@ -3,8 +3,10 @@ package com.tcg.arena.controller;
 import com.tcg.arena.dto.UpdateProfileRequest;
 import com.tcg.arena.dto.UserWithStatsDTO;
 import com.tcg.arena.model.User;
+import com.tcg.arena.model.UserCard;
 import com.tcg.arena.service.UserService;
 import com.tcg.arena.service.UserStatsService;
+import com.tcg.arena.service.UserCardService;
 import com.tcg.arena.model.UserStats;
 import com.tcg.arena.repository.UserRepository;
 import com.tcg.arena.service.UserActivityService;
@@ -35,6 +37,9 @@ public class UserController {
 
         @Autowired
         private UserStatsService userStatsService;
+
+        @Autowired
+        private UserCardService userCardService;
 
         @GetMapping
         @Operation(summary = "Get all users with stats", description = "Retrieves a list of all registered users with their statistics")
@@ -140,7 +145,7 @@ public class UserController {
                         // Log profile update activity
                         userActivityService.logActivity(id,
                                         com.tcg.arena.model.ActivityType.USER_PROFILE_UPDATED,
-                                        "Updated profile information");
+                                        "Aggiornato profilo");
 
                         return ResponseEntity.ok(updatedUser);
                 }).orElse(ResponseEntity.notFound().build());
@@ -162,7 +167,7 @@ public class UserController {
                         // Log profile image update activity
                         userActivityService.logActivity(id,
                                         com.tcg.arena.model.ActivityType.USER_PROFILE_UPDATED,
-                                        "Updated profile image");
+                                        "Aggiornata immagine profilo");
 
                         return ResponseEntity.ok(updatedUser);
                 }).orElse(ResponseEntity.notFound().build());
@@ -286,6 +291,20 @@ public class UserController {
                         user.setIsPrivate(isPrivate);
                         userRepository.save(user);
                         return ResponseEntity.ok(java.util.Map.of("isPrivate", user.getIsPrivate()));
+                }).orElse(ResponseEntity.notFound().build());
+        }
+
+        @GetMapping("/{id}/cards")
+        @Operation(summary = "Get user's inventory cards", description = "Retrieves all inventory cards for a specific user (public endpoint for community profiles)")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Successfully retrieved user's inventory cards"),
+                        @ApiResponse(responseCode = "404", description = "User not found")
+        })
+        public ResponseEntity<List<UserCard>> getUserCards(
+                        @Parameter(description = "Unique identifier of the user") @PathVariable Long id) {
+                return userService.getUserById(id).map(user -> {
+                        List<UserCard> userCards = userCardService.getUserCardsByUserId(id);
+                        return ResponseEntity.ok(userCards);
                 }).orElse(ResponseEntity.notFound().build());
         }
 

@@ -72,7 +72,7 @@ public class RewardService {
                 // Log activity
                 userActivityService.logActivity(userId,
                         com.tcg.arena.model.ActivityType.REWARD_REDEEMED,
-                        "Redeemed reward: " + reward.getName());
+                        "Riscattato premio: " + reward.getName());
 
                 return true;
             }
@@ -98,7 +98,7 @@ public class RewardService {
             // Log activity
             userActivityService.logActivity(userId,
                     com.tcg.arena.model.ActivityType.POINTS_EARNED,
-                    "Earned " + points + " points: " + description);
+                    "Guadagnati " + points + " punti: " + description);
         }
     }
 

@@ -101,7 +101,7 @@ public class UserCardService {
             // Log activity before deletion
             userActivityService.logActivity(userCard.getOwner().getId(),
                 com.tcg.arena.model.ActivityType.CARD_REMOVED_FROM_COLLECTION,
-                "Removed " + userCard.getCardTemplate().getName() + " from collection");
+                "Rimosso " + userCard.getCardTemplate().getName() + " dall'inventario");
 
             userCardRepository.deleteById(id);
             return true;
@@ -140,7 +140,7 @@ public class UserCardService {
         // Log activity
         userActivityService.logActivity(owner.getId(),
             com.tcg.arena.model.ActivityType.CARD_ADDED_TO_COLLECTION,
-            "Added " + cardTemplate.getName() + " to collection");
+            "Aggiunto " + cardTemplate.getName() + " all'inventario");
 
         return savedCard;
     }
