@@ -6,9 +6,13 @@ import com.tcg.arena.model.User;
 import com.tcg.arena.model.UserCard;
 import com.tcg.arena.model.Deck;
 import com.tcg.arena.model.DeckCard;
+import com.tcg.arena.model.InventoryCard;
+import com.tcg.arena.model.Shop;
 import com.tcg.arena.repository.CardTemplateRepository;
 import com.tcg.arena.repository.UserCardRepository;
 import com.tcg.arena.repository.UserRepository;
+import com.tcg.arena.repository.InventoryCardRepository;
+import com.tcg.arena.repository.ShopRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,6 +40,12 @@ public class UserCardService {
 
     @Autowired
     private DeckService deckService;
+
+    @Autowired
+    private InventoryCardRepository inventoryCardRepository;
+
+    @Autowired
+    private ShopRepository shopRepository;
 
     public List<UserCard> getAllUserCards() {
         return userCardRepository.findAll();
@@ -70,6 +80,9 @@ public class UserCardService {
             // Sync with collection deck card
             syncUserCardToCollectionDeck(savedUserCard);
 
+            // If user is a merchant, sync to shop inventory
+            syncUserCardToShopInventory(savedUserCard, savedUserCard.getOwner());
+
             return savedUserCard;
         });
     }
@@ -102,6 +115,9 @@ public class UserCardService {
             userActivityService.logActivity(userCard.getOwner().getId(),
                 com.tcg.arena.model.ActivityType.CARD_REMOVED_FROM_COLLECTION,
                 "Rimosso " + userCard.getCardTemplate().getName() + " dall'inventario");
+
+            // If user is a merchant, remove from shop inventory
+            removeFromShopInventory(userCard);
 
             userCardRepository.deleteById(id);
             return true;
@@ -141,6 +157,9 @@ public class UserCardService {
         userActivityService.logActivity(owner.getId(),
             com.tcg.arena.model.ActivityType.CARD_ADDED_TO_COLLECTION,
             "Aggiunto " + cardTemplate.getName() + " all'inventario");
+
+        // If user is a merchant, sync to shop inventory
+        syncUserCardToShopInventory(savedCard, owner);
 
         return savedCard;
     }
@@ -208,6 +227,105 @@ public class UserCardService {
         } catch (Exception e) {
             // Log error but don't fail the UserCard update
             logger.error("Error syncing UserCard to collection deck: " + e.getMessage());
+        }
+    }
+
+    private void syncUserCardToShopInventory(UserCard userCard, User owner) {
+        try {
+            // Check if user is a merchant and has a shop
+            if (!owner.getIsMerchant()) {
+                return;
+            }
+
+            Optional<Shop> shopOpt = shopRepository.findByOwnerId(owner.getId());
+            if (shopOpt.isEmpty()) {
+                return;
+            }
+
+            Shop shop = shopOpt.get();
+            Long cardTemplateId = userCard.getCardTemplate().getId();
+            Long shopId = shop.getId();
+
+            // Check if card already exists in shop inventory
+            List<InventoryCard> existingCards = inventoryCardRepository.findByShopIdAndCardTemplateId(shopId, cardTemplateId);
+            InventoryCard inventoryCard = existingCards.stream()
+                .filter(ic -> ic.getCondition() == userCard.getCondition())
+                .findFirst()
+                .orElse(null);
+
+            if (inventoryCard != null) {
+                // Update existing inventory card
+                inventoryCard.setQuantity(inventoryCard.getQuantity() + 1);
+                if (userCard.getPurchasePrice() != null && userCard.getPurchasePrice() > 0) {
+                    // Use purchase price as base, merchant can adjust later
+                    inventoryCard.setPrice(userCard.getPurchasePrice() * 1.2); // 20% markup
+                }
+                inventoryCardRepository.save(inventoryCard);
+                logger.info("Updated shop inventory card quantity for card {} in shop {}", cardTemplateId, shopId);
+            } else {
+                // Create new inventory card
+                inventoryCard = new InventoryCard();
+                inventoryCard.setCardTemplateId(cardTemplateId);
+                inventoryCard.setShopId(shopId);
+                inventoryCard.setCondition(userCard.getCondition());
+                inventoryCard.setNationality(userCard.getNationality());
+                inventoryCard.setQuantity(1);
+                // Set default price based on purchase price or market value
+                double defaultPrice = 0.0;
+                if (userCard.getPurchasePrice() != null && userCard.getPurchasePrice() > 0) {
+                    defaultPrice = userCard.getPurchasePrice() * 1.2; // 20% markup
+                } else {
+                    // Fallback to a default price - merchant should update this
+                    defaultPrice = 1.0;
+                }
+                inventoryCard.setPrice(defaultPrice);
+                inventoryCard.setCreatedAt(LocalDateTime.now());
+                inventoryCard.setUpdatedAt(LocalDateTime.now());
+                inventoryCardRepository.save(inventoryCard);
+                logger.info("Created new shop inventory card for card {} in shop {}", cardTemplateId, shopId);
+            }
+        } catch (Exception e) {
+            logger.error("Error syncing UserCard to shop inventory: " + e.getMessage(), e);
+        }
+    }
+
+    private void removeFromShopInventory(UserCard userCard) {
+        try {
+            User owner = userCard.getOwner();
+            if (!owner.getIsMerchant()) {
+                return;
+            }
+
+            Optional<Shop> shopOpt = shopRepository.findByOwnerId(owner.getId());
+            if (shopOpt.isEmpty()) {
+                return;
+            }
+
+            Shop shop = shopOpt.get();
+            Long cardTemplateId = userCard.getCardTemplate().getId();
+            Long shopId = shop.getId();
+
+            // Find matching inventory card
+            List<InventoryCard> existingCards = inventoryCardRepository.findByShopIdAndCardTemplateId(shopId, cardTemplateId);
+            InventoryCard inventoryCard = existingCards.stream()
+                .filter(ic -> ic.getCondition() == userCard.getCondition())
+                .findFirst()
+                .orElse(null);
+
+            if (inventoryCard != null) {
+                if (inventoryCard.getQuantity() > 1) {
+                    // Decrease quantity
+                    inventoryCard.setQuantity(inventoryCard.getQuantity() - 1);
+                    inventoryCardRepository.save(inventoryCard);
+                    logger.info("Decreased shop inventory card quantity for card {} in shop {}", cardTemplateId, shopId);
+                } else {
+                    // Remove card from inventory
+                    inventoryCardRepository.delete(inventoryCard);
+                    logger.info("Removed shop inventory card for card {} from shop {}", cardTemplateId, shopId);
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Error removing card from shop inventory: " + e.getMessage(), e);
         }
     }
 }

@@ -59,6 +59,11 @@ public interface InventoryCardRepository extends JpaRepository<InventoryCard, St
     List<InventoryCard> findByCardTemplateIdAndShopId(Long cardTemplateId, Long shopId);
     
     /**
+     * Find by shop ID and card template ID (convenience method)
+     */
+    List<InventoryCard> findByShopIdAndCardTemplateId(Long shopId, Long cardTemplateId);
+    
+    /**
      * Count inventory items by shop
      */
     long countByShopId(Long shopId);
