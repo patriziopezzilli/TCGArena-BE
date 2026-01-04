@@ -34,6 +34,9 @@ public class ChatConversation {
     @Column
     private Boolean isReadOnly; // Lock chat when trade is completed
 
+    @Column
+    private Boolean agreementReached; // true if trade completed successfully, false if closed without agreement
+
     public enum ChatType {
         FREE, TRADE
     }
@@ -100,5 +103,13 @@ public class ChatConversation {
 
     public void setIsReadOnly(Boolean isReadOnly) {
         this.isReadOnly = isReadOnly;
+    }
+
+    public Boolean getAgreementReached() {
+        return agreementReached;
+    }
+
+    public void setAgreementReached(Boolean agreementReached) {
+        this.agreementReached = agreementReached;
     }
 }

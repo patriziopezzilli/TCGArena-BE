@@ -160,6 +160,7 @@ public class ChatService {
         dto.setContextJson(conversation.getContextJson());
         dto.setStatus(conversation.getStatus() != null ? conversation.getStatus().name() : "ACTIVE");
         dto.setIsReadOnly(conversation.getIsReadOnly() != null ? conversation.getIsReadOnly() : false);
+        dto.setAgreementReached(conversation.getAgreementReached()); // Can be null for active trades
 
         // Set unread count for current user
         Long unreadCount = messageRepository.countUnreadByConversationAndRecipient(conversation.getId(), currentUserId);
@@ -216,6 +217,7 @@ public class ChatService {
         // Mark as completed and readonly
         conversation.setStatus(ChatConversation.ChatStatus.COMPLETED);
         conversation.setIsReadOnly(true);
+        conversation.setAgreementReached(true); // Agreement was reached successfully
         conversationRepository.save(conversation);
 
         // Award points and rating to the other participant
@@ -278,6 +280,7 @@ public class ChatService {
         // Mark as completed and readonly WITHOUT awarding points
         conversation.setStatus(ChatConversation.ChatStatus.COMPLETED);
         conversation.setIsReadOnly(true);
+        conversation.setAgreementReached(false); // No agreement was reached
         conversationRepository.save(conversation);
 
         System.out.println("❌ ChatService: Trade closed without agreement for conversation " + conversationId);

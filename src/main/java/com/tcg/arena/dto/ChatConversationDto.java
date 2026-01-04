@@ -71,6 +71,7 @@ public class ChatConversationDto {
 
     private String status; // ACTIVE, COMPLETED
     private Boolean isReadOnly;
+    private Boolean agreementReached; // true if trade completed successfully, false if closed without agreement
 
     public String getStatus() {
         return status;
@@ -86,5 +87,13 @@ public class ChatConversationDto {
 
     public void setIsReadOnly(Boolean isReadOnly) {
         this.isReadOnly = isReadOnly;
+    }
+
+    public Boolean getAgreementReached() {
+        return agreementReached;
+    }
+
+    public void setAgreementReached(Boolean agreementReached) {
+        this.agreementReached = agreementReached;
     }
 }
