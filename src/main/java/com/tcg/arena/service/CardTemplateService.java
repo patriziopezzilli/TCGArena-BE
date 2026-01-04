@@ -95,13 +95,14 @@ public class CardTemplateService {
         return cardTemplateRepository.searchByNameOrSetCode(query);
     }
 
-    public List<CardTemplate> smartScan(List<String> rawTexts) {
+    public List<CardTemplate> smartScan(List<String> rawTexts, String tcgType) {
         if (rawTexts == null || rawTexts.isEmpty()) {
             System.out.println("DEBUG: SmartScan - Input is empty");
             return List.of();
         }
 
         System.out.println("DEBUG: SmartScan - Raw Texts: " + rawTexts);
+        System.out.println("DEBUG: SmartScan - TCG Type Filter: " + tcgType);
 
         // 1. Flatten, Tokenize and Filter
         // Filter: Keep only alphabetic strings with length >= 4
@@ -125,6 +126,14 @@ public class CardTemplateService {
         for (String token : tokens) {
             // Simple LIKE %token% search
             List<CardTemplate> matches = cardTemplateRepository.findByNameContainingIgnoreCase(token);
+            
+            // Filter by TCG Type if provided
+            if (tcgType != null && !tcgType.isBlank()) {
+                matches = matches.stream()
+                    .filter(card -> card.getTcgType() != null && card.getTcgType().name().equalsIgnoreCase(tcgType))
+                    .collect(java.util.stream.Collectors.toList());
+            }
+            
             resultSet.addAll(matches);
 
             // Safety break if too many results?

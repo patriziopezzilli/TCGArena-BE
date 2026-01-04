@@ -160,11 +160,12 @@ public class CardController {
                         @ApiResponse(responseCode = "400", description = "Input list is empty")
         })
         public ResponseEntity<List<CardTemplate>> smartScan(
-                        @Parameter(description = "List of raw text strings from OCR") @RequestBody List<String> rawTexts) {
+                        @Parameter(description = "List of raw text strings from OCR") @RequestBody List<String> rawTexts,
+                        @Parameter(description = "TCG Type filter (optional)") @RequestParam(required = false) String tcgType) {
                 if (rawTexts == null || rawTexts.isEmpty()) {
                         return ResponseEntity.badRequest().build();
                 }
-                List<CardTemplate> results = cardTemplateService.smartScan(rawTexts);
+                List<CardTemplate> results = cardTemplateService.smartScan(rawTexts, tcgType);
                 return ResponseEntity.ok(results);
         }
 
