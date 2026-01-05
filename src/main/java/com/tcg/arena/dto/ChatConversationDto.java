@@ -72,6 +72,7 @@ public class ChatConversationDto {
     private String status; // ACTIVE, COMPLETED
     private Boolean isReadOnly;
     private Boolean agreementReached; // true if trade completed successfully, false if closed without agreement
+    private Long initiatorId;
 
     public String getStatus() {
         return status;
@@ -95,5 +96,13 @@ public class ChatConversationDto {
 
     public void setAgreementReached(Boolean agreementReached) {
         this.agreementReached = agreementReached;
+    }
+
+    public Long getInitiatorId() {
+        return initiatorId;
+    }
+
+    public void setInitiatorId(Long initiatorId) {
+        this.initiatorId = initiatorId;
     }
 }

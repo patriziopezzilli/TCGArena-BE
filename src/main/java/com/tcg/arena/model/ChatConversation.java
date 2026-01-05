@@ -37,6 +37,9 @@ public class ChatConversation {
     @Column
     private Boolean agreementReached; // true if trade completed successfully, false if closed without agreement
 
+    @Column
+    private Long initiatorId; // ID of the user who started the conversation
+
     public enum ChatType {
         FREE, TRADE
     }
@@ -111,5 +114,13 @@ public class ChatConversation {
 
     public void setAgreementReached(Boolean agreementReached) {
         this.agreementReached = agreementReached;
+    }
+
+    public Long getInitiatorId() {
+        return initiatorId;
+    }
+
+    public void setInitiatorId(Long initiatorId) {
+        this.initiatorId = initiatorId;
     }
 }

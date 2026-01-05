@@ -70,6 +70,7 @@ public class ChatService {
         conversation.setContextJson(request.getContextJson());
         conversation.getParticipants().add(currentUser);
         conversation.getParticipants().add(targetUser);
+        conversation.setInitiatorId(currentUserId); // Set initiator
 
         conversation = conversationRepository.save(conversation);
         return convertToDto(conversation, currentUserId);
@@ -161,6 +162,7 @@ public class ChatService {
         dto.setStatus(conversation.getStatus() != null ? conversation.getStatus().name() : "ACTIVE");
         dto.setIsReadOnly(conversation.getIsReadOnly() != null ? conversation.getIsReadOnly() : false);
         dto.setAgreementReached(conversation.getAgreementReached()); // Can be null for active trades
+        dto.setInitiatorId(conversation.getInitiatorId());
 
         // Set unread count for current user
         Long unreadCount = messageRepository.countUnreadByConversationAndRecipient(conversation.getId(), currentUserId);
