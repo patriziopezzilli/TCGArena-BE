@@ -1,10 +1,13 @@
 package com.tcg.arena.dto;
 
+import com.tcg.arena.model.TCGType;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
  * DTO for JustTCG import summary email
+ * Supports aggregating multiple TCG import results
  */
 public class ImportSummaryEmailDTO {
     private String username;
@@ -18,6 +21,9 @@ public class ImportSummaryEmailDTO {
     private int errors;
     private List<CardDelta> deltas;
     private String errorMessage;
+    
+    // Multi-TCG aggregation
+    private List<TCGImportResult> tcgResults = new ArrayList<>();
 
     public static class CardDelta {
         private String cardName;
@@ -95,11 +101,75 @@ public class ImportSummaryEmailDTO {
 
     public String getErrorMessage() { return errorMessage; }
     public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
+    
+    public List<TCGImportResult> getTcgResults() { return tcgResults; }
+    public void setTcgResults(List<TCGImportResult> tcgResults) { this.tcgResults = tcgResults; }
 
     public long getDurationMinutes() {
         if (importStartTime != null && importEndTime != null) {
             return java.time.Duration.between(importStartTime, importEndTime).toMinutes();
         }
         return 0;
+    }
+    
+    /**
+     * Inner class for individual TCG import results
+     */
+    public static class TCGImportResult {
+        private TCGType tcgType;
+        private String status;
+        private int cardsProcessed;
+        private int cardsAdded;
+        private int cardsUpdated;
+        private int errors;
+        private LocalDateTime startTime;
+        private LocalDateTime endTime;
+        private String errorMessage;
+        
+        public TCGImportResult() {}
+        
+        public TCGImportResult(TCGType tcgType) {
+            this.tcgType = tcgType;
+            this.startTime = LocalDateTime.now();
+        }
+        
+        // Getters and Setters
+        public TCGType getTcgType() { return tcgType; }
+        public void setTcgType(TCGType tcgType) { this.tcgType = tcgType; }
+        
+        public String getStatus() { return status; }
+        public void setStatus(String status) { this.status = status; }
+        
+        public int getCardsProcessed() { return cardsProcessed; }
+        public void setCardsProcessed(int cardsProcessed) { this.cardsProcessed = cardsProcessed; }
+        
+        public int getCardsAdded() { return cardsAdded; }
+        public void setCardsAdded(int cardsAdded) { this.cardsAdded = cardsAdded; }
+        
+        public int getCardsUpdated() { return cardsUpdated; }
+        public void setCardsUpdated(int cardsUpdated) { this.cardsUpdated = cardsUpdated; }
+        
+        public int getErrors() { return errors; }
+        public void setErrors(int errors) { this.errors = errors; }
+        
+        public LocalDateTime getStartTime() { return startTime; }
+        public void setStartTime(LocalDateTime startTime) { this.startTime = startTime; }
+        
+        public LocalDateTime getEndTime() { return endTime; }
+        public void setEndTime(LocalDateTime endTime) { this.endTime = endTime; }
+        
+        public String getErrorMessage() { return errorMessage; }
+        public void setErrorMessage(String errorMessage) { this.errorMessage = errorMessage; }
+        
+        public long getDurationMinutes() {
+            if (startTime != null && endTime != null) {
+                return java.time.Duration.between(startTime, endTime).toMinutes();
+            }
+            return 0;
+        }
+        
+        public String getTcgDisplayName() {
+            return tcgType != null ? tcgType.getDisplayName() : "Unknown";
+        }
     }
 }

@@ -2,6 +2,7 @@ package com.tcg.arena.scheduler;
 
 import com.tcg.arena.model.TCGType;
 import com.tcg.arena.service.BatchService;
+import com.tcg.arena.service.ImportStatsCollector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,6 +21,9 @@ public class JustTCGImportScheduler {
 
     @Autowired
     private BatchService batchService;
+    
+    @Autowired
+    private ImportStatsCollector statsCollector;
 
     /**
      * Run JustTCG import for all TCG types at 3 AM every night
@@ -28,6 +32,9 @@ public class JustTCGImportScheduler {
     @Scheduled(cron = "0 0 3 * * ?") // Every day at 3 AM
     public void runNightlyJustTCGImport() {
         logger.info("Starting nightly JustTCG import for all TCG types at 3 AM");
+        
+        // Reset batch statistics
+        statsCollector.resetBatch();
 
         // Import for all supported TCG types
         TCGType[] tcgTypes = {

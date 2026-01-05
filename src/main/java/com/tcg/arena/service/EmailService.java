@@ -67,11 +67,17 @@ public class EmailService {
             
             helper.setFrom(fromEmail);
             helper.setTo(to);
-            helper.setSubject(subject);
+            
+            // Sanitize subject to prevent SMTP errors
+            String sanitizedSubject = sanitizeForSmtp(subject);
+            helper.setSubject(sanitizedSubject);
+            
+            // Sanitize all string variables to prevent SMTP errors
+            Map<String, Object> sanitizedVariables = sanitizeVariables(variables);
             
             // Process template
             Context context = new Context();
-            context.setVariables(variables);
+            context.setVariables(sanitizedVariables);
             context.setVariable("frontendUrl", frontendUrl);
             String htmlContent = templateEngine.process(templateName, context);
             
@@ -346,6 +352,58 @@ public class EmailService {
         variables.put("verificationLink", verificationLink);
         sendHtmlEmail(email, "Verifica la tua email - TCG Arena", "email/email-verification", variables);
     }
+    
+    // ===== UTILITY METHODS =====
+    
+    /**
+     * Sanitize string for SMTP to prevent "555 syntax error" 
+     * Removes control characters and special characters that can cause issues
+     */
+    private String sanitizeForSmtp(String input) {
+        if (input == null) {
+            return "";
+        }
+        
+        // Remove control characters except newline and tab
+        String sanitized = input.replaceAll("[\\p{Cntrl}&&[^\r\n\t]]", "");
+        
+        // Remove potentially problematic characters for email headers
+        // Keep alphanumeric, spaces, and common punctuation
+        sanitized = sanitized.replaceAll("[^\\p{L}\\p{N}\\p{P}\\p{Z}]", "");
+        
+        // Limit length for email subjects (recommended max 78 characters)
+        if (sanitized.length() > 78) {
+            sanitized = sanitized.substring(0, 75) + "...";
+        }
+        
+        return sanitized;
+    }
+    
+    /**
+     * Recursively sanitize all string values in a map
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> sanitizeVariables(Map<String, Object> variables) {
+        Map<String, Object> sanitized = new HashMap<>();
+        
+        for (Map.Entry<String, Object> entry : variables.entrySet()) {
+            Object value = entry.getValue();
+            
+            if (value instanceof String) {
+                // Sanitize string values (less strict than headers)
+                String stringValue = (String) value;
+                // Only remove non-printable control characters
+                String cleaned = stringValue.replaceAll("[\\p{Cntrl}&&[^\r\n\t]]", "");
+                sanitized.put(entry.getKey(), cleaned);
+            } else if (value instanceof Map) {
+                // Recursively sanitize nested maps
+                sanitized.put(entry.getKey(), sanitizeVariables((Map<String, Object>) value));
+            } else {
+                // Keep other types as-is (numbers, booleans, objects, etc.)
+                sanitized.put(entry.getKey(), value);
+            }
+        }
+        
+        return sanitized;
+    }
 }
-
-

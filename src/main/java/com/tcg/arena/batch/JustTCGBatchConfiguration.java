@@ -1,6 +1,7 @@
 package com.tcg.arena.batch;
 
 import com.tcg.arena.model.TCGType;
+import com.tcg.arena.service.ImportStatsCollector;
 import com.tcg.arena.service.JustTCGApiClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +31,9 @@ public class JustTCGBatchConfiguration {
 
     @Autowired
     private JustTCGApiClient justTCGApiClient;
+    
+    @Autowired
+    private ImportStatsCollector statsCollector;
 
     @Bean
     public Job justTCGImportJob(JobRepository jobRepository,
@@ -68,18 +72,28 @@ public class JustTCGBatchConfiguration {
 
             if (!justTCGApiClient.isTCGSupported(tcgType)) {
                 logger.warn("TCG type {} is not supported by JustTCG API", tcgType);
+                statsCollector.recordImportFailure(tcgType, "TCG not supported by JustTCG API");
                 return RepeatStatus.FINISHED;
             }
+
+            // Record import start
+            statsCollector.recordImportStart(tcgType);
 
             try {
                 logger.info("Starting reactive import for {}", tcgType.getDisplayName());
                 Integer importedCount = justTCGApiClient.importCardsForTCG(tcgType)
                         .timeout(java.time.Duration.ofHours(4)) // 4 hour timeout
                         .block();
+                
+                int imported = (importedCount != null) ? importedCount : 0;
                 logger.info("JustTCG import completed. Imported {} cards for {}",
-                        importedCount, tcgType.getDisplayName());
+                        imported, tcgType.getDisplayName());
+                
+                // Record success
+                statsCollector.recordImportSuccess(tcgType, imported, imported, 0);
             } catch (Exception e) {
                 logger.error("Error during JustTCG import: {}", e.getMessage(), e);
+                statsCollector.recordImportFailure(tcgType, e.getMessage());
             }
 
             return RepeatStatus.FINISHED;

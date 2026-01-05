@@ -25,33 +25,45 @@ public class EmailSchedulerService {
 
     private final EmailService emailService;
     private final UserRepository userRepository;
+    private final ImportStatsCollector statsCollector;
 
     @Value("${app.admin.email:patriziopezzilli@gmail.com}")
     private String adminEmail;
 
-    public EmailSchedulerService(EmailService emailService, UserRepository userRepository) {
+    public EmailSchedulerService(EmailService emailService, UserRepository userRepository, 
+                                 ImportStatsCollector statsCollector) {
         this.emailService = emailService;
         this.userRepository = userRepository;
+        this.statsCollector = statsCollector;
     }
 
     /**
      * Nightly JustTCG Import Summary
-     * Runs every night at 3:00 AM
+     * Runs every night at 3:30 AM (after all imports at 3:00 AM)
      * ONLY sends to admin email (patriziopezzilli@gmail.com)
+     * Aggregates results from ALL TCG imports
      */
-    @Scheduled(cron = "0 0 3 * * *") // 3:00 AM every day
+    @Scheduled(cron = "0 30 3 * * *") // 3:30 AM every day
     public void sendNightlyImportSummary() {
         logger.info("Starting nightly import summary job...");
         
         try {
-            // TODO: Implement actual import logic
-            // For now, create a mock summary
-            ImportSummaryEmailDTO summary = createMockImportSummary();
+            // Get all import results from the batch
+            List<ImportSummaryEmailDTO.TCGImportResult> tcgResults = statsCollector.getBatchResults();
+            
+            if (tcgResults.isEmpty()) {
+                logger.warn("No import results found for summary email");
+                return;
+            }
+            
+            // Create aggregated summary
+            ImportSummaryEmailDTO summary = createAggregatedImportSummary(tcgResults);
             
             // SEND ONLY TO ADMIN
             emailService.sendImportSummary(adminEmail, summary);
             
-            logger.info("Import summary sent successfully to admin: {}", adminEmail);
+            logger.info("Import summary sent successfully to admin: {} (covering {} TCG types)", 
+                adminEmail, tcgResults.size());
         } catch (Exception e) {
             logger.error("Failed to send import summary", e);
         }
@@ -101,7 +113,46 @@ public class EmailSchedulerService {
         }
     }
 
-    // ===== MOCK DATA GENERATORS (Replace with real logic) =====
+    // ===== AGGREGATION LOGIC =====
+
+    /**
+     * Create aggregated import summary from individual TCG results
+     */
+    private ImportSummaryEmailDTO createAggregatedImportSummary(List<ImportSummaryEmailDTO.TCGImportResult> tcgResults) {
+        ImportSummaryEmailDTO summary = new ImportSummaryEmailDTO();
+        summary.setUsername("Patrizio");
+        summary.setTcgResults(tcgResults);
+        
+        // Set overall batch times
+        summary.setImportStartTime(statsCollector.getBatchStartTime());
+        summary.setImportEndTime(LocalDateTime.now());
+        
+        // Calculate aggregated stats
+        int totalProcessed = 0;
+        int totalAdded = 0;
+        int totalUpdated = 0;
+        int totalErrors = 0;
+        
+        for (ImportSummaryEmailDTO.TCGImportResult result : tcgResults) {
+            totalProcessed += result.getCardsProcessed();
+            totalAdded += result.getCardsAdded();
+            totalUpdated += result.getCardsUpdated();
+            totalErrors += result.getErrors();
+        }
+        
+        summary.setTotalCardsProcessed(totalProcessed);
+        summary.setCardsAdded(totalAdded);
+        summary.setCardsUpdated(totalUpdated);
+        summary.setCardsSkipped(0); // Not tracked per-TCG currently
+        summary.setErrors(totalErrors);
+        
+        // Set overall status
+        summary.setStatus(statsCollector.getOverallStatus());
+        
+        return summary;
+    }
+
+    // ===== MOCK DATA GENERATORS (Legacy - can be removed) =====
 
     private ImportSummaryEmailDTO createMockImportSummary() {
         ImportSummaryEmailDTO summary = new ImportSummaryEmailDTO();
