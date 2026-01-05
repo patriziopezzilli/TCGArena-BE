@@ -78,6 +78,10 @@ public class Shop {
     @Column(name = "reservation_duration_minutes", nullable = false)
     private Integer reservationDurationMinutes = 30; // Default 30 minutes
 
+    // Partner status - automatically set when shop creates first reward
+    @Column(nullable = false)
+    private Boolean isPartner = false;
+
     @OneToMany(mappedBy = "shopId", cascade = CascadeType.ALL)
     private List<ShopInventory> inventory = new ArrayList<>();
 
@@ -298,6 +302,14 @@ public class Shop {
 
     public void setReservationDurationMinutes(Integer reservationDurationMinutes) {
         this.reservationDurationMinutes = reservationDurationMinutes;
+    }
+
+    public Boolean getIsPartner() {
+        return isPartner;
+    }
+
+    public void setIsPartner(Boolean isPartner) {
+        this.isPartner = isPartner;
     }
 
     // Helper methods to convert comma-separated strings to/from Lists

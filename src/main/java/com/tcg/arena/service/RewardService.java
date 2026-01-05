@@ -141,4 +141,32 @@ public class RewardService {
 
         return transactionRepository.save(transaction);
     }
+
+    // ========== Points Management for Shop Rewards ==========
+
+    public void addPoints(Long userId, Integer points, String description) {
+        earnPoints(userId, points, description);
+    }
+
+    public void deductPoints(Long userId, Integer points, String description) {
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            if (user.getPoints() < points) {
+                throw new RuntimeException("Insufficient points");
+            }
+            user.setPoints(user.getPoints() - points);
+            userRepository.save(user);
+
+            // Log transaction
+            RewardTransaction transaction = new RewardTransaction();
+            transaction.setUserId(userId);
+            transaction.setPointsChange(-points);
+            transaction.setDescription(description);
+            transaction.setTimestamp(LocalDateTime.now());
+            transactionRepository.save(transaction);
+        } else {
+            throw new RuntimeException("User not found");
+        }
+    }
 }
