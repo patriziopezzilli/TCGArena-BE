@@ -47,7 +47,7 @@ public class ShopRewardController {
             @PathVariable Long rewardId,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
-            Optional<User> userOpt = userRepository.findByEmail(userDetails.getUsername());
+            Optional<User> userOpt = userRepository.findByUsername(userDetails.getUsername());
             if (userOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found");
             }
@@ -62,7 +62,7 @@ public class ShopRewardController {
     @GetMapping("/shop-rewards/my-redemptions")
     public ResponseEntity<List<ShopRewardRedemption>> getMyRedemptions(
             @AuthenticationPrincipal UserDetails userDetails) {
-        Optional<User> userOpt = userRepository.findByEmail(userDetails.getUsername());
+        Optional<User> userOpt = userRepository.findByUsername(userDetails.getUsername());
         if (userOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -75,7 +75,7 @@ public class ShopRewardController {
 
     @GetMapping("/merchant/rewards")
     public ResponseEntity<?> getMerchantRewards(@AuthenticationPrincipal UserDetails userDetails) {
-        Optional<User> userOpt = userRepository.findByEmail(userDetails.getUsername());
+        Optional<User> userOpt = userRepository.findByUsername(userDetails.getUsername());
         if (userOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found");
         }
@@ -94,7 +94,7 @@ public class ShopRewardController {
             @RequestBody ShopReward reward,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
-            Optional<User> userOpt = userRepository.findByEmail(userDetails.getUsername());
+            Optional<User> userOpt = userRepository.findByUsername(userDetails.getUsername());
             if (userOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found");
             }
@@ -117,7 +117,7 @@ public class ShopRewardController {
             @RequestBody ShopReward reward,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
-            Optional<User> userOpt = userRepository.findByEmail(userDetails.getUsername());
+            Optional<User> userOpt = userRepository.findByUsername(userDetails.getUsername());
             if (userOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found");
             }
@@ -139,7 +139,7 @@ public class ShopRewardController {
             @PathVariable Long rewardId,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
-            Optional<User> userOpt = userRepository.findByEmail(userDetails.getUsername());
+            Optional<User> userOpt = userRepository.findByUsername(userDetails.getUsername());
             if (userOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found");
             }
@@ -162,7 +162,7 @@ public class ShopRewardController {
             @RequestBody Map<String, Boolean> body,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
-            Optional<User> userOpt = userRepository.findByEmail(userDetails.getUsername());
+            Optional<User> userOpt = userRepository.findByUsername(userDetails.getUsername());
             if (userOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found");
             }
@@ -188,7 +188,7 @@ public class ShopRewardController {
 
     @GetMapping("/merchant/redemptions")
     public ResponseEntity<?> getMerchantRedemptions(@AuthenticationPrincipal UserDetails userDetails) {
-        Optional<User> userOpt = userRepository.findByEmail(userDetails.getUsername());
+        Optional<User> userOpt = userRepository.findByUsername(userDetails.getUsername());
         if (userOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found");
         }
@@ -204,7 +204,7 @@ public class ShopRewardController {
 
     @GetMapping("/merchant/redemptions/pending")
     public ResponseEntity<?> getPendingRedemptions(@AuthenticationPrincipal UserDetails userDetails) {
-        Optional<User> userOpt = userRepository.findByEmail(userDetails.getUsername());
+        Optional<User> userOpt = userRepository.findByUsername(userDetails.getUsername());
         if (userOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found");
         }
@@ -224,7 +224,7 @@ public class ShopRewardController {
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
-            Optional<User> userOpt = userRepository.findByEmail(userDetails.getUsername());
+            Optional<User> userOpt = userRepository.findByUsername(userDetails.getUsername());
             if (userOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found");
             }
@@ -251,7 +251,7 @@ public class ShopRewardController {
             @PathVariable Long redemptionId,
             @AuthenticationPrincipal UserDetails userDetails) {
         try {
-            Optional<User> userOpt = userRepository.findByEmail(userDetails.getUsername());
+            Optional<User> userOpt = userRepository.findByUsername(userDetails.getUsername());
             if (userOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found");
             }
@@ -274,7 +274,7 @@ public class ShopRewardController {
     public ResponseEntity<?> findByCode(
             @PathVariable String code,
             @AuthenticationPrincipal UserDetails userDetails) {
-        Optional<User> userOpt = userRepository.findByEmail(userDetails.getUsername());
+        Optional<User> userOpt = userRepository.findByUsername(userDetails.getUsername());
         if (userOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User not found");
         }
