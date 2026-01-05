@@ -35,6 +35,11 @@ public class JwtRequestFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         String method = request.getMethod();
 
+        // Always skip JWT filter for CORS preflight requests
+        if ("OPTIONS".equalsIgnoreCase(method)) {
+            return true;
+        }
+
         // Always skip JWT filter for these paths
         boolean skip = path.startsWith("/api/waiting-list/") ||
                 path.startsWith("/api/auth/") ||
