@@ -1,6 +1,7 @@
 package com.tcg.arena.controller;
 
 import com.tcg.arena.service.GooglePlacesService;
+import com.tcg.arena.service.HerePlacesService;
 import com.tcg.arena.service.OpenStreetMapService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,6 +19,9 @@ public class AdminShopPopulationController {
 
     @Autowired
     private OpenStreetMapService openStreetMapService;
+
+    @Autowired
+    private HerePlacesService herePlacesService;
 
     @Value("${app.shop.population.secret.key:}")
     private String secretKey;
@@ -126,4 +130,55 @@ public class AdminShopPopulationController {
                 "cost", "FREE - No API limits!",
                 "authRequired", secretKey != null && !secretKey.isEmpty()));
     }
+
+    /**
+     * Populate shops from HERE Places API (STABLE - 250k FREE/MONTH)
+     * 
+     * @param dryRun if true, only simulates the operation without inserting data
+     * @param apiKey secret key for authentication
+     * @return Summary of the operation
+     */
+    @PostMapping("/populate-from-here")
+    public ResponseEntity<Map<String, Object>> populateShopsFromHere(
+            @RequestParam(defaultValue = "true") boolean dryRun,
+            @RequestParam(required = false) String apiKey) {
+
+        // Check secret key for security (if configured)
+        if (secretKey != null && !secretKey.isEmpty()) {
+            if (apiKey == null || !apiKey.equals(secretKey)) {
+                return ResponseEntity.status(403).body(
+                        Map.of(
+                                "error", "Forbidden",
+                                "message", "Invalid or missing API key. This endpoint requires authentication."));
+            }
+        }
+
+        try {
+            Map<String, Object> result = herePlacesService.populateShopsFromHere(dryRun);
+            return ResponseEntity.ok(result);
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "error", e.getMessage(),
+                            "hint", "Configure here.api.key in application.properties"));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(
+                    Map.of(
+                            "error", "Failed to populate shops from HERE Places: " + e.getMessage()));
+        }
+    }
+
+    /**
+     * Health check endpoint for HERE Places service
+     */
+    @GetMapping("/here-status")
+    public ResponseEntity<Map<String, Object>> checkHereStatus() {
+        return ResponseEntity.ok(Map.of(
+                "message", "HERE Places service is available",
+                "endpoint", "POST /api/admin/shops/populate-from-here",
+                "hint", "Use ?dryRun=true to test without inserting data",
+                "cost", "FREE 250k calls/month",
+                "authRequired", secretKey != null && !secretKey.isEmpty()));
+    }
+
 }
