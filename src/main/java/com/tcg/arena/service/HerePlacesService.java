@@ -192,26 +192,35 @@ public class HerePlacesService {
                 return null;
             }
 
-            // Check if it's likely a TCG shop by name
-            String lowerTitle = title.toLowerCase();
-            boolean seemsTcgRelated = TCG_KEYWORDS.stream()
-                    .anyMatch(keyword -> lowerTitle.contains(keyword));
-
-            // Get category to check if it's a game/comic shop
-            boolean isGameShop = false;
+            // Relaxed filtering: Accept all items in relevant categories
+            // This fixes the issue of getting too few results (e.g. only 12)
+            // Most shops in these categories sell TCGs even if "pokemon" isn't in the name
+            boolean isTargetCategory = false;
             if (item.has("categories")) {
                 for (JsonNode cat : item.get("categories")) {
-                    String catName = cat.has("name") ? cat.get("name").asText().toLowerCase() : "";
-                    if (catName.contains("game") || catName.contains("toy") ||
-                            catName.contains("book") || catName.contains("hobby")) {
-                        isGameShop = true;
-                        break;
+                    String catId = cat.has("id") ? cat.get("id").asText() : "";
+                    // Check against our target categories
+                    for (String targetId : CATEGORY_IDS) {
+                        // Match main category (e.g. 600-6900-0000 matches 600-6900-0066)
+                        if (catId.startsWith(targetId.substring(0, 8))) {
+                            isTargetCategory = true;
+                            break;
+                        }
                     }
+                    if (isTargetCategory)
+                        break;
                 }
             }
 
-            if (!seemsTcgRelated && !isGameShop) {
-                return null;
+            // Fallback: Check keywords in title only if category check failed or wasn't
+            // present
+            if (!isTargetCategory) {
+                String lowerTitle = title.toLowerCase();
+                boolean keysMatch = TCG_KEYWORDS.stream()
+                        .anyMatch(keyword -> lowerTitle.contains(keyword));
+                if (!keysMatch) {
+                    return null; // Skip if neither category nor name matches
+                }
             }
 
             Shop shop = new Shop();
