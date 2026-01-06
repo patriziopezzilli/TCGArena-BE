@@ -28,8 +28,6 @@ public class OpenStreetMapService {
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private static final String OVERPASS_API_URL = "https://overpass-api.de/api/interpreter";
-
     // Search tags for TCG-related shops
     private static final List<String[]> SEARCH_TAGS = Arrays.asList(
             new String[] { "shop", "comic" }, // Fumetterie
@@ -47,9 +45,37 @@ public class OpenStreetMapService {
             "trading card", "tcg", "carte", "fumett", "comic", "game",
             "one piece", "dragon ball", "lorcana", "digimon");
 
+    // Italian regions bounding boxes (South, West, North, East)
+    private static final Map<String, double[]> ITALIAN_REGIONS = Map.ofEntries(
+            Map.entry("Lombardia", new double[] { 45.0, 8.5, 46.5, 11.5 }),
+            Map.entry("Lazio", new double[] { 41.0, 11.5, 42.8, 14.0 }),
+            Map.entry("Campania", new double[] { 40.0, 13.5, 41.5, 15.8 }),
+            Map.entry("Piemonte", new double[] { 44.0, 6.6, 46.5, 9.0 }),
+            Map.entry("Veneto", new double[] { 44.8, 10.6, 47.0, 13.1 }),
+            Map.entry("Emilia-Romagna", new double[] { 44.0, 9.2, 45.2, 12.8 }),
+            Map.entry("Toscana", new double[] { 42.2, 9.7, 44.5, 12.4 }),
+            Map.entry("Sicilia", new double[] { 36.6, 12.4, 38.8, 15.7 }),
+            Map.entry("Puglia", new double[] { 39.8, 15.0, 42.0, 18.6 }),
+            Map.entry("Liguria", new double[] { 43.8, 7.5, 44.7, 10.1 }),
+            Map.entry("Sardegna", new double[] { 38.8, 8.1, 41.3, 9.9 }),
+            Map.entry("Calabria", new double[] { 37.9, 15.6, 40.2, 17.2 }),
+            Map.entry("Friuli-Venezia Giulia", new double[] { 45.6, 12.3, 46.7, 14.0 }),
+            Map.entry("Trentino-Alto Adige", new double[] { 45.7, 10.4, 47.1, 12.5 }),
+            Map.entry("Marche", new double[] { 42.7, 12.1, 43.9, 13.9 }),
+            Map.entry("Abruzzo", new double[] { 41.7, 13.0, 42.9, 14.8 }),
+            Map.entry("Umbria", new double[] { 42.4, 12.0, 43.4, 13.3 }));
+
+    // Alternative Overpass API endpoints for load balancing
+    private static final String[] OVERPASS_ENDPOINTS = {
+            "https://overpass-api.de/api/interpreter",
+            "https://lz4.overpass-api.de/api/interpreter",
+            "https://z.overpass-api.de/api/interpreter"
+    };
+
     /**
      * Populate shops database with TCG stores from OpenStreetMap Overpass API.
      * This is 100% FREE with no API limits.
+     * Queries by region to avoid timeouts.
      * 
      * @param dryRun if true, only logs what would be inserted without saving
      * @return Summary of the operation
@@ -59,66 +85,70 @@ public class OpenStreetMapService {
         int totalInserted = 0;
         int totalSkipped = 0;
         List<String> errors = new ArrayList<>();
+        int regionsProcessed = 0;
 
-        logger.info("Starting OpenStreetMap shop population for ITALY (dryRun: {})", dryRun);
+        logger.info("Starting OpenStreetMap shop population for ITALY by regions (dryRun: {})", dryRun);
 
-        try {
-            // Build Overpass query for Italy
-            String query = buildOverpassQuery();
-            logger.info("Executing Overpass query...");
+        for (Map.Entry<String, double[]> region : ITALIAN_REGIONS.entrySet()) {
+            String regionName = region.getKey();
+            double[] bbox = region.getValue();
 
-            // Execute query
-            String response = executeOverpassQuery(query);
+            logger.info("Processing region: {} ({}/{})", regionName, ++regionsProcessed, ITALIAN_REGIONS.size());
 
-            if (response == null) {
-                errors.add("Failed to get response from Overpass API");
-                return buildSummary(totalFound, totalInserted, totalSkipped, errors, dryRun);
-            }
+            try {
+                String query = buildOverpassQueryForBbox(bbox);
+                String response = executeOverpassQueryWithRetry(query);
 
-            // Parse response
-            JsonNode root = objectMapper.readTree(response);
-            JsonNode elements = root.get("elements");
+                if (response == null) {
+                    errors.add("Failed to get response for region: " + regionName);
+                    continue;
+                }
 
-            if (elements != null && elements.isArray()) {
-                logger.info("Found {} elements from OpenStreetMap", elements.size());
+                JsonNode root = objectMapper.readTree(response);
+                JsonNode elements = root.get("elements");
 
-                for (JsonNode element : elements) {
-                    totalFound++;
+                if (elements != null && elements.isArray()) {
+                    logger.info("Found {} elements in {}", elements.size(), regionName);
 
-                    try {
-                        Shop shop = parseShopFromOsmElement(element);
+                    for (JsonNode element : elements) {
+                        totalFound++;
 
-                        if (shop == null) {
+                        try {
+                            Shop shop = parseShopFromOsmElement(element);
+
+                            if (shop == null) {
+                                totalSkipped++;
+                                continue;
+                            }
+
+                            if (shopExists(shop)) {
+                                totalSkipped++;
+                                continue;
+                            }
+
+                            if (!dryRun) {
+                                shopRepository.save(shop);
+                                logger.info("Inserted: {} - {}", shop.getName(), shop.getAddress());
+                            } else {
+                                logger.info("Would insert: {} - {}", shop.getName(), shop.getAddress());
+                            }
+                            totalInserted++;
+
+                        } catch (Exception e) {
+                            logger.warn("Error processing element: {}", e.getMessage());
                             totalSkipped++;
-                            continue;
                         }
-
-                        // Check if shop already exists
-                        if (shopExists(shop)) {
-                            logger.debug("Shop already exists: {}", shop.getName());
-                            totalSkipped++;
-                            continue;
-                        }
-
-                        if (!dryRun) {
-                            shopRepository.save(shop);
-                            logger.info("Inserted shop: {} - {}", shop.getName(), shop.getAddress());
-                        } else {
-                            logger.info("Would insert shop: {} - {}", shop.getName(), shop.getAddress());
-                        }
-                        totalInserted++;
-
-                    } catch (Exception e) {
-                        logger.warn("Error processing element: {}", e.getMessage());
-                        totalSkipped++;
                     }
                 }
-            }
 
-        } catch (Exception e) {
-            String errorMsg = "Error querying OpenStreetMap: " + e.getMessage();
-            logger.error(errorMsg, e);
-            errors.add(errorMsg);
+                // Small delay between regions to be nice to the API
+                Thread.sleep(2000);
+
+            } catch (Exception e) {
+                String errorMsg = "Error querying region " + regionName + ": " + e.getMessage();
+                logger.error(errorMsg);
+                errors.add(errorMsg);
+            }
         }
 
         logger.info("Population completed. Found: {}, Inserted: {}, Skipped: {}",
@@ -128,20 +158,21 @@ public class OpenStreetMapService {
     }
 
     /**
-     * Build Overpass QL query to find TCG-related shops in Italy
+     * Build Overpass QL query for a specific bounding box
      */
-    private String buildOverpassQuery() {
+    private String buildOverpassQueryForBbox(double[] bbox) {
         StringBuilder query = new StringBuilder();
-        query.append("[out:json][timeout:300];");
-        query.append("area[\"name\"=\"Italia\"][\"admin_level\"=\"2\"]->.italy;");
+        query.append("[out:json][timeout:120];");
         query.append("(");
 
-        // Add all search tags for nodes and ways
+        // bbox format: south,west,north,east
+        String bboxStr = String.format("%.4f,%.4f,%.4f,%.4f", bbox[0], bbox[1], bbox[2], bbox[3]);
+
         for (String[] tag : SEARCH_TAGS) {
             String key = tag[0];
             String value = tag[1];
-            query.append(String.format("node[\"%s\"=\"%s\"](area.italy);", key, value));
-            query.append(String.format("way[\"%s\"=\"%s\"](area.italy);", key, value));
+            query.append(String.format("node[\"%s\"=\"%s\"](%s);", key, value, bboxStr));
+            query.append(String.format("way[\"%s\"=\"%s\"](%s);", key, value, bboxStr));
         }
 
         query.append(");");
@@ -151,28 +182,36 @@ public class OpenStreetMapService {
     }
 
     /**
-     * Execute Overpass API query using POST (recommended method)
+     * Execute Overpass API query with retry on multiple endpoints
      */
-    private String executeOverpassQuery(String query) {
-        try {
-            logger.debug("Executing Overpass query: {}", query);
+    private String executeOverpassQueryWithRetry(String query) {
+        for (String endpoint : OVERPASS_ENDPOINTS) {
+            try {
+                logger.debug("Trying endpoint: {}", endpoint);
 
-            // Use POST with form data - this is the recommended approach for Overpass API
-            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-            headers.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
+                org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+                headers.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
 
-            org.springframework.util.MultiValueMap<String, String> body = new org.springframework.util.LinkedMultiValueMap<>();
-            body.add("data", query);
+                org.springframework.util.MultiValueMap<String, String> body = new org.springframework.util.LinkedMultiValueMap<>();
+                body.add("data", query);
 
-            org.springframework.http.HttpEntity<org.springframework.util.MultiValueMap<String, String>> request = new org.springframework.http.HttpEntity<>(
-                    body, headers);
+                org.springframework.http.HttpEntity<org.springframework.util.MultiValueMap<String, String>> request = new org.springframework.http.HttpEntity<>(
+                        body, headers);
 
-            return restTemplate.postForObject(OVERPASS_API_URL, request, String.class);
+                String response = restTemplate.postForObject(endpoint, request, String.class);
 
-        } catch (Exception e) {
-            logger.error("Error executing Overpass query: {}", e.getMessage(), e);
-            return null;
+                if (response != null) {
+                    return response;
+                }
+
+            } catch (Exception e) {
+                logger.warn("Endpoint {} failed: {}", endpoint, e.getMessage());
+                // Try next endpoint
+            }
         }
+
+        logger.error("All Overpass endpoints failed");
+        return null;
     }
 
     /**
