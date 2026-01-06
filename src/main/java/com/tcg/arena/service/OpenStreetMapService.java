@@ -11,8 +11,6 @@ import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
@@ -153,15 +151,23 @@ public class OpenStreetMapService {
     }
 
     /**
-     * Execute Overpass API query
+     * Execute Overpass API query using POST (recommended method)
      */
     private String executeOverpassQuery(String query) {
         try {
-            String encodedQuery = URLEncoder.encode(query, StandardCharsets.UTF_8.toString());
-            String url = OVERPASS_API_URL + "?data=" + encodedQuery;
-
             logger.debug("Executing Overpass query: {}", query);
-            return restTemplate.getForObject(url, String.class);
+
+            // Use POST with form data - this is the recommended approach for Overpass API
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            headers.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
+
+            org.springframework.util.MultiValueMap<String, String> body = new org.springframework.util.LinkedMultiValueMap<>();
+            body.add("data", query);
+
+            org.springframework.http.HttpEntity<org.springframework.util.MultiValueMap<String, String>> request = new org.springframework.http.HttpEntity<>(
+                    body, headers);
+
+            return restTemplate.postForObject(OVERPASS_API_URL, request, String.class);
 
         } catch (Exception e) {
             logger.error("Error executing Overpass query: {}", e.getMessage(), e);
