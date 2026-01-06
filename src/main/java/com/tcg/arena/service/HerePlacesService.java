@@ -44,8 +44,6 @@ public class HerePlacesService {
         logger.info("All shops set to active=true");
     }
 
-    private static final String HERE_BROWSE_URL = "https://browse.search.hereapi.com/v1/browse";
-
     // HERE category IDs for shops we're interested in
     // See:
     // https://developer.here.com/documentation/geocoding-search-api/dev_guide/topics/categories.html
@@ -111,15 +109,25 @@ public class HerePlacesService {
 
         logger.info("Starting HERE Places shop population for ITALY (dryRun: {})", dryRun);
 
+        String[] searchQueries = {
+                "fumetteria",
+                "negozio carte collezionabili",
+                "giochi da tavolo",
+                "trading card game",
+                "pokemon store",
+                "magic the gathering",
+                "warhammer"
+        };
+
         for (Map.Entry<String, double[]> city : ITALIAN_CITIES.entrySet()) {
             String cityName = city.getKey();
             double[] coords = city.getValue();
 
             logger.info("Searching in: {} ({}/{})", cityName, ++citiesProcessed, ITALIAN_CITIES.size());
 
-            for (String categoryId : CATEGORY_IDS) {
+            for (String query : searchQueries) {
                 try {
-                    List<Shop> shops = browseShopsInArea(coords[0], coords[1], categoryId);
+                    List<Shop> shops = discoverShops(coords[0], coords[1], query);
 
                     for (Shop shop : shops) {
                         totalFound++;
@@ -138,11 +146,11 @@ public class HerePlacesService {
                         totalInserted++;
                     }
 
-                    // Rate limiting - be nice to the API
+                    // Rate limiting
                     Thread.sleep(200);
 
                 } catch (Exception e) {
-                    String errorMsg = "Error searching " + cityName + ": " + e.getMessage();
+                    String errorMsg = "Error searching " + cityName + " for '" + query + "': " + e.getMessage();
                     logger.error(errorMsg);
                     errors.add(errorMsg);
                 }
@@ -165,13 +173,20 @@ public class HerePlacesService {
     /**
      * Browse for shops near a location using HERE Browse API
      */
-    private List<Shop> browseShopsInArea(double lat, double lng, String categoryId) {
+    private static final String HERE_DISCOVER_URL = "https://discover.search.hereapi.com/v1/discover";
+
+    /**
+     * Search for shops using free-text queries (much better results than category
+     * browse)
+     */
+    private List<Shop> discoverShops(double lat, double lng, String query) {
         List<Shop> shops = new ArrayList<>();
 
         try {
+            // q=query text, at=location
             String url = String.format(
-                    "%s?at=%.6f,%.6f&categories=%s&in=countryCode:ITA&limit=100&apiKey=%s",
-                    HERE_BROWSE_URL, lat, lng, categoryId, apiKey);
+                    "%s?at=%.6f,%.6f&q=%s&in=countryCode:ITA&limit=50&apiKey=%s",
+                    HERE_DISCOVER_URL, lat, lng, query, apiKey);
 
             String response = restTemplate.getForObject(url, String.class);
 
@@ -192,7 +207,7 @@ public class HerePlacesService {
             }
 
         } catch (Exception e) {
-            logger.error("Error browsing HERE API: {}", e.getMessage());
+            logger.error("Error discovering HERE API: {}", e.getMessage());
         }
 
         return shops;
