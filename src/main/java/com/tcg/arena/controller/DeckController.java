@@ -34,6 +34,15 @@ public class DeckController {
         return deckService.getDecksByOwnerId(userId);
     }
 
+    @GetMapping("/public")
+    @Operation(summary = "Get user's public decks", description = "Retrieves all public decks for a user profile, excluding hidden decks. Use this endpoint when viewing another user's profile.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved list of public decks")
+    })
+    public List<Deck> getPublicDecks(@Parameter(description = "User ID to get public decks for") @RequestParam Long userId) {
+        return deckService.getPublicDecksForProfile(userId);
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get deck by ID", description = "Retrieves a specific deck by its unique ID")
     @ApiResponses(value = {
@@ -253,6 +262,26 @@ public class DeckController {
             return ResponseEntity.ok(deck);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @PutMapping("/{id}/visibility")
+    @Operation(summary = "Toggle deck visibility", description = "Toggles the hidden status of a deck. Hidden decks are not visible on public profiles. Useful for competitive players who want to keep their strategies secret.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Deck visibility updated successfully"),
+            @ApiResponse(responseCode = "403", description = "User not authorized to modify this deck"),
+            @ApiResponse(responseCode = "404", description = "Deck not found")
+    })
+    public ResponseEntity<Deck> toggleDeckVisibility(
+            @Parameter(description = "Unique identifier of the deck") @PathVariable Long id,
+            @Parameter(description = "Whether the deck should be hidden from public view") @RequestParam Boolean isHidden,
+            @Parameter(description = "Unique identifier of the user performing the action") @RequestParam Long userId) {
+        try {
+            return deckService.toggleDeckHidden(id, isHidden, userId)
+                    .map(ResponseEntity::ok)
+                    .orElse(ResponseEntity.notFound().build());
+        } catch (SecurityException e) {
+            return ResponseEntity.status(403).build();
         }
     }
 }

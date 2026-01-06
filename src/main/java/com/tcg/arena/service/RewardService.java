@@ -28,6 +28,9 @@ public class RewardService {
     @Autowired
     private UserActivityService userActivityService;
 
+    @Autowired
+    private NotificationService notificationService;
+
     public List<Reward> getAllActiveRewards() {
         return rewardRepository.findByIsActiveTrue();
     }
@@ -129,8 +132,12 @@ public class RewardService {
         RewardTransaction transaction = transactionRepository.findById(transactionId)
                 .orElseThrow(() -> new RuntimeException("Transaction not found"));
 
+        RewardTransaction.RewardFulfillmentStatus oldStatus = transaction.getStatus();
+        RewardTransaction.RewardFulfillmentStatus newStatus = null;
+
         if (status != null && !status.isEmpty()) {
-            transaction.setStatus(RewardTransaction.RewardFulfillmentStatus.valueOf(status));
+            newStatus = RewardTransaction.RewardFulfillmentStatus.valueOf(status);
+            transaction.setStatus(newStatus);
         }
         if (voucherCode != null) {
             transaction.setVoucherCode(voucherCode);
@@ -139,7 +146,36 @@ public class RewardService {
             transaction.setTrackingNumber(trackingNumber);
         }
 
-        return transactionRepository.save(transaction);
+        RewardTransaction saved = transactionRepository.save(transaction);
+
+        // Send push notification when status changes to DELIVERED or COMPLETED
+        if (newStatus != null && oldStatus != newStatus && 
+            (newStatus == RewardTransaction.RewardFulfillmentStatus.DELIVERED ||
+             newStatus == RewardTransaction.RewardFulfillmentStatus.COMPLETED)) {
+            
+            try {
+                // Get reward name
+                String rewardName = "il tuo premio";
+                if (transaction.getRewardId() != null) {
+                    Optional<Reward> rewardOpt = rewardRepository.findById(transaction.getRewardId());
+                    if (rewardOpt.isPresent()) {
+                        rewardName = rewardOpt.get().getName();
+                    }
+                }
+
+                // Send notification
+                notificationService.sendRewardFulfilledNotification(
+                    transaction.getUserId(),
+                    rewardName,
+                    "TCG Arena"
+                );
+            } catch (Exception e) {
+                // Log but don't fail the operation
+                System.err.println("Failed to send reward fulfilled notification: " + e.getMessage());
+            }
+        }
+
+        return saved;
     }
 
     // ========== Points Management for Shop Rewards ==========

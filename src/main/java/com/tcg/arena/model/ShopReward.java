@@ -1,5 +1,6 @@
 package com.tcg.arena.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -12,6 +13,7 @@ public class ShopReward {
 
     @ManyToOne
     @JoinColumn(name = "shop_id", nullable = false)
+    @JsonIgnore // Prevent full object serialization, use getShopId() instead
     private Shop shop;
 
     @Column(nullable = false)
@@ -66,6 +68,11 @@ public class ShopReward {
 
     public void setShop(Shop shop) {
         this.shop = shop;
+    }
+    
+    // Expose shopId directly for API serialization
+    public Long getShopId() {
+        return shop != null ? shop.getId() : null;
     }
 
     public String getName() {

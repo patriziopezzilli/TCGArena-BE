@@ -274,6 +274,34 @@ public class NotificationService {
     }
 
     /**
+     * Notifica quando il merchant conferma un reward (fulfilled)
+     */
+    public void sendRewardFulfilledNotification(Long userId, String rewardName, String shopName) {
+        String title = "Premio Confermato! ✅";
+        String message = "Il negozio " + shopName + " ha confermato il tuo premio: " + rewardName;
+        
+        java.util.Map<String, String> data = new java.util.HashMap<>();
+        data.put("type", "reward_fulfilled");
+        
+        sendPushNotification(userId, title, message, data);
+        logger.info("Sent reward fulfilled notification to user {} for reward '{}'", userId, rewardName);
+    }
+
+    /**
+     * Notifica quando il merchant annulla un reward
+     */
+    public void sendRewardCancelledNotification(Long userId, String rewardName, String shopName, int pointsRefunded) {
+        String title = "Premio Annullato 🔄";
+        String message = "Il premio " + rewardName + " dal negozio " + shopName + " è stato annullato. Ti sono stati restituiti " + pointsRefunded + " punti.";
+        
+        java.util.Map<String, String> data = new java.util.HashMap<>();
+        data.put("type", "reward_cancelled");
+        
+        sendPushNotification(userId, title, message, data);
+        logger.info("Sent reward cancelled notification to user {} for reward '{}' - {} points refunded", userId, rewardName, pointsRefunded);
+    }
+
+    /**
      * Notifica quando un utente sale di livello
      */
     public void sendLevelUpNotification(Long userId, int newLevel) {

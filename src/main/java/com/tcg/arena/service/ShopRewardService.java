@@ -29,6 +29,9 @@ public class ShopRewardService {
     @Autowired
     private RewardService rewardService; // For point management
 
+    @Autowired
+    private NotificationService notificationService;
+
     // ==================== MERCHANT OPERATIONS ====================
 
     @Transactional
@@ -180,7 +183,21 @@ public class ShopRewardService {
         redemption.setMerchantNotes(notes);
         redemption.setFulfilledAt(LocalDateTime.now());
 
-        return redemptionRepository.save(redemption);
+        ShopRewardRedemption saved = redemptionRepository.save(redemption);
+
+        // Send push notification to user
+        try {
+            notificationService.sendRewardFulfilledNotification(
+                redemption.getUser().getId(),
+                redemption.getShopReward().getName(),
+                redemption.getShopReward().getShop().getName()
+            );
+        } catch (Exception e) {
+            // Log but don't fail the operation
+            System.err.println("Failed to send fulfilled notification: " + e.getMessage());
+        }
+
+        return saved;
     }
 
     @Transactional
@@ -206,7 +223,22 @@ public class ShopRewardService {
         shopRewardRepository.save(reward);
 
         redemption.setStatus(RedemptionStatus.CANCELLED);
-        return redemptionRepository.save(redemption);
+        ShopRewardRedemption saved = redemptionRepository.save(redemption);
+
+        // Send push notification to user
+        try {
+            notificationService.sendRewardCancelledNotification(
+                redemption.getUser().getId(),
+                redemption.getShopReward().getName(),
+                redemption.getShopReward().getShop().getName(),
+                redemption.getPointsSpent()
+            );
+        } catch (Exception e) {
+            // Log but don't fail the operation
+            System.err.println("Failed to send cancelled notification: " + e.getMessage());
+        }
+
+        return saved;
     }
 
     public Optional<ShopRewardRedemption> findByRedemptionCode(String code) {

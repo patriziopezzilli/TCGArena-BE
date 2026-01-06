@@ -13,4 +13,8 @@ public interface DeckRepository extends JpaRepository<Deck, Long> {
     List<Deck> findByIsPublicTrueOrderByDateCreatedDesc();
     List<Deck> findByTcgTypeOrderByDateCreatedDesc(TCGType tcgType);
     List<Deck> findByOwnerIdAndTcgTypeOrderByDateCreatedDesc(Long ownerId, TCGType tcgType);
+    
+    // For public profile view - exclude hidden decks
+    List<Deck> findByOwnerIdAndIsHiddenFalseOrderByDateCreatedDesc(Long ownerId);
+    List<Deck> findByOwnerIdAndIsPublicTrueAndIsHiddenFalseOrderByDateCreatedDesc(Long ownerId);
 }

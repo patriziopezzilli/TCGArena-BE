@@ -495,4 +495,35 @@ public class DeckService {
             logger.info("Created wishlist deck for user {}: {}", userId, wishlistDeck.getName());
         }
     }
+
+    /**
+     * Toggle the hidden status of a deck.
+     * Hidden decks are not visible on public profiles - useful for competitive players
+     * who want to keep their strategies secret.
+     */
+    public Optional<Deck> toggleDeckHidden(Long deckId, Boolean isHidden, Long userId) {
+        return deckRepository.findById(deckId).map(deck -> {
+            // Verify ownership
+            if (!deck.getOwnerId().equals(userId)) {
+                throw new SecurityException("User not authorized to modify this deck");
+            }
+            
+            deck.setIsHidden(isHidden);
+            deck.setDateModified(LocalDateTime.now());
+            Deck updatedDeck = deckRepository.save(deck);
+            
+            String action = isHidden ? "nascosto" : "reso visibile";
+            userActivityService.logActivity(userId, ActivityType.DECK_UPDATED, 
+                    "Mazzo '" + deck.getName() + "' " + action + " dal profilo pubblico");
+            
+            return updatedDeck;
+        });
+    }
+
+    /**
+     * Get public decks for a user profile, excluding hidden decks.
+     */
+    public List<Deck> getPublicDecksForProfile(Long userId) {
+        return deckRepository.findByOwnerIdAndIsHiddenFalseOrderByDateCreatedDesc(userId);
+    }
 }
