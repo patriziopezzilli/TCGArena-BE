@@ -28,15 +28,10 @@ public class OpenStreetMapService {
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    // Search tags for TCG-related shops
+    // Search tags for TCG-related shops (simplified to reduce API load)
     private static final List<String[]> SEARCH_TAGS = Arrays.asList(
             new String[] { "shop", "comic" }, // Fumetterie
-            new String[] { "shop", "games" }, // Negozi di giochi
-            new String[] { "shop", "toys" }, // Negozi di giocattoli
-            new String[] { "shop", "collector" }, // Negozi collezionismo
-            new String[] { "shop", "hobby" }, // Hobby shops
-            new String[] { "amenity", "game_club" }, // Club di gioco
-            new String[] { "leisure", "adult_gaming_centre" } // Gaming centres
+            new String[] { "shop", "games" } // Negozi di giochi
     );
 
     // Keywords to filter TCG-relevant shops
