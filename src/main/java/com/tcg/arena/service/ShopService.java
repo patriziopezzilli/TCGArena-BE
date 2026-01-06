@@ -1,8 +1,11 @@
 package com.tcg.arena.service;
 
+import com.tcg.arena.config.CacheConfig;
 import com.tcg.arena.model.Shop;
 import com.tcg.arena.repository.ShopRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -17,6 +20,7 @@ public class ShopService {
     /**
      * Get all active shops (for public API - app)
      */
+    @Cacheable(value = CacheConfig.SHOPS_CACHE, key = "'active'")
     public List<Shop> getAllShops() {
         return shopRepository.findByActiveTrue();
     }
@@ -28,6 +32,7 @@ public class ShopService {
         return shopRepository.findAll();
     }
 
+    @Cacheable(value = CacheConfig.SHOP_BY_ID_CACHE, key = "#id")
     public Optional<Shop> getShopById(Long id) {
         return shopRepository.findById(id);
     }
@@ -40,10 +45,12 @@ public class ShopService {
         return shopRepository.findByNameContainingIgnoreCaseAndIsVerifiedFalseAndOwnerIdIsNull(name);
     }
 
+    @CacheEvict(value = {CacheConfig.SHOPS_CACHE, CacheConfig.SHOP_BY_ID_CACHE, CacheConfig.SHOP_NEWS_CACHE, CacheConfig.SHOP_REWARDS_CACHE}, allEntries = true)
     public Shop saveShop(Shop shop) {
         return shopRepository.save(shop);
     }
 
+    @CacheEvict(value = {CacheConfig.SHOPS_CACHE, CacheConfig.SHOP_BY_ID_CACHE}, key = "#id")
     public Optional<Shop> updateShop(Long id, Shop shopDetails) {
         return shopRepository.findById(id).map(shop -> {
             shop.setName(shopDetails.getName());
@@ -63,6 +70,7 @@ public class ShopService {
     /**
      * Update reservation duration setting for a shop
      */
+    @CacheEvict(value = {CacheConfig.SHOPS_CACHE, CacheConfig.SHOP_BY_ID_CACHE}, allEntries = true)
     public Optional<Shop> updateReservationDuration(Long shopId, Integer durationMinutes) {
         if (durationMinutes == null || durationMinutes < 1 || durationMinutes > 1440) { // Max 24 hours
             throw new IllegalArgumentException("Reservation duration must be between 1 and 1440 minutes");
@@ -83,6 +91,7 @@ public class ShopService {
                 .orElse(30); // Default to 30 minutes if shop not found
     }
 
+    @CacheEvict(value = {CacheConfig.SHOPS_CACHE, CacheConfig.SHOP_BY_ID_CACHE, CacheConfig.SHOP_NEWS_CACHE, CacheConfig.SHOP_REWARDS_CACHE}, allEntries = true)
     public boolean deleteShop(Long id) {
         if (shopRepository.existsById(id)) {
             shopRepository.deleteById(id);

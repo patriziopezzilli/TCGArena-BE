@@ -1,11 +1,14 @@
 package com.tcg.arena.service;
 
+import com.tcg.arena.config.CacheConfig;
 import com.tcg.arena.dto.GlobalChatMessageDto;
 import com.tcg.arena.model.GlobalChatMessage;
 import com.tcg.arena.model.User;
 import com.tcg.arena.repository.GlobalChatRepository;
 import com.tcg.arena.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -105,6 +108,7 @@ public class GlobalChatService {
     /**
      * Get recent messages for initial load.
      */
+    @Cacheable(value = CacheConfig.GLOBAL_CHAT_CACHE, key = "'recent'")
     public List<GlobalChatMessageDto> getRecentMessages() {
         List<GlobalChatMessage> messages = chatRepository.findRecentMessages();
         // Reverse to get chronological order (oldest first)
@@ -117,6 +121,7 @@ public class GlobalChatService {
     /**
      * Get messages after a specific ID (for sync after reconnect).
      */
+    @Cacheable(value = CacheConfig.GLOBAL_CHAT_CACHE, key = "'after_' + #afterId")
     public List<GlobalChatMessageDto> getMessagesAfterId(Long afterId) {
         return chatRepository.findMessagesAfterId(afterId).stream()
                 .map(GlobalChatMessageDto::new)

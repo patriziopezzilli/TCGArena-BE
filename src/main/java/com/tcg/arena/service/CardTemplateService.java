@@ -7,6 +7,7 @@ import com.tcg.arena.model.TCGType;
 import com.tcg.arena.repository.CardTemplateRepository;
 import com.tcg.arena.repository.ExpansionRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
@@ -33,6 +34,7 @@ public class CardTemplateService {
         return cardTemplateRepository.findAll();
     }
 
+    @Cacheable(value = CacheConfig.CARD_TEMPLATE_BY_ID_CACHE, key = "#id")
     public Optional<CardTemplate> getCardTemplateById(Long id) {
         return cardTemplateRepository.findById(id);
     }
@@ -149,6 +151,7 @@ public class CardTemplateService {
         return results;
     }
 
+    @Cacheable(value = CacheConfig.CARD_SEARCH_CACHE, key = "'filters_' + #tcgType + '_' + #expansionId + '_' + #setCode + '_' + #rarity + '_' + #searchQuery + '_' + #pageable.pageNumber + '_' + #pageable.pageSize")
     public Page<CardTemplate> searchCardTemplatesWithFilters(
             String tcgType,
             Long expansionId,
@@ -159,14 +162,23 @@ public class CardTemplateService {
         return cardTemplateRepository.findWithFilters(tcgType, expansionId, setCode, rarity, searchQuery, pageable);
     }
 
+    @CacheEvict(value = {CacheConfig.CARD_TEMPLATES_CACHE, CacheConfig.CARD_TEMPLATE_BY_ID_CACHE, 
+                         CacheConfig.CARD_SEARCH_CACHE, CacheConfig.EXPANSION_CARDS_CACHE, 
+                         CacheConfig.SET_CARDS_CACHE}, allEntries = true)
     public CardTemplate saveCardTemplate(CardTemplate cardTemplate) {
         return cardTemplateRepository.save(cardTemplate);
     }
 
+    @CacheEvict(value = {CacheConfig.CARD_TEMPLATES_CACHE, CacheConfig.CARD_TEMPLATE_BY_ID_CACHE, 
+                         CacheConfig.CARD_SEARCH_CACHE, CacheConfig.EXPANSION_CARDS_CACHE, 
+                         CacheConfig.SET_CARDS_CACHE}, allEntries = true)
     public List<CardTemplate> saveAllCardTemplates(List<? extends CardTemplate> cardTemplates) {
         return cardTemplateRepository.saveAll(cardTemplates.stream().map(card -> (CardTemplate) card).toList());
     }
 
+    @CacheEvict(value = {CacheConfig.CARD_TEMPLATES_CACHE, CacheConfig.CARD_TEMPLATE_BY_ID_CACHE, 
+                         CacheConfig.CARD_SEARCH_CACHE, CacheConfig.EXPANSION_CARDS_CACHE, 
+                         CacheConfig.SET_CARDS_CACHE}, allEntries = true)
     public Optional<CardTemplate> updateCardTemplate(Long id, CardTemplate cardDetails) {
         return cardTemplateRepository.findById(id).map(card -> {
             card.setName(cardDetails.getName());
@@ -183,6 +195,9 @@ public class CardTemplateService {
         });
     }
 
+    @CacheEvict(value = {CacheConfig.CARD_TEMPLATES_CACHE, CacheConfig.CARD_TEMPLATE_BY_ID_CACHE, 
+                         CacheConfig.CARD_SEARCH_CACHE, CacheConfig.EXPANSION_CARDS_CACHE, 
+                         CacheConfig.SET_CARDS_CACHE}, allEntries = true)
     public boolean deleteCardTemplate(Long id) {
         if (cardTemplateRepository.existsById(id)) {
             cardTemplateRepository.deleteById(id);
@@ -191,6 +206,9 @@ public class CardTemplateService {
         return false;
     }
 
+    @CacheEvict(value = {CacheConfig.CARD_TEMPLATES_CACHE, CacheConfig.CARD_TEMPLATE_BY_ID_CACHE, 
+                         CacheConfig.CARD_SEARCH_CACHE, CacheConfig.EXPANSION_CARDS_CACHE, 
+                         CacheConfig.SET_CARDS_CACHE}, allEntries = true)
     @Transactional
     public void deleteByTcgType(TCGType tcgType) {
         cardTemplateRepository.deleteByTcgType(tcgType);

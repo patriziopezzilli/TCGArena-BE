@@ -6,6 +6,7 @@ import com.tcg.arena.model.TCGSet;
 import com.tcg.arena.repository.CardTemplateRepository;
 import com.tcg.arena.repository.TCGSetRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ public class TCGSetService {
         return tcgSetRepository.findAllByOrderByReleaseDateDesc();
     }
 
+    @Cacheable(value = CacheConfig.SET_BY_ID_CACHE, key = "#id")
     public Optional<TCGSet> getSetById(Long id) {
         return tcgSetRepository.findById(id);
     }
@@ -35,10 +37,12 @@ public class TCGSetService {
         return tcgSetRepository.findBySetCode(setCode);
     }
 
+    @CacheEvict(value = {CacheConfig.SETS_CACHE, CacheConfig.SET_BY_ID_CACHE, CacheConfig.SET_CARDS_CACHE}, allEntries = true)
     public TCGSet saveSet(TCGSet set) {
         return tcgSetRepository.save(set);
     }
 
+    @CacheEvict(value = {CacheConfig.SETS_CACHE, CacheConfig.SET_BY_ID_CACHE, CacheConfig.SET_CARDS_CACHE}, allEntries = true)
     public Optional<TCGSet> updateSet(Long id, TCGSet setDetails) {
         return tcgSetRepository.findById(id).map(set -> {
             set.setName(setDetails.getName());
@@ -52,6 +56,8 @@ public class TCGSetService {
         });
     }
 
+    @CacheEvict(value = {CacheConfig.SETS_CACHE, CacheConfig.SET_BY_ID_CACHE, CacheConfig.SET_CARDS_CACHE, 
+                         CacheConfig.CARD_TEMPLATES_CACHE, CacheConfig.CARD_TEMPLATE_BY_ID_CACHE}, allEntries = true)
     @Transactional
     public void deleteSet(Long id, boolean force) {
         TCGSet set = tcgSetRepository.findById(id)

@@ -1,9 +1,12 @@
 package com.tcg.arena.service;
 
+import com.tcg.arena.config.CacheConfig;
 import com.tcg.arena.model.*;
 import com.tcg.arena.repository.TournamentParticipantRepository;
 import com.tcg.arena.repository.TournamentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import com.tcg.arena.repository.UserRepository;
 import com.tcg.arena.dto.ManualRegistrationRequest;
@@ -43,6 +46,7 @@ public class TournamentService {
     @Autowired
     private GeocodingService geocodingService;
 
+    @Cacheable(value = CacheConfig.TOURNAMENTS_CACHE, key = "'all'")
     public List<Tournament> getAllTournaments() {
         List<Tournament> tournaments = tournamentRepository.findAllByOrderByStartDateAsc();
         System.out.println("📋 getAllTournaments: Found " + tournaments.size() + " tournaments");
@@ -63,6 +67,7 @@ public class TournamentService {
         }
     }
 
+    @Cacheable(value = CacheConfig.TOURNAMENT_BY_ID_CACHE, key = "#id")
     public Optional<Tournament> getTournamentById(Long id) {
         Optional<Tournament> tournamentOpt = tournamentRepository.findById(id);
         if (tournamentOpt.isPresent()) {
@@ -75,6 +80,7 @@ public class TournamentService {
         return tournamentOpt;
     }
 
+    @Cacheable(value = CacheConfig.UPCOMING_TOURNAMENTS_CACHE, key = "'upcoming'")
     public List<Tournament> getUpcomingTournaments() {
         LocalDateTime now = LocalDateTime.now();
         LocalDateTime fiveHoursAgo = now.minusHours(5);
@@ -94,6 +100,7 @@ public class TournamentService {
         return tournaments;
     }
 
+    @Cacheable(value = CacheConfig.PAST_TOURNAMENTS_CACHE, key = "'past'")
     public List<Tournament> getPastTournaments() {
         LocalDateTime fiveHoursAgo = LocalDateTime.now().minusHours(5);
         List<Tournament> tournaments = tournamentRepository.findPastTournaments(fiveHoursAgo);
@@ -151,6 +158,8 @@ public class TournamentService {
         return nearbyTournaments;
     }
 
+    @CacheEvict(value = {CacheConfig.TOURNAMENTS_CACHE, CacheConfig.TOURNAMENT_BY_ID_CACHE, 
+                         CacheConfig.UPCOMING_TOURNAMENTS_CACHE, CacheConfig.PAST_TOURNAMENTS_CACHE}, allEntries = true)
     public Tournament saveTournament(Tournament tournament) {
         // Generate unique registration code if not set
         if (tournament.getRegistrationCode() == null || tournament.getRegistrationCode().isEmpty()) {

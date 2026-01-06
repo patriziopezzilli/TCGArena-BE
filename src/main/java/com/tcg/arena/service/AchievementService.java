@@ -1,10 +1,13 @@
 package com.tcg.arena.service;
 
+import com.tcg.arena.config.CacheConfig;
 import com.tcg.arena.model.Achievement;
 import com.tcg.arena.model.UserAchievement;
 import com.tcg.arena.repository.AchievementRepository;
 import com.tcg.arena.repository.UserAchievementRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -23,14 +26,17 @@ public class AchievementService {
     @Autowired
     private RewardService rewardService;
 
+    @Cacheable(value = CacheConfig.ACHIEVEMENTS_CACHE, key = "'active'")
     public List<Achievement> getAllActiveAchievements() {
         return achievementRepository.findByIsActiveTrue();
     }
 
+    @Cacheable(value = CacheConfig.ACHIEVEMENT_BY_ID_CACHE, key = "#id")
     public Optional<Achievement> getAchievementById(Long id) {
         return achievementRepository.findById(id);
     }
 
+    @CacheEvict(value = {CacheConfig.ACHIEVEMENTS_CACHE, CacheConfig.ACHIEVEMENT_BY_ID_CACHE}, allEntries = true)
     public Achievement saveAchievement(Achievement achievement) {
         if (achievement.getCreatedAt() == null) {
             achievement.setCreatedAt(LocalDateTime.now());

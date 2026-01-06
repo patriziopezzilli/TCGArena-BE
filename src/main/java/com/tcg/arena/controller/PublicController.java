@@ -12,11 +12,13 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Public API endpoints for sharing content without authentication.
@@ -56,7 +58,9 @@ public class PublicController {
                     response.put("shop", dto);
                     response.put("shareUrl", "https://tcgarena.it/share/shop/" + id);
                     response.put("deepLink", "tcgarena://shop/" + id);
-                    return ResponseEntity.ok(response);
+                    return ResponseEntity.ok()
+                            .cacheControl(CacheControl.maxAge(30, TimeUnit.MINUTES).cachePublic())
+                            .body(response);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -74,7 +78,9 @@ public class PublicController {
                     response.put("tournament", buildTournamentResponse(tournament));
                     response.put("shareUrl", "https://tcgarena.it/share/tournament/" + id);
                     response.put("deepLink", "tcgarena://tournament/" + id);
-                    return ResponseEntity.ok(response);
+                    return ResponseEntity.ok()
+                            .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES).cachePublic())
+                            .body(response);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -94,7 +100,9 @@ public class PublicController {
                     response.put("event", dto);
                     response.put("shareUrl", "https://tcgarena.it/share/event/" + id);
                     response.put("deepLink", "tcgarena://event/" + id);
-                    return ResponseEntity.ok(response);
+                    return ResponseEntity.ok()
+                            .cacheControl(CacheControl.maxAge(5, TimeUnit.MINUTES).cachePublic())
+                            .body(response);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -112,7 +120,9 @@ public class PublicController {
                     response.put("card", buildCardResponse(card));
                     response.put("shareUrl", "https://tcgarena.it/share/card/" + id);
                     response.put("deepLink", "tcgarena://card/" + id);
-                    return ResponseEntity.ok(response);
+                    return ResponseEntity.ok()
+                            .cacheControl(CacheControl.maxAge(6, TimeUnit.HOURS).cachePublic())
+                            .body(response);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }

@@ -1,5 +1,6 @@
 package com.tcg.arena.service;
 
+import com.tcg.arena.config.CacheConfig;
 import com.tcg.arena.model.Reward;
 import com.tcg.arena.model.RewardTransaction;
 import com.tcg.arena.model.User;
@@ -7,6 +8,8 @@ import com.tcg.arena.repository.RewardRepository;
 import com.tcg.arena.repository.RewardTransactionRepository;
 import com.tcg.arena.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -31,18 +34,22 @@ public class RewardService {
     @Autowired
     private NotificationService notificationService;
 
+    @Cacheable(value = CacheConfig.REWARDS_CACHE, key = "'active'")
     public List<Reward> getAllActiveRewards() {
         return rewardRepository.findByIsActiveTrue();
     }
 
+    @Cacheable(value = CacheConfig.REWARDS_CACHE, key = "'partner_' + #partnerId")
     public List<Reward> getRewardsByPartner(Long partnerId) {
         return rewardRepository.findByPartnerId(partnerId);
     }
 
+    @Cacheable(value = CacheConfig.REWARD_BY_ID_CACHE, key = "#id")
     public Optional<Reward> getRewardById(Long id) {
         return rewardRepository.findById(id);
     }
 
+    @CacheEvict(value = {CacheConfig.REWARDS_CACHE, CacheConfig.REWARD_BY_ID_CACHE}, allEntries = true)
     public Reward saveReward(Reward reward) {
         if (reward.getCreatedAt() == null) {
             reward.setCreatedAt(LocalDateTime.now());

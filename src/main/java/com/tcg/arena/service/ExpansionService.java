@@ -10,6 +10,7 @@ import com.tcg.arena.repository.CardTemplateRepository;
 import com.tcg.arena.repository.ExpansionRepository;
 import com.tcg.arena.repository.TCGSetRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -84,6 +85,7 @@ public class ExpansionService {
         return expansionRepository.findByIdWithSets(id).map(Expansion::getSets).orElse(List.of());
     }
 
+    @CacheEvict(value = CacheConfig.EXPANSIONS_CACHE, allEntries = true)
     public Expansion saveExpansion(Expansion expansion) {
         return expansionRepository.save(expansion);
     }
@@ -101,6 +103,7 @@ public class ExpansionService {
         return expansionRepository.searchByTitle(query.trim());
     }
 
+    @CacheEvict(value = CacheConfig.EXPANSIONS_CACHE, allEntries = true)
     public Optional<Expansion> updateExpansion(Long id, Expansion expansionDetails) {
         return expansionRepository.findById(id).map(expansion -> {
             expansion.setTitle(expansionDetails.getTitle());
@@ -142,6 +145,7 @@ public class ExpansionService {
      * @param id    Expansion ID
      * @param force If true, delete all associated sets and cards
      */
+    @CacheEvict(value = {CacheConfig.EXPANSIONS_CACHE, CacheConfig.CARD_TEMPLATES_CACHE, CacheConfig.SETS_CACHE}, allEntries = true)
     @Transactional
     public void deleteExpansion(Long id, boolean force) {
         Expansion expansion = expansionRepository.findById(id)

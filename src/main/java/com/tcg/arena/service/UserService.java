@@ -1,10 +1,12 @@
 package com.tcg.arena.service;
 
+import com.tcg.arena.config.CacheConfig;
 import com.tcg.arena.dto.UserWithStatsDTO;
 import com.tcg.arena.model.User;
 import com.tcg.arena.model.UserStats;
 import com.tcg.arena.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -45,6 +47,7 @@ public class UserService {
                 .collect(Collectors.toList());
     }
 
+    @Cacheable(value = CacheConfig.LEADERBOARD_CACHE, key = "'points'")
     public List<User> getLeaderboard() {
         return userRepository.findAll().stream()
                 .sorted((u1, u2) -> Integer.compare(u2.getPoints(), u1.getPoints()))
@@ -55,6 +58,7 @@ public class UserService {
     /**
      * Get leaderboard with stats - sorted by points, includes full stats
      */
+    @Cacheable(value = CacheConfig.LEADERBOARD_CACHE, key = "'pointsWithStats'")
     public List<UserWithStatsDTO> getLeaderboardWithStats() {
         return userRepository.findAll().stream()
                 .sorted((u1, u2) -> Integer.compare(u2.getPoints(), u1.getPoints()))

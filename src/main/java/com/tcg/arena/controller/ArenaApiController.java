@@ -7,11 +7,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -51,9 +53,11 @@ public class ArenaApiController {
             return map;
         }).collect(Collectors.toList());
 
-        return ResponseEntity.ok(Map.of(
-                "data", gameList,
-                "count", games.size()));
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
+                .body(Map.of(
+                        "data", gameList,
+                        "count", games.size()));
     }
 
     /**
@@ -73,7 +77,9 @@ public class ArenaApiController {
                     response.put("cardsCount", cardCount);
                     response.put("lastSync", game.getLastSync());
 
-                    return ResponseEntity.ok(response);
+                    return ResponseEntity.ok()
+                            .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
+                            .body(response);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -108,12 +114,14 @@ public class ArenaApiController {
             return map;
         }).collect(Collectors.toList());
 
-        return ResponseEntity.ok(Map.of(
-                "data", setList,
-                "page", page,
-                "size", setsPage.getNumberOfElements(),
-                "totalPages", setsPage.getTotalPages(),
-                "totalElements", setsPage.getTotalElements()));
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(30, TimeUnit.MINUTES).cachePublic())
+                .body(Map.of(
+                        "data", setList,
+                        "page", page,
+                        "size", setsPage.getNumberOfElements(),
+                        "totalPages", setsPage.getTotalPages(),
+                        "totalElements", setsPage.getTotalElements()));
     }
 
     /**
@@ -133,7 +141,9 @@ public class ArenaApiController {
                     response.put("releaseDate", set.getReleaseDate());
                     response.put("lastSync", set.getLastSync());
 
-                    return ResponseEntity.ok(response);
+                    return ResponseEntity.ok()
+                            .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
+                            .body(response);
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -177,12 +187,14 @@ public class ArenaApiController {
                 .map(ArenaCardDTO::new)
                 .collect(Collectors.toList());
 
-        return ResponseEntity.ok(Map.of(
-                "data", cardList,
-                "page", page,
-                "size", cardsPage.getNumberOfElements(),
-                "totalPages", cardsPage.getTotalPages(),
-                "totalElements", cardsPage.getTotalElements()));
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.maxAge(15, TimeUnit.MINUTES).cachePublic())
+                .body(Map.of(
+                        "data", cardList,
+                        "page", page,
+                        "size", cardsPage.getNumberOfElements(),
+                        "totalPages", cardsPage.getTotalPages(),
+                        "totalElements", cardsPage.getTotalElements()));
     }
 
     /**
@@ -196,7 +208,9 @@ public class ArenaApiController {
                     List<ArenaCardVariant> variants = variantRepository.findByCardId(id);
                     card.setVariants(variants);
 
-                    return ResponseEntity.ok(new ArenaCardDTO(card));
+                    return ResponseEntity.ok()
+                            .cacheControl(CacheControl.maxAge(6, TimeUnit.HOURS).cachePublic())
+                            .body(new ArenaCardDTO(card));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -254,7 +268,9 @@ public class ArenaApiController {
                 .map(card -> {
                     List<ArenaCardVariant> variants = variantRepository.findByCardId(card.getId());
                     card.setVariants(variants);
-                    return ResponseEntity.ok(new ArenaCardDTO(card));
+                    return ResponseEntity.ok()
+                            .cacheControl(CacheControl.maxAge(6, TimeUnit.HOURS).cachePublic())
+                            .body(new ArenaCardDTO(card));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -268,7 +284,9 @@ public class ArenaApiController {
                 .map(card -> {
                     List<ArenaCardVariant> variants = variantRepository.findByCardId(card.getId());
                     card.setVariants(variants);
-                    return ResponseEntity.ok(new ArenaCardDTO(card));
+                    return ResponseEntity.ok()
+                            .cacheControl(CacheControl.maxAge(6, TimeUnit.HOURS).cachePublic())
+                            .body(new ArenaCardDTO(card));
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
