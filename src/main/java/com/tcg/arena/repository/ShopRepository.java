@@ -14,4 +14,8 @@ public interface ShopRepository extends JpaRepository<Shop, Long> {
     Optional<Shop> findByOwnerId(Long ownerId);
 
     List<Shop> findByNameContainingIgnoreCaseAndIsVerifiedFalseAndOwnerIdIsNull(String name);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("UPDATE Shop s SET s.active = :active")
+    void updateAllActive(boolean active);
 }

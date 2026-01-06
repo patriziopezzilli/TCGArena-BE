@@ -34,6 +34,16 @@ public class HerePlacesService {
     private final RestTemplate restTemplate = new RestTemplate();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
+    /**
+     * Activate all shops in the database.
+     * Useful after bulk population.
+     */
+    @org.springframework.transaction.annotation.Transactional
+    public void activateAllShops() {
+        shopRepository.updateAllActive(true);
+        logger.info("All shops set to active=true");
+    }
+
     private static final String HERE_BROWSE_URL = "https://browse.search.hereapi.com/v1/browse";
 
     // HERE category IDs for shops we're interested in
@@ -192,34 +202,53 @@ public class HerePlacesService {
                 return null;
             }
 
-            // Relaxed filtering: Accept all items in relevant categories
-            // This fixes the issue of getting too few results (e.g. only 12)
-            // Most shops in these categories sell TCGs even if "pokemon" isn't in the name
-            boolean isTargetCategory = false;
-            if (item.has("categories")) {
-                for (JsonNode cat : item.get("categories")) {
-                    String catId = cat.has("id") ? cat.get("id").asText() : "";
-                    // Check against our target categories
-                    for (String targetId : CATEGORY_IDS) {
-                        // Match main category (e.g. 600-6900-0000 matches 600-6900-0066)
-                        if (catId.startsWith(targetId.substring(0, 8))) {
+            // Smart Filtering Logic
+            // 1. Check for NEGATIVE keywords (Always exclude these)
+            String lowerTitle = title.toLowerCase();
+            if (isIrrelevantShop(lowerTitle)) {
+                return null;
+            }
+
+            // 2. Check for POSITIVE keywords (TCG specific) - Always accept these
+            boolean hasTcgKeywords = TCG_KEYWORDS.stream().anyMatch(lowerTitle::contains);
+            if (hasTcgKeywords) {
+                // Good to go!
+            } else {
+                // 3. Category-specific rules for generic names
+                boolean isTargetCategory = false;
+
+                if (item.has("categories")) {
+                    for (JsonNode cat : item.get("categories")) {
+                        String catId = cat.has("id") ? cat.get("id").asText() : "";
+
+                        // Rule A: Shopping Malls (600-6100-0000) -> REJECT if no TCG keywords
+                        if (catId.startsWith("600-6100")) {
+                            continue;
+                        }
+
+                        // Rule B: Bookstores (600-6900-0000) -> MUST have "fumett", "comic", "manga",
+                        // "games"
+                        if (catId.startsWith("600-6900")) {
+                            if (lowerTitle.contains("fumet") || lowerTitle.contains("comic") ||
+                                    lowerTitle.contains("manga") || lowerTitle.contains("game") ||
+                                    lowerTitle.contains("giochi")) {
+                                isTargetCategory = true;
+                                break;
+                            }
+                            continue;
+                        }
+
+                        // Rule C: Toy/Game/Hobby Stores (600-6200, 600-6800) -> ACCEPT (unless negative
+                        // keywords)
+                        if (catId.startsWith("600-6200") || catId.startsWith("600-6800")) {
                             isTargetCategory = true;
                             break;
                         }
                     }
-                    if (isTargetCategory)
-                        break;
                 }
-            }
 
-            // Fallback: Check keywords in title only if category check failed or wasn't
-            // present
-            if (!isTargetCategory) {
-                String lowerTitle = title.toLowerCase();
-                boolean keysMatch = TCG_KEYWORDS.stream()
-                        .anyMatch(keyword -> lowerTitle.contains(keyword));
-                if (!keysMatch) {
-                    return null; // Skip if neither category nor name matches
+                if (!isTargetCategory) {
+                    return null;
                 }
             }
 
@@ -278,10 +307,10 @@ public class HerePlacesService {
                 }
             }
 
-            // Default values
+            // Default values - AUTO ACTIVE AS REQUESTED
             shop.setType(ShopType.LOCAL_STORE);
             shop.setIsVerified(false);
-            shop.setActive(false);
+            shop.setActive(true); // <--- Auto-activate shops!
 
             // Detect TCG types from name
             detectTcgTypes(shop, title);
@@ -296,6 +325,25 @@ public class HerePlacesService {
             logger.warn("Error parsing HERE item: {}", e.getMessage());
             return null;
         }
+    }
+
+    private boolean isIrrelevantShop(String name) {
+        return name.contains("erboristeria") ||
+                name.contains("farmacia") ||
+                name.contains("abbigliamento") ||
+                name.contains("boutique") ||
+                name.contains("sartoria") ||
+                name.contains("tabacchi") ||
+                name.contains("profumeria") ||
+                name.contains("ottica") ||
+                name.contains("immobiliare") ||
+                name.contains("ristorante") ||
+                name.contains("pizzeria") ||
+                name.contains("bar ") ||
+                name.endsWith(" bar") ||
+                name.contains("parrucchiere") ||
+                name.contains("estetica") ||
+                name.contains("supermercato");
     }
 
     /**

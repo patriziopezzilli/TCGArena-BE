@@ -181,4 +181,27 @@ public class AdminShopPopulationController {
                 "authRequired", secretKey != null && !secretKey.isEmpty()));
     }
 
+    /**
+     * Activate ALL shops in the database (admin utility)
+     */
+    @PostMapping("/activate-all")
+    public ResponseEntity<Map<String, Object>> activateAllShops(
+            @RequestParam(required = false) String apiKey) {
+
+        // Check secret key
+        if (secretKey != null && !secretKey.isEmpty()) {
+            if (apiKey == null || !apiKey.equals(secretKey)) {
+                return ResponseEntity.status(403).body(
+                        Map.of("error", "Forbidden", "message", "Invalid API key"));
+            }
+        }
+
+        try {
+            herePlacesService.activateAllShops();
+            return ResponseEntity.ok(Map.of("message", "All shops have been set to active=true"));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(
+                    Map.of("error", "Failed to activate shops: " + e.getMessage()));
+        }
+    }
 }
