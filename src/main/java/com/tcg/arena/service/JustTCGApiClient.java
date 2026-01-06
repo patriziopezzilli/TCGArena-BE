@@ -215,11 +215,20 @@ public class JustTCGApiClient {
                 })
                 .header("x-api-key", apiKey)
                 .retrieve()
+                .onStatus(status -> status.isError(), response -> {
+                    return response.bodyToMono(String.class)
+                            .flatMap(body -> {
+                                logger.error("[JustTCG API ERROR] getSetsPage for {}: HTTP {} - Response body: {}",
+                                        gameId, response.statusCode().value(), body);
+                                return Mono.error(new RuntimeException(
+                                        "JustTCG API error: HTTP " + response.statusCode().value() + " - " + body));
+                            });
+                })
                 .bodyToMono(JustTCGSetsResponse.class)
                 .doOnSuccess(resp -> logger.info("Fetched sets for {}: {} sets found, hasMore: {}",
                         gameId, resp.getSets().size(), resp.hasMore))
                 .onErrorResume(e -> {
-                    logger.error("Error fetching sets for {}: {}", gameId, e.getMessage());
+                    logger.error("Error fetching sets for {}: {}", gameId, e.getMessage(), e);
                     return Mono.just(new JustTCGSetsResponse());
                 });
     }
@@ -289,6 +298,16 @@ public class JustTCGApiClient {
                         .build())
                 .header("x-api-key", apiKey)
                 .retrieve()
+                .onStatus(status -> status.isError(), response -> {
+                    return response.bodyToMono(String.class)
+                            .flatMap(body -> {
+                                logger.error(
+                                        "[JustTCG API ERROR] getCardsPageByGame for {} (offset {}): HTTP {} - Response body: {}",
+                                        gameId, offset, response.statusCode().value(), body);
+                                return Mono.error(new RuntimeException(
+                                        "JustTCG API error: HTTP " + response.statusCode().value() + " - " + body));
+                            });
+                })
                 .bodyToMono(JustTCGCardsResponse.class)
                 .map(response -> {
                     response.currentOffset = offset;
@@ -325,11 +344,20 @@ public class JustTCGApiClient {
                 })
                 .header("x-api-key", apiKey)
                 .retrieve()
+                .onStatus(status -> status.isError(), response -> {
+                    return response.bodyToMono(String.class)
+                            .flatMap(body -> {
+                                logger.error("[JustTCG API ERROR] getCardsPage for set {}: HTTP {} - Response body: {}",
+                                        setId, response.statusCode().value(), body);
+                                return Mono.error(new RuntimeException(
+                                        "JustTCG API error: HTTP " + response.statusCode().value() + " - " + body));
+                            });
+                })
                 .bodyToMono(JustTCGCardsResponse.class)
                 .doOnSuccess(resp -> logger.debug("Fetched cards page for set {}, count: {}, hasMore: {}",
                         setId, resp.getCards().size(), resp.hasMore))
                 .onErrorResume(e -> {
-                    logger.error("Error fetching cards for set {}: {}", setId, e.getMessage());
+                    logger.error("Error fetching cards for set {}: {}", setId, e.getMessage(), e);
                     return Mono.just(new JustTCGCardsResponse());
                 });
     }
