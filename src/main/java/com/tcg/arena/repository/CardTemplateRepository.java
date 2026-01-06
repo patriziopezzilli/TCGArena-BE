@@ -67,7 +67,7 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
                         "(:expansionId IS NULL OR ct.expansion_id = :expansionId) AND " +
                         "(:setCode IS NULL OR ct.set_code = :setCode) AND " +
                         "(:rarity IS NULL OR ct.rarity = :rarity) AND " +
-                        "(:searchQuery IS NULL OR ct.name LIKE CONCAT('%', :searchQuery, '%') OR ct.card_number LIKE CONCAT('%', :searchQuery, '%')) AND "
+                        "(:searchQuery IS NULL OR LOWER(ct.name) LIKE LOWER(CONCAT('%', :searchQuery, '%')) OR LOWER(ct.card_number) LIKE LOWER(CONCAT('%', :searchQuery, '%'))) AND "
                         +
                         "ct.card_number IS NOT NULL AND ct.card_number <> 'N/A' AND ct.card_number <> '' " +
                         "ORDER BY ct.id", nativeQuery = true)
