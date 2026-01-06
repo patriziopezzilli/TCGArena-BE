@@ -10,24 +10,24 @@ import java.util.List;
 
 @Repository
 public interface ShopRewardRepository extends JpaRepository<ShopReward, Long> {
-    
-    List<ShopReward> findByShopIdAndIsActiveTrue(Long shopId);
-    
-    List<ShopReward> findByShopId(Long shopId);
-    
-    @Query("SELECT sr FROM ShopReward sr WHERE sr.shop.id = :shopId AND sr.isActive = true " +
-           "AND (sr.expiresAt IS NULL OR sr.expiresAt > CURRENT_TIMESTAMP) " +
-           "AND (sr.stockQuantity IS NULL OR sr.claimedCount < sr.stockQuantity)")
-    List<ShopReward> findAvailableByShopId(@Param("shopId") Long shopId);
-    
-    @Query("SELECT sr FROM ShopReward sr WHERE sr.isActive = true " +
-           "AND (sr.expiresAt IS NULL OR sr.expiresAt > CURRENT_TIMESTAMP) " +
-           "AND (sr.stockQuantity IS NULL OR sr.claimedCount < sr.stockQuantity)")
-    List<ShopReward> findAllAvailable();
-    
-    @Query("SELECT COUNT(sr) FROM ShopReward sr WHERE sr.shop.id = :shopId")
-    long countByShopId(@Param("shopId") Long shopId);
-    
-    @Query("SELECT DISTINCT sr.shop.id FROM ShopReward sr WHERE sr.isActive = true")
-    List<Long> findShopIdsWithActiveRewards();
+
+       List<ShopReward> findByShop_IdAndIsActiveTrue(Long shopId);
+
+       List<ShopReward> findByShop_Id(Long shopId);
+
+       @Query("SELECT sr FROM ShopReward sr WHERE sr.shop.id = :shopId AND sr.isActive = true " +
+                     "AND (sr.expiresAt IS NULL OR sr.expiresAt > CURRENT_TIMESTAMP) " +
+                     "AND (sr.stockQuantity IS NULL OR sr.claimedCount < sr.stockQuantity)")
+       List<ShopReward> findAvailableByShopId(@Param("shopId") Long shopId);
+
+       @Query("SELECT sr FROM ShopReward sr WHERE sr.isActive = true " +
+                     "AND (sr.expiresAt IS NULL OR sr.expiresAt > CURRENT_TIMESTAMP) " +
+                     "AND (sr.stockQuantity IS NULL OR sr.claimedCount < sr.stockQuantity)")
+       List<ShopReward> findAllAvailable();
+
+       @Query("SELECT COUNT(sr) FROM ShopReward sr WHERE sr.shop.id = :shopId")
+       long countByShopId(@Param("shopId") Long shopId);
+
+       @Query("SELECT DISTINCT sr.shop.id FROM ShopReward sr WHERE sr.isActive = true")
+       List<Long> findShopIdsWithActiveRewards();
 }

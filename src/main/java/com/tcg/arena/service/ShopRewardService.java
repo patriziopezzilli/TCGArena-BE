@@ -102,7 +102,7 @@ public class ShopRewardService {
     }
 
     public List<ShopReward> getShopRewards(Long shopId) {
-        return shopRewardRepository.findByShopId(shopId);
+        return shopRewardRepository.findByShop_Id(shopId);
     }
 
     public List<ShopReward> getActiveShopRewards(Long shopId) {
@@ -130,8 +130,8 @@ public class ShopRewardService {
         }
 
         // Deduct points
-        rewardService.deductPoints(userId, reward.getCostPoints(), 
-            "Riscatto premio: " + reward.getName() + " @ " + reward.getShop().getName());
+        rewardService.deductPoints(userId, reward.getCostPoints(),
+                "Riscatto premio: " + reward.getName() + " @ " + reward.getShop().getName());
 
         // Update claimed count
         reward.setClaimedCount(reward.getClaimedCount() + 1);
@@ -163,7 +163,7 @@ public class ShopRewardService {
     }
 
     @Transactional
-    public ShopRewardRedemption fulfillRedemption(Long redemptionId, Long shopId, 
+    public ShopRewardRedemption fulfillRedemption(Long redemptionId, Long shopId,
             String voucherCode, String trackingCode, String notes) {
         ShopRewardRedemption redemption = redemptionRepository.findById(redemptionId)
                 .orElseThrow(() -> new RuntimeException("Redemption not found"));
@@ -188,10 +188,9 @@ public class ShopRewardService {
         // Send push notification to user
         try {
             notificationService.sendRewardFulfilledNotification(
-                redemption.getUser().getId(),
-                redemption.getShopReward().getName(),
-                redemption.getShopReward().getShop().getName()
-            );
+                    redemption.getUser().getId(),
+                    redemption.getShopReward().getName(),
+                    redemption.getShopReward().getShop().getName());
         } catch (Exception e) {
             // Log but don't fail the operation
             System.err.println("Failed to send fulfilled notification: " + e.getMessage());
@@ -215,7 +214,7 @@ public class ShopRewardService {
 
         // Refund points
         rewardService.addPoints(redemption.getUser().getId(), redemption.getPointsSpent(),
-            "Rimborso premio annullato: " + redemption.getShopReward().getName());
+                "Rimborso premio annullato: " + redemption.getShopReward().getName());
 
         // Restore stock
         ShopReward reward = redemption.getShopReward();
@@ -228,11 +227,10 @@ public class ShopRewardService {
         // Send push notification to user
         try {
             notificationService.sendRewardCancelledNotification(
-                redemption.getUser().getId(),
-                redemption.getShopReward().getName(),
-                redemption.getShopReward().getShop().getName(),
-                redemption.getPointsSpent()
-            );
+                    redemption.getUser().getId(),
+                    redemption.getShopReward().getName(),
+                    redemption.getShopReward().getShop().getName(),
+                    redemption.getPointsSpent());
         } catch (Exception e) {
             // Log but don't fail the operation
             System.err.println("Failed to send cancelled notification: " + e.getMessage());
