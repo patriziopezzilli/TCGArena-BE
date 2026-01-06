@@ -79,11 +79,17 @@ public class HerePlacesService {
             Map.entry("Perugia", new double[] { 43.1107, 12.3908 }),
             Map.entry("Cagliari", new double[] { 39.2238, 9.1217 }));
 
-    // Keywords to filter TCG-relevant shops
-    private static final List<String> TCG_KEYWORDS = Arrays.asList(
+    // STRONG Keywords: Specific Brands (If found, ACCEPT immediately)
+    private static final List<String> STRONG_KEYWORDS = Arrays.asList(
             "pokemon", "pokémon", "magic", "mtg", "yugioh", "yu-gi-oh",
+            "one piece", "dragon ball", "lorcana", "digimon", "warcraft",
+            "star wars", "flesh and blood", "keyforge", "altered");
+
+    // WEAK Keywords: Generic terms (If found AND Category matches, ACCEPT)
+    private static final List<String> WEAK_KEYWORDS = Arrays.asList(
             "trading card", "tcg", "carte", "fumett", "comic", "game",
-            "one piece", "dragon ball", "lorcana", "digimon", "gioco", "giochi");
+            "giochi", "gioco", "cards", "collezionismo", "collect",
+            "hobby", "ludoteca", "manga", "otaku", "nerd", "geek");
 
     /**
      * Populate shops database with TCG stores from HERE Places API.
@@ -202,52 +208,53 @@ public class HerePlacesService {
                 return null;
             }
 
-            // Smart Filtering Logic
-            // 1. Check for NEGATIVE keywords (Always exclude these)
+            // ULTRA-ROBUST FILTERING LOGIC
+            // __________________________________________________________________________
+
             String lowerTitle = title.toLowerCase();
+
+            // 1. BLACKLIST: Reject immediately if name matches irrelevant terms
             if (isIrrelevantShop(lowerTitle)) {
                 return null;
             }
 
-            // 2. Check for POSITIVE keywords (TCG specific) - Always accept these
-            boolean hasTcgKeywords = TCG_KEYWORDS.stream().anyMatch(lowerTitle::contains);
-            if (hasTcgKeywords) {
-                // Good to go!
+            // 2. STRONG WHITELIST: Accept immediately if name contains specific TCG brands
+            // (e.g. "Pokemon Store", "Magic Corner") - regardless of category
+            boolean hasStrongKeyword = STRONG_KEYWORDS.stream().anyMatch(lowerTitle::contains);
+            if (hasStrongKeyword) {
+                // ACCEPT
             } else {
-                // 3. Category-specific rules for generic names
-                boolean isTargetCategory = false;
+                // 3. INTERSECTION: Category + Weak Keyword
+                // If no strong keyword, we REQUIRE both a valid Category AND a "Weak" keyword
+                // (e.g. "games", "comics", "cards")
 
+                boolean isTargetCategory = false;
                 if (item.has("categories")) {
                     for (JsonNode cat : item.get("categories")) {
                         String catId = cat.has("id") ? cat.get("id").asText() : "";
 
-                        // Rule A: Shopping Malls (600-6100-0000) -> REJECT if no TCG keywords
-                        if (catId.startsWith("600-6100")) {
-                            continue;
-                        }
-
-                        // Rule B: Bookstores (600-6900-0000) -> MUST have "fumett", "comic", "manga",
-                        // "games"
-                        if (catId.startsWith("600-6900")) {
-                            if (lowerTitle.contains("fumet") || lowerTitle.contains("comic") ||
-                                    lowerTitle.contains("manga") || lowerTitle.contains("game") ||
-                                    lowerTitle.contains("giochi")) {
+                        // Check if it matches any of our target categories (Books, Malls, Toys, Hobby)
+                        for (String targetId : CATEGORY_IDS) {
+                            if (catId.startsWith(targetId.substring(0, 8))) { // Compare only the main category part
                                 isTargetCategory = true;
                                 break;
                             }
-                            continue;
                         }
-
-                        // Rule C: Toy/Game/Hobby Stores (600-6200, 600-6800) -> ACCEPT (unless negative
-                        // keywords)
-                        if (catId.startsWith("600-6200") || catId.startsWith("600-6800")) {
-                            isTargetCategory = true;
-                            break;
-                        }
+                        if (isTargetCategory)
+                            break; // Found a target category, no need to check other categories for this item
                     }
                 }
 
                 if (!isTargetCategory) {
+                    return null; // Wrong category
+                }
+
+                // If Category matches, we STILL require a Weak Keyword to confirm relevance
+                // This filters out "Lego Store" (Toy Category) or "Il Telaio" (Hobby Category)
+                boolean hasWeakKeyword = WEAK_KEYWORDS.stream().anyMatch(lowerTitle::contains);
+
+                if (!hasWeakKeyword) {
+                    logger.debug("Rejected generic shop '{}' (Category match but no keyword)", title);
                     return null;
                 }
             }
@@ -343,7 +350,25 @@ public class HerePlacesService {
                 name.endsWith(" bar") ||
                 name.contains("parrucchiere") ||
                 name.contains("estetica") ||
-                name.contains("supermercato");
+                name.contains("supermercato") ||
+                name.contains("fashion") ||
+                name.contains("moda") ||
+                name.contains("donna") ||
+                name.contains("uomo") ||
+                name.contains("shoes") ||
+                name.contains("scarpe") ||
+                name.contains("calzature") ||
+                name.contains("gioielleria") ||
+                name.contains("compro oro") ||
+                name.contains("souvenir") ||
+                name.contains("kiosk") ||
+                name.contains("edicola") || // Often vague, better to exclude unless explicit
+                name.contains("zara") ||
+                name.contains("h&m") ||
+                name.contains("oviesse") ||
+                name.contains("ovs") ||
+                name.contains("coin") ||
+                name.contains("bioprofumeria");
     }
 
     /**
