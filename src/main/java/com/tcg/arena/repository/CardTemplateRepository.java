@@ -130,4 +130,7 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
                         "LIMIT 20", nativeQuery = true)
         List<CardTemplate> findBySmartScanTokens(@Param("tokens") List<String> tokens,
                         @Param("longToken") String longToken);
+
+        @Query("SELECT COUNT(c) FROM CardTemplate c WHERE c.tcgType = :tcgType AND " + EXCLUDE_NA_CONDITION)
+        long countByTcgType(@Param("tcgType") String tcgType);
 }

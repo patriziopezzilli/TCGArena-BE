@@ -9,6 +9,7 @@ import com.tcg.arena.model.ShopSuggestion;
 import com.tcg.arena.model.TCGType;
 import com.tcg.arena.model.User;
 import com.tcg.arena.repository.ShopSuggestionRepository;
+import com.tcg.arena.repository.CardTemplateRepository;
 import com.tcg.arena.service.AchievementService;
 import com.tcg.arena.service.BatchService;
 import com.tcg.arena.service.BroadcastNewsService;
@@ -69,6 +70,9 @@ public class AdminController {
 
     @Autowired
     private com.tcg.arena.repository.UserEmailPreferencesRepository emailPreferencesRepository;
+
+    @Autowired
+    private com.tcg.arena.repository.CardTemplateRepository cardTemplateRepository;
 
     // ========== SHOP MANAGEMENT ENDPOINTS ==========
 
@@ -492,6 +496,19 @@ public class AdminController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body("Failed to trigger batch import: " + e.getMessage());
         }
+    }
+
+    @GetMapping("/card-templates/counts")
+    @PreAuthorize("permitAll()")
+    @Operation(summary = "Get card template counts by TCG type", description = "Returns the count of card templates for each TCG type")
+    @ApiResponse(responseCode = "200", description = "Card template counts retrieved successfully")
+    public ResponseEntity<Map<String, Long>> getCardTemplateCounts() {
+        Map<String, Long> counts = new HashMap<>();
+        for (TCGType tcgType : TCGType.values()) {
+            long count = cardTemplateRepository.countByTcgType(tcgType.name());
+            counts.put(tcgType.name(), count);
+        }
+        return ResponseEntity.ok(counts);
     }
 
     // ========== BROADCAST NOTIFICATIONS ENDPOINTS ==========
