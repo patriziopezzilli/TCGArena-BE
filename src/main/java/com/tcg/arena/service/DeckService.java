@@ -111,7 +111,7 @@ public class DeckService {
 
         userActivityService.logActivity(ownerId, ActivityType.DECK_CREATED, "Creato nuovo mazzo: " + name);
 
-        // Award points for deck creation (+50 for first deck, +10 for additional)
+        // Award points for deck creation (+50 for first deck only)
         // Only for LISTA type decks (not system Collection/Wishlist decks)
         if (deckType == DeckType.LISTA) {
             List<Deck> userDecks = deckRepository.findByOwnerIdOrderByDateCreatedDesc(ownerId);
@@ -119,9 +119,8 @@ public class DeckService {
 
             if (userListaDecks == 1) {
                 rewardService.earnPoints(ownerId, 50, "Primo mazzo creato: " + name);
-            } else {
-                rewardService.earnPoints(ownerId, 10, "Mazzo creato: " + name);
             }
+            // Removed +10 points for additional decks to prevent abuse
         }
 
         return savedDeck;

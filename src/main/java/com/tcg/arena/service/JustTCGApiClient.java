@@ -442,6 +442,8 @@ public class JustTCGApiClient {
         // Track progress in memory during import
         final int[] lastSuccessfulOffset = { startOffset };
         final boolean[] importCompleted = { false };
+        final int[] pagesProcessed = { 0 }; // Track number of pages processed
+        final int SAVE_PROGRESS_EVERY_N_PAGES = 5; // Save progress every 5 pages
 
         // Step 1: Fetch all sets first to get full metadata
         return getAllSets(gameId)
@@ -501,8 +503,22 @@ public class JustTCGApiClient {
                                     }
                                 }
 
-                                // Update last successful offset in memory only
+                                // Update last successful offset in memory
                                 lastSuccessfulOffset[0] = response.currentOffset;
+                                pagesProcessed[0]++;
+                                
+                                // Save progress to DB every N pages for real-time visibility
+                                if (pagesProcessed[0] % SAVE_PROGRESS_EVERY_N_PAGES == 0) {
+                                    try {
+                                        logger.info("Saving progress checkpoint at offset: {} (page {})", 
+                                            response.currentOffset, pagesProcessed[0]);
+                                        updateProgress(tcgType, lastSuccessfulOffset[0], false);
+                                    } catch (Exception e) {
+                                        logger.warn("Error saving progress checkpoint: {}", e.getMessage());
+                                        // Don't fail the import, just log the warning
+                                    }
+                                }
+                                
                                 logger.debug("Processed page at offset: {} ({} cards saved)", response.currentOffset,
                                         savedInPage);
 
@@ -641,7 +657,8 @@ public class JustTCGApiClient {
     }
 
     // Update progress - simplified version that creates or updates by TCGType
-    @Transactional
+    // Uses REQUIRES_NEW to ensure immediate persistence even if parent transaction fails
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void updateProgress(TCGType tcgType, int offset, boolean complete) {
         ImportProgress p = importProgressRepository.findByTcgType(tcgType).orElseGet(() -> {
             logger.info("Creating new import progress for {}", tcgType);
@@ -649,14 +666,14 @@ public class JustTCGApiClient {
             return newProgress;
         });
 
-        logger.info("Updating progress for {}: offset {} -> {}, complete={}",
-                tcgType, p.getLastOffset(), offset, complete);
+        logger.info("📊 Updating progress for {}: offset {} -> {}, complete={}, progressId={}",
+                tcgType, p.getLastOffset(), offset, complete, p.getId());
         p.setLastOffset(offset);
         p.setLastUpdated(LocalDateTime.now());
         p.setComplete(complete);
-        importProgressRepository.saveAndFlush(p);
-        logger.info("Progress saved for {} (ID: {}). New offset: {}, complete: {}",
-                tcgType, p.getId(), p.getLastOffset(), p.isComplete());
+        ImportProgress saved = importProgressRepository.saveAndFlush(p);
+        logger.info("✅ Progress persisted for {} (ID: {}). Offset: {}, complete: {}, lastUpdated: {}",
+                tcgType, saved.getId(), saved.getLastOffset(), saved.isComplete(), saved.getLastUpdated());
     }
 
     /**

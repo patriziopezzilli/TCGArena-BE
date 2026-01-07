@@ -137,7 +137,7 @@ public class EmailService {
         Map<String, Object> variables = new HashMap<>();
         variables.put("username", user.getUsername());
         variables.put("displayName", user.getDisplayName() != null ? user.getDisplayName() : user.getUsername());
-        sendHtmlEmail(user.getEmail(), "Benvenuto su TCG Arena! 🎴", "email/welcome", variables);
+        sendHtmlEmail(user.getEmail(), "Benvenuto su TCG Arena!", "email/welcome", variables);
     }
     
     /**
@@ -172,7 +172,7 @@ public class EmailService {
         Map<String, Object> variables = new HashMap<>();
         variables.put("username", user.getUsername());
         variables.put("daysInactive", daysInactive);
-        sendHtmlEmail(user.getEmail(), "Ti mancano! Torna su TCG Arena 🎴", "email/inactivity-reminder", variables);
+        sendHtmlEmail(user.getEmail(), "Ci manchi! Torna su TCG Arena", "email/inactivity-reminder", variables);
     }
     
     // ===== NIGHTLY BATCH EMAILS =====
@@ -195,8 +195,8 @@ public class EmailService {
         variables.put("errorMessage", summary.getErrorMessage());
         
         String subject = summary.getStatus().equals("SUCCESS") 
-            ? "✅ Import JustTCG Completato - " + summary.getCardsAdded() + " carte aggiunte"
-            : "⚠️ Import JustTCG - Stato: " + summary.getStatus();
+            ? "Import JustTCG Completato - " + summary.getCardsAdded() + " carte aggiunte"
+            : "Import JustTCG - Stato: " + summary.getStatus();
             
         sendHtmlEmail(email, subject, "email/import-summary", variables);
     }
@@ -214,7 +214,7 @@ public class EmailService {
         variables.put("highlights", digest.getHighlights());
         variables.put("recommendations", digest.getRecommendations());
         
-        sendHtmlEmail(email, "📊 Il tuo riepilogo TCG Arena giornaliero", "email/daily-digest", variables);
+        sendHtmlEmail(email, "Il tuo riepilogo TCG Arena giornaliero", "email/daily-digest", variables);
     }
     
     // ===== TRADE NOTIFICATIONS =====
@@ -241,7 +241,7 @@ public class EmailService {
         variables.put("username", username);
         variables.put("partnerUsername", partnerUsername);
         variables.put("tradeId", tradeId);
-        sendHtmlEmail(email, "Scambio Accettato! 🎉", "email/trade-accepted", variables);
+        sendHtmlEmail(email, "Scambio Accettato!", "email/trade-accepted", variables);
     }
     
     /**
@@ -252,7 +252,7 @@ public class EmailService {
         variables.put("username", username);
         variables.put("partnerUsername", partnerUsername);
         variables.put("tradeId", tradeId);
-        sendHtmlEmail(email, "Scambio Completato! ⭐", "email/trade-completed", variables);
+        sendHtmlEmail(email, "Scambio Completato!", "email/trade-completed", variables);
     }
     
     // ===== EVENT NOTIFICATIONS =====
@@ -271,7 +271,7 @@ public class EmailService {
         if (event.getShop() != null) {
             variables.put("eventShopName", event.getShop().getName());
         }
-        sendHtmlEmail(email, "🔔 Promemoria: " + event.getTitle() + " domani!", "email/event-reminder", variables);
+        sendHtmlEmail(email, "Promemoria: " + event.getTitle() + " domani!", "email/event-reminder", variables);
     }
     
     /**
@@ -285,7 +285,7 @@ public class EmailService {
         variables.put("eventDate", eventDate);
         variables.put("eventLocation", eventLocation);
         variables.put("cancellationReason", cancellationReason);
-        sendHtmlEmail(email, "❌ Evento Cancellato: " + eventTitle, "email/event-cancelled", variables);
+        sendHtmlEmail(email, "Evento Cancellato: " + eventTitle, "email/event-cancelled", variables);
     }
     
     /**
@@ -301,7 +301,7 @@ public class EmailService {
         if (newTime != null) variables.put("newTime", newTime);
         if (newLocation != null) variables.put("newLocation", newLocation);
         if (updateNote != null) variables.put("updateNote", updateNote);
-        sendHtmlEmail(email, "📝 Evento Aggiornato: " + eventTitle, "email/event-updated", variables);
+        sendHtmlEmail(email, "Evento Aggiornato: " + eventTitle, "email/event-updated", variables);
     }
     
     // ===== SECURITY & SHOP NOTIFICATIONS =====
@@ -317,7 +317,7 @@ public class EmailService {
         variables.put("deviceInfo", deviceInfo);
         variables.put("location", location);
         variables.put("ipAddress", ipAddress);
-        sendHtmlEmail(email, "🔐 Nuovo accesso rilevato al tuo account", "email/security-alert", variables);
+        sendHtmlEmail(email, "Nuovo accesso rilevato al tuo account", "email/security-alert", variables);
     }
     
     /**
@@ -328,7 +328,7 @@ public class EmailService {
         variables.put("ownerName", ownerName);
         variables.put("shopName", shopName);
         variables.put("shopId", shopId);
-        sendHtmlEmail(email, "🎊 Negozio Approvato: " + shopName, "email/shop-approved", variables);
+        sendHtmlEmail(email, "Negozio Approvato: " + shopName, "email/shop-approved", variables);
     }
     
     /**
@@ -358,18 +358,26 @@ public class EmailService {
     /**
      * Sanitize string for SMTP to prevent "555 syntax error" 
      * Removes control characters and special characters that can cause issues
+     * Gmail SMTP requires proper ASCII or encoded subjects
      */
     private String sanitizeForSmtp(String input) {
         if (input == null) {
             return "";
         }
         
-        // Remove control characters except newline and tab
-        String sanitized = input.replaceAll("[\\p{Cntrl}&&[^\r\n\t]]", "");
-        
-        // Remove potentially problematic characters for email headers
-        // Keep alphanumeric, spaces, and common punctuation
-        sanitized = sanitized.replaceAll("[^\\p{L}\\p{N}\\p{P}\\p{Z}]", "");
+        // Remove all emojis and special unicode characters that cause SMTP issues
+        // Keep only ASCII-safe characters for email headers
+        String sanitized = input
+            // Remove emojis and pictographs
+            .replaceAll("[\\x{1F300}-\\x{1F9FF}]", "")
+            // Remove other symbols and pictographs
+            .replaceAll("[\\x{2600}-\\x{26FF}]", "")
+            .replaceAll("[\\x{2700}-\\x{27BF}]", "")
+            // Remove control characters except newline and tab
+            .replaceAll("[\\p{Cntrl}&&[^\r\n\t]]", "")
+            // Trim extra spaces
+            .replaceAll("\\s+", " ")
+            .trim();
         
         // Limit length for email subjects (recommended max 78 characters)
         if (sanitized.length() > 78) {

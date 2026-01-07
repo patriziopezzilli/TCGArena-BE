@@ -75,6 +75,9 @@ public class JwtAuthenticationController {
     @Autowired
     private com.tcg.arena.service.EmailVerificationService emailVerificationService;
 
+    @Autowired
+    private com.tcg.arena.service.RewardService rewardService;
+
     @PostMapping("/login")
     public ResponseEntity<?> createAuthenticationToken(@RequestBody JwtRequest authenticationRequest, 
                                                        jakarta.servlet.http.HttpServletRequest request) throws Exception {
@@ -144,6 +147,15 @@ public class JwtAuthenticationController {
 
         User savedUser = userService.saveUser(user);
         logger.debug("User saved with ID: {}", savedUser.getId());
+
+        // Award registration bonus points (+20 points for completing email registration)
+        try {
+            rewardService.earnPoints(savedUser.getId(), 20, "Registrazione completata");
+            logger.info("Registration bonus awarded to user: {}", savedUser.getUsername());
+        } catch (Exception e) {
+            logger.error("Failed to award registration bonus to: {}", savedUser.getUsername(), e);
+            // Don't fail registration if points award fails
+        }
 
         // Send welcome email
         try {
