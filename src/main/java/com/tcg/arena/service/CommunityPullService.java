@@ -76,7 +76,7 @@ public class CommunityPullService {
             if (!pull.getUser().getId().equals(user.getId())) {
                 notificationService.sendPullLikeNotification(
                         pull.getUser().getId(),
-                        user.getDisplayName(), // Using display name of the liker
+                        user.getDisplayName().toLowerCase(), // Using display name of the liker
                         pull.getTcgType().getDisplayName());
             }
         }

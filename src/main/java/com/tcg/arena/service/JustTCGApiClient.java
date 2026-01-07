@@ -227,6 +227,19 @@ public class JustTCGApiClient {
                 .bodyToMono(JustTCGSetsResponse.class)
                 .doOnSuccess(resp -> logger.info("Fetched sets for {}: {} sets found, hasMore: {}",
                         gameId, resp.getSets().size(), resp.hasMore))
+                .retryWhen(reactor.util.retry.Retry.backoff(3, Duration.ofSeconds(2))
+                    .filter(throwable -> {
+                        if (throwable instanceof RuntimeException) {
+                            String message = throwable.getMessage();
+                            return message != null && message.contains("HTTP 500");
+                        }
+                        return false;
+                    })
+                    .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> retrySignal.failure())
+                    .doBeforeRetry(retrySignal -> 
+                        logger.warn("Retrying getSetsPage for {} - attempt {}", 
+                            gameId, retrySignal.totalRetries() + 1))
+                )
                 .onErrorResume(e -> {
                     logger.error("Error fetching sets for {}: {}", gameId, e.getMessage(), e);
                     return Mono.just(new JustTCGSetsResponse());
@@ -319,6 +332,20 @@ public class JustTCGApiClient {
                                 gameId, resp.getCards().size(), offset);
                     }
                 })
+                // Add retry mechanism for 500 errors with exponential backoff
+                .retryWhen(reactor.util.retry.Retry.backoff(3, Duration.ofSeconds(2))
+                    .filter(throwable -> {
+                        if (throwable instanceof RuntimeException) {
+                            String message = throwable.getMessage();
+                            return message != null && message.contains("HTTP 500");
+                        }
+                        return false;
+                    })
+                    .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> retrySignal.failure())
+                    .doBeforeRetry(retrySignal -> 
+                        logger.warn("Retrying request for game {} (offset {}) - attempt {}", 
+                            gameId, offset, retrySignal.totalRetries() + 1))
+                )
                 .onErrorResume(e -> {
                     logger.error("Error fetching cards for game {} (offset {}): {}", gameId, offset, e.getMessage(), e);
                     // Return empty response but preserve the CURRENT offset (not 0)
@@ -356,6 +383,19 @@ public class JustTCGApiClient {
                 .bodyToMono(JustTCGCardsResponse.class)
                 .doOnSuccess(resp -> logger.debug("Fetched cards page for set {}, count: {}, hasMore: {}",
                         setId, resp.getCards().size(), resp.hasMore))
+                .retryWhen(reactor.util.retry.Retry.backoff(3, Duration.ofSeconds(2))
+                    .filter(throwable -> {
+                        if (throwable instanceof RuntimeException) {
+                            String message = throwable.getMessage();
+                            return message != null && message.contains("HTTP 500");
+                        }
+                        return false;
+                    })
+                    .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> retrySignal.failure())
+                    .doBeforeRetry(retrySignal -> 
+                        logger.warn("Retrying getCardsPage for set {} - attempt {}", 
+                            setId, retrySignal.totalRetries() + 1))
+                )
                 .onErrorResume(e -> {
                     logger.error("Error fetching cards for set {}: {}", setId, e.getMessage(), e);
                     return Mono.just(new JustTCGCardsResponse());

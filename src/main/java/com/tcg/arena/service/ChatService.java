@@ -107,7 +107,7 @@ public class ChatService {
                 .orElse(null);
 
         if (recipient != null) {
-            String title = "Nuovo messaggio da " + sender.getDisplayName();
+            String title = "Nuovo messaggio da " + sender.getDisplayName().toLowerCase();
             String preview = content.length() > 50 ? content.substring(0, 47) + "..." : content;
             try {
                 notificationService.sendChatNotification(recipient.getId(), title, preview, conversationId);
@@ -257,7 +257,7 @@ public class ChatService {
             notificationService.sendPushNotification(
                     otherUser.getId(),
                     "Trattativa completata!",
-                    "Lascia una recensione per " + user.getDisplayName());
+                    "Lascia una recensione per " + user.getDisplayName().toLowerCase());
         }
 
         return convertToDto(conversation, userId);

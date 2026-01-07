@@ -26,47 +26,10 @@ public class BatchController {
     private static final Logger logger = LoggerFactory.getLogger(BatchController.class);
 
     @Autowired
-    private BatchService batchService;
-
-    @Autowired
     private JustTCGApiClient justTCGApiClient;
 
     @Autowired
     private com.tcg.arena.service.AsyncImportService asyncImportService;
-
-    @PostMapping("/import/{tcgType}")
-    @Operation(summary = "Trigger legacy batch import", description = "Triggers the legacy batch import for a specific TCG type")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Import started successfully"),
-            @ApiResponse(responseCode = "400", description = "Invalid TCG type")
-    })
-    public ResponseEntity<Map<String, Object>> triggerBatchImport(
-            @Parameter(description = "TCG type to import") @PathVariable String tcgType,
-            @RequestParam(required = false, defaultValue = "-99") int startIndex,
-            @RequestParam(required = false, defaultValue = "-99") int endIndex) {
-
-        Map<String, Object> response = new HashMap<>();
-
-        try {
-            TCGType type = TCGType.valueOf(tcgType.toUpperCase());
-            batchService.triggerBatchImport(type, startIndex, endIndex);
-
-            response.put("success", true);
-            response.put("message", "Batch import started for " + type.getDisplayName());
-            response.put("tcgType", type.name());
-
-            logger.info("Legacy batch import triggered for {}", type);
-            return ResponseEntity.ok(response);
-        } catch (IllegalArgumentException e) {
-            response.put("success", false);
-            response.put("message", "Invalid TCG type: " + tcgType);
-            return ResponseEntity.badRequest().body(response);
-        } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", "Error starting import: " + e.getMessage());
-            return ResponseEntity.internalServerError().body(response);
-        }
-    }
 
     @PostMapping("/justtcg/{tcgType}")
     @Operation(summary = "Trigger JustTCG import", description = "Triggers a JustTCG API import for a specific TCG type with real-time pricing (Async)")

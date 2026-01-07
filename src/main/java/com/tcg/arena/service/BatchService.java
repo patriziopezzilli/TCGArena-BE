@@ -16,22 +16,8 @@ public class BatchService {
     private JobLauncher jobLauncher;
 
     @Autowired
-    private Job importCardsJob;
-
-    @Autowired
     @Qualifier("justTCGImportJob")
     private Job justTCGImportJob;
-
-    public void triggerBatchImport(TCGType tcgType, int startIndex, int endIndex) throws Exception {
-        JobParameters jobParameters = new JobParametersBuilder()
-                .addLong("time", System.currentTimeMillis())
-                .addString("tcgType", tcgType.name())
-                .addLong("startIndex", (long) startIndex)
-                .addLong("endIndex", (long) endIndex)
-                .toJobParameters();
-
-        jobLauncher.run(importCardsJob, jobParameters);
-    }
 
     /**
      * Trigger JustTCG API import for a specific TCG type
@@ -43,15 +29,5 @@ public class BatchService {
                 .toJobParameters();
 
         jobLauncher.run(justTCGImportJob, jobParameters);
-    }
-
-    // Backward compatibility
-    public void triggerBatchImport(TCGType tcgType, int startIndex) throws Exception {
-        triggerBatchImport(tcgType, startIndex, -99);
-    }
-
-    // Backward compatibility
-    public void triggerBatchImport(TCGType tcgType) throws Exception {
-        triggerBatchImport(tcgType, -99, -99);
     }
 }

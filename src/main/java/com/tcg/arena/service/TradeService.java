@@ -317,7 +317,7 @@ public class TradeService {
 
         // Send Push Notification to the other user
         User recipient = match.getUser1().getId().equals(senderId) ? match.getUser2() : match.getUser1();
-        String title = "Nuovo messaggio da " + sender.getUsername();
+        String title = "Nuovo messaggio da " + sender.getUsername().toLowerCase();
         notificationService.sendPushNotification(recipient.getId(), title, content);
     }
 

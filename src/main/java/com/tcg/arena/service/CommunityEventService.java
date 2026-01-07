@@ -160,7 +160,7 @@ public class CommunityEventService {
             notificationService.sendPushNotification(
                     event.getCreator().getId(),
                     "Nuovo partecipante",
-                    user.getDisplayName() + " si è iscritto al tuo evento: " + event.getTitle());
+                    user.getDisplayName().toLowerCase() + " si è iscritto al tuo evento: " + event.getTitle());
         }
 
         return CommunityEventDTO.fromEntity(event, userId);
