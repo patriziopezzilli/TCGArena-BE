@@ -78,10 +78,11 @@ public class CardService {
         // Update market prices from external APIs for card templates
         List<CardTemplate> templates = cardTemplateRepository.findAll();
         for (CardTemplate template : templates) {
-            Double marketPrice = tcgApiClient.getMarketPrice(template.getName(), template.getSetCode());
-            template.setMarketPrice(marketPrice);
+            // TODO: Implement market price fetching
+            // Double marketPrice = tcgApiClient.getMarketPrice(template.getName(), template.getSetCode());
+            // template.setMarketPrice(marketPrice);
         }
-        cardTemplateRepository.saveAll(templates);
+        // cardTemplateRepository.saveAll(templates);
     }
 
     // Expansion management methods

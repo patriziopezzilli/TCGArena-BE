@@ -37,7 +37,7 @@ public class CardTemplate {
 
     private String imageUrl;
 
-    // === Price fields (from JustTCG API) ===
+    // === Price fields (from TCG API) ===
     // Market price (general/NM)
     private Double marketPrice;
 
@@ -135,8 +135,14 @@ public class CardTemplate {
     }
 
     public String getImageUrl() {
-        if(imageUrl == null) {
-            imageUrl = "https://tcgplayer-cdn.tcgplayer.com/product/"+ getTcgplayerId() + "_in_1000x1000.jpg";
+        if(imageUrl == null && getTcgplayerId() != null) {
+            if (getTcgplayerId().contains("-")) {
+                // Scryfall UUID - compose Scryfall image URL
+                imageUrl = "https://api.scryfall.com/cards/" + getTcgplayerId() + "?format=image";
+            } else {
+                // TCGPlayer ID - use existing URL
+                imageUrl = "https://tcgplayer-cdn.tcgplayer.com/product/"+ getTcgplayerId() + "_in_1000x1000.jpg";
+            }
         }
 
         return imageUrl;

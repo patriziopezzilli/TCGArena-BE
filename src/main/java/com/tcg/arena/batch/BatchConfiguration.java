@@ -147,20 +147,19 @@ class TCGCardReader implements ItemReader<CardTemplate> {
             switch (currentTcg) {
                 case POKEMON:
                     logger.info("Starting Pokemon card fetch...");
-                    tcgApiClient.fetchPokemonCards(startIndex, endIndex).block(); // Saves directly, no need to collect
-                                                                                  // cards
+                    tcgApiClient.importCardsForTCG(TCGType.POKEMON).block();
                     logger.info("Pokemon cards imported successfully");
                     rawCards = new ArrayList<>(); // Empty list since cards are already saved
                     break;
                 case MAGIC:
                     logger.info("Starting Magic card fetch...");
-                    tcgApiClient.fetchMagicCards().block(); // Saves directly, no need to collect cards
+                    tcgApiClient.importCardsForTCG(TCGType.MAGIC).block();
                     logger.info("Magic cards imported successfully");
                     rawCards = new ArrayList<>(); // Empty list since cards are already saved
                     break;
                 case ONE_PIECE:
                     logger.info("Starting One Piece card fetch...");
-                    tcgApiClient.fetchOnePieceCards().block(); // Saves directly, no need to collect cards
+                    tcgApiClient.importCardsForTCG(TCGType.ONE_PIECE).block();
                     logger.info("One Piece cards imported successfully");
                     rawCards = new ArrayList<>(); // Empty list since cards are already saved
                     break;

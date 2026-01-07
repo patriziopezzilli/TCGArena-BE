@@ -6,7 +6,7 @@ import com.tcg.arena.model.CardTemplate;
 import com.tcg.arena.service.CardService;
 import com.tcg.arena.service.TCGSetService;
 import com.tcg.arena.service.CardTemplateService;
-import com.tcg.arena.service.JustTCGApiClient;
+import com.tcg.arena.service.TCGApiClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -32,7 +32,7 @@ public class TCGSetController {
     private CardTemplateService cardTemplateService;
 
     @Autowired
-    private JustTCGApiClient justTCGApiClient;
+    private TCGApiClient tcgApiClient;
 
     @GetMapping
     public List<TCGSet> getAllSets() {
@@ -123,7 +123,7 @@ public class TCGSetController {
      */
     @PostMapping("/sync-release-dates")
     public ResponseEntity<Map<String, Integer>> syncReleaseDates() {
-        Map<String, Integer> results = justTCGApiClient.syncAllSetReleaseDates();
+        Map<String, Integer> results = tcgApiClient.syncAllSetReleaseDates();
         return ResponseEntity.ok(results);
     }
 }

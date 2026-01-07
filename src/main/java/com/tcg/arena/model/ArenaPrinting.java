@@ -1,7 +1,7 @@
 package com.tcg.arena.model;
 
 /**
- * Printing type enum matching JustTCG API.
+ * Printing type enum matching TCG API.
  * Used for ArenaCardVariant to distinguish Normal vs Foil printings.
  */
 public enum ArenaPrinting {
@@ -19,7 +19,7 @@ public enum ArenaPrinting {
     }
 
     /**
-     * Parse printing from JustTCG API string.
+     * Parse printing from TCG API string.
      */
     public static ArenaPrinting fromString(String value) {
         if (value == null)

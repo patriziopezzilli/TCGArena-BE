@@ -1,1672 +1,1407 @@
 package com.tcg.arena.service;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.tcg.arena.model.*;
 import com.tcg.arena.repository.CardTemplateRepository;
 import com.tcg.arena.repository.ExpansionRepository;
 import com.tcg.arena.repository.TCGSetRepository;
-import com.tcg.arena.repository.ImportProgressRepository;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.reactive.function.client.WebClientResponseException;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.util.retry.Retry;
-import reactor.core.scheduler.Schedulers;
-import org.springframework.transaction.annotation.Transactional;
-import net.tcgdex.sdk.TCGdex;
-import net.tcgdex.sdk.models.Card;
-import net.tcgdex.sdk.models.CardResume;
 
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDateTime;
 import java.time.Duration;
-import java.util.Optional;
-import java.util.List;
-import java.util.ArrayList;
-import java.util.Map;
-import java.util.HashMap;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Client for TCG API - provides real-time pricing data for TCGs
+ * Supports: MTG, Pokemon, Yu-Gi-Oh!, Lorcana, One Piece, Digimon
+ * 
+ * Features:
+ * - Full hierarchy management (Expansion → TCGSet → CardTemplate)
+ * - Paginated requests with cursor support
+ * - Duplicate prevention at all levels
+ * - Rate limiting to avoid API throttling
+ */
 @Service
 public class TCGApiClient {
 
     private static final Logger logger = LoggerFactory.getLogger(TCGApiClient.class);
 
+    // Rate limiting: delay between API calls (ms)
+    // Rate limiting: delay between API calls (ms) -> increased to 3s to avoid 429
+    private static final long API_DELAY_MS = 3000;
+    // Page size for card fetching
+    private static final int PAGE_SIZE = 100;
+
     private final WebClient webClient;
-    private final WebClient onePieceWebClient;
     private final WebClient scryfallWebClient;
-    private TCGdex tcgdexClient;
-    private final ObjectMapper objectMapper;
-    private final CardTemplateRepository cardTemplateRepository;
-    private final ImportProgressRepository importProgressRepository;
-    private final TCGSetRepository tcgSetRepository;
-    private final ExpansionRepository expansionRepository;
 
-    // Cache for TCGdex data to avoid repeated API calls
-    private final Map<String, net.tcgdex.sdk.models.Set> setCache = new HashMap<>();
-    private final Map<String, net.tcgdex.sdk.models.Serie> serieCache = new HashMap<>();
-
-    // Rate limiting tracking
-    private int requestsThisMinute = 0;
-    private LocalDateTime lastRequestTime = LocalDateTime.now();
-
-    // Scryfall rate limiting (10 requests/second)
-    private int scryfallRequestsThisSecond = 0;
-    private LocalDateTime lastScryfallRequestTime = LocalDateTime.now();
-
-    @Value("${app.demo-env:false}")
-    private boolean demoEnv;
-
-    @Value("${onepiece.api.key:}")
-    private String onePieceApiKey;
+    // Cache to avoid repeated DB lookups during import
+    private final Map<String, Expansion> expansionCache = new ConcurrentHashMap<>();
+    private final Map<String, com.tcg.arena.model.TCGSet> tcgSetCache = new ConcurrentHashMap<>();
 
     @Autowired
-    public TCGApiClient(CardTemplateRepository cardTemplateRepository,
-            ImportProgressRepository importProgressRepository, TCGSetRepository tcgSetRepository,
-            ExpansionRepository expansionRepository) {
-        this.cardTemplateRepository = cardTemplateRepository;
-        this.importProgressRepository = importProgressRepository;
-        this.tcgSetRepository = tcgSetRepository;
-        this.expansionRepository = expansionRepository;
+    private CardTemplateRepository cardTemplateRepository;
+
+    @Autowired
+    private ExpansionRepository expansionRepository;
+
+    @Autowired
+    private TCGSetRepository tcgSetRepository;
+
+    @Autowired
+    private com.tcg.arena.repository.ImportProgressRepository importProgressRepository;
+
+    @Value("${tcg.api.key}")
+    private String apiKey;
+
+    // Mapping from internal TCGType to TCG game IDs (from /games endpoint)
+    private static final Map<TCGType, String> TCG_TYPE_TO_GAME_ID = Map.ofEntries(
+            Map.entry(TCGType.MAGIC, "magic-the-gathering"),
+            Map.entry(TCGType.POKEMON, "pokemon"),
+            Map.entry(TCGType.YUGIOH, "yugioh"),
+            Map.entry(TCGType.LORCANA, "disney-lorcana"),
+            Map.entry(TCGType.ONE_PIECE, "one-piece-card-game"),
+            Map.entry(TCGType.DIGIMON, "digimon-card-game"),
+            Map.entry(TCGType.RIFTBOUND, "riftbound-league-of-legends-trading-card-game"));
+
+    public TCGApiClient(@Value("${tcg.api.base-url}") String baseUrl,
+                        @Value("${scryfall.api.base-url}") String scryfallBaseUrl) {
         this.webClient = WebClient.builder()
-                .baseUrl("https://api.pokemontcg.io")
-                .defaultHeader("X-Api-Key", System.getenv("POKEMON_TCG_API_KEY"))
-                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(2 * 1024 * 1024)) // Increase buffer
-                                                                                                   // limit to 2MB for
-                                                                                                   // large Pokemon API
-                                                                                                   // responses
-                .build();
-        this.onePieceWebClient = WebClient.builder()
+                .baseUrl(baseUrl)
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .codecs(configurer -> configurer
+                        .defaultCodecs()
+                        .maxInMemorySize(50 * 1024 * 1024)) // 50MB buffer
                 .build();
         this.scryfallWebClient = WebClient.builder()
-                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(1024 * 1024)) // Increase buffer limit
-                                                                                               // to 1MB for large
-                                                                                               // Scryfall responses
+                .baseUrl(scryfallBaseUrl)
+                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+                .codecs(configurer -> configurer
+                        .defaultCodecs()
+                        .maxInMemorySize(100 * 1024 * 1024)) // 100MB buffer for bulk data
                 .build();
-        this.tcgdexClient = new TCGdex("en"); // Initialize TCGdex client for Pokemon cards
-        this.objectMapper = new ObjectMapper();
     }
 
-    public Mono<Void> fetchPokemonCards(int startIndex, int endIndex) {
-        // Reset progress and clear existing cards in demo environment
-        resetProgressForDemo(TCGType.POKEMON);
+    // ===================== DTO classes for TCG API responses
+    // =====================
 
-        // Get or create import progress for Pokemon
-        ImportProgress progress = getOrCreateProgress(TCGType.POKEMON);
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TCGGame {
+        public String id;
+        public String name;
+    }
 
-        // Check if we should skip import entirely
-        if (shouldSkipImport(progress)) {
-            logger.info("Skipping Pokemon import - recently completed and no need to check for updates yet");
-            return Mono.empty();
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TCGSet {
+        public String id;
+        public String name;
+        @JsonProperty("game_id")
+        public String gameId;
+        public String game;
+        public Integer count;
+        @JsonProperty("cards_count")
+        public Integer cardsCount;
+        @JsonProperty("release_date")
+        public String releaseDate;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TCGCard {
+        public String id;
+        public String name;
+        public String game;
+        public String set;
+        @JsonProperty("set_name")
+        public String setName;
+        public String number;
+        @JsonProperty("tcgplayerId")
+        public String tcgplayerId;
+        public String rarity;
+        public String details;
+        @JsonProperty("imageUrl")
+        public String imageUrl;
+        public List<TCGVariant> variants;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TCGVariant {
+        public String id;
+        public String printing;
+        public String condition;
+        public Double price;
+        public Long lastUpdated;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TCGCardsResponse {
+        @JsonProperty("data")
+        public List<TCGCard> data;
+        public List<TCGCard> cards; // fallback
+        @JsonProperty("hasMore")
+        public boolean hasMore;
+        @JsonProperty("nextCursor")
+        public String nextCursor;
+        public Integer total;
+        // Transient field for internal pagination tracking
+        public int currentOffset;
+
+        public List<TCGCard> getCards() {
+            return data != null ? data : (cards != null ? cards : Collections.emptyList());
+        }
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TCGSetsResponse {
+        @JsonProperty("data")
+        public List<TCGSet> data;
+        public List<TCGSet> sets; // fallback
+        @JsonProperty("hasMore")
+        public boolean hasMore;
+        @JsonProperty("nextCursor")
+        public String nextCursor;
+
+        public List<TCGSet> getSets() {
+            return data != null ? data : (sets != null ? sets : Collections.emptyList());
+        }
+    }
+
+    // ===================== DTO classes for Scryfall API responses =====================
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ScryfallSet {
+        public String id; // Scryfall set ID
+        public String code; // Set code like "m21"
+        public String name;
+        public String released_at; // Date
+        public int card_count;
+        public String set_type;
+        public String block;
+        public String parent_set_code;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ScryfallSetsResponse {
+        public List<ScryfallSet> data;
+        public boolean has_more;
+        public String next_page;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ScryfallCard {
+        public String id; // Scryfall UUID
+        public String name;
+        public String set;
+        public String set_name;
+        public String collector_number;
+        public String rarity;
+        public String oracle_text;
+        public String type_line;
+        public String mana_cost;
+        public ScryfallImageUris image_uris;
+        public List<ScryfallCardFace> card_faces; // For double-faced cards
+        public boolean digital; // Skip digital cards
+        public boolean oversized; // Skip oversized
+        public boolean reserved; // Reserved list
+        public boolean reprint;
+        public String released_at;
+        public ScryfallPrices prices;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ScryfallImageUris {
+        public String normal;
+        public String large;
+        public String small;
+        public String png;
+        public String art_crop;
+        public String border_crop;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ScryfallCardFace {
+        public String type_line;
+        public String oracle_text;
+        public String mana_cost;
+        public ScryfallImageUris image_uris;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ScryfallPrices {
+        public String usd;
+        public String usd_foil;
+        public String eur;
+        public String eur_foil;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ScryfallBulkData {
+        public String download_uri;
+        public String type;
+        public String name;
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ScryfallBulkDataResponse {
+        public List<ScryfallBulkData> data;
+    }
+
+    // ===================== API Methods =====================
+
+    /**
+     * Get all available games from TCG to discover valid game IDs
+     */
+    public Mono<List<TCGGame>> getGames() {
+        return webClient.get()
+                .uri("/games")
+                .header("x-api-key", apiKey)
+                .retrieve()
+                .bodyToMono(TCGGame[].class)
+                .map(games -> List.of(games))
+                .doOnSuccess(games -> logger.info("Available TCG games: {}",
+                        games.stream().map(g -> g.id + " (" + g.name + ")").toList()))
+                .onErrorResume(e -> {
+                    logger.error("Error fetching games: {}", e.getMessage());
+                    return Mono.just(Collections.emptyList());
+                });
+    }
+
+    /**
+     * Get sets for a specific game with pagination
+     */
+    public Flux<TCGSet> getAllSets(String gameId) {
+        return getSetsPage(gameId, null)
+                .expand(response -> {
+                    if (response.hasMore && response.nextCursor != null) {
+                        return getSetsPage(gameId, response.nextCursor)
+                                .delaySubscription(Duration.ofMillis(API_DELAY_MS));
+                    }
+                    return Mono.empty();
+                })
+                .flatMapIterable(response -> response.getSets());
+    }
+
+    private Mono<TCGSetsResponse> getSetsPage(String gameId, String cursor) {
+        return webClient.get()
+                .uri(uriBuilder -> {
+                    var builder = uriBuilder.path("/sets").queryParam("game", gameId);
+                    if (cursor != null) {
+                        builder.queryParam("cursor", cursor);
+                    }
+                    return builder.build();
+                })
+                .header("x-api-key", apiKey)
+                .retrieve()
+                .onStatus(status -> status.isError(), response -> {
+                    return response.bodyToMono(String.class)
+                            .flatMap(body -> {
+                                logger.error("[TCG API ERROR] getSetsPage for {}: HTTP {} - Response body: {}",
+                                        gameId, response.statusCode().value(), body);
+                                return Mono.error(new RuntimeException(
+                                        "TCG API error: HTTP " + response.statusCode().value() + " - " + body));
+                            });
+                })
+                .bodyToMono(TCGSetsResponse.class)
+                .doOnSuccess(resp -> logger.info("Fetched sets for {}: {} sets found, hasMore: {}",
+                        gameId, resp.getSets().size(), resp.hasMore))
+                .retryWhen(reactor.util.retry.Retry.backoff(3, Duration.ofSeconds(2))
+                    .filter(throwable -> {
+                        if (throwable instanceof RuntimeException) {
+                            String message = throwable.getMessage();
+                            return message != null && message.contains("HTTP 500");
+                        }
+                        return false;
+                    })
+                    .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> retrySignal.failure())
+                    .doBeforeRetry(retrySignal -> 
+                        logger.warn("Retrying getSetsPage for {} - attempt {}", 
+                            gameId, retrySignal.totalRetries() + 1))
+                )
+                .onErrorResume(e -> {
+                    logger.error("Error fetching sets for {}: {}", gameId, e.getMessage(), e);
+                    return Mono.just(new TCGSetsResponse());
+                });
+    }
+
+    /**
+     * Get all cards for a set with pagination
+     */
+    public Flux<TCGCard> getAllCardsForSet(String setId) {
+        return getCardsPage(setId, null)
+                .expand(response -> {
+                    if (response.hasMore && response.nextCursor != null) {
+                        return getCardsPage(setId, response.nextCursor)
+                                .delaySubscription(Duration.ofMillis(API_DELAY_MS));
+                    }
+                    return Mono.empty();
+                })
+                .flatMapIterable(response -> response.getCards());
+    }
+
+    /**
+     * Get all cards for a game (not a set) with pagination
+     * TCG API requires game parameter, not set
+     */
+    /**
+     * Get all cards for a game (not a set) with pagination
+     * TCG API requires game parameter, not set
+     * Uses offset-based pagination
+     */
+    /**
+     * Get all card pages for a game starting from a specific offset
+     * Returns Flux of TCGCardsResponse to allow processing per page
+     */
+    public Flux<TCGCardsResponse> getCardPagesForGame(String gameId, int startOffset) {
+        logger.info("[FLUX] getCardPagesForGame called for game: {}, startOffset: {}", gameId, startOffset);
+        return getCardsPageByGame(gameId, startOffset)
+                .doOnNext(resp -> logger.debug("[FLUX] First page received, cards: {}", resp.getCards().size()))
+                .expand(response -> {
+                    List<TCGCard> cards = response.getCards();
+                    logger.debug("[FLUX-EXPAND] Checking if we need next page. Current cards: {}, offset: {}",
+                            cards.size(), response.currentOffset);
+                    if (!cards.isEmpty()) {
+                        int nextOffset = response.currentOffset + PAGE_SIZE;
+                        logger.debug("[FLUX-EXPAND] Fetching next page at offset: {}", nextOffset);
+                        return getCardsPageByGame(gameId, nextOffset)
+                                .delaySubscription(Duration.ofMillis(API_DELAY_MS));
+                    }
+                    logger.info("[FLUX-EXPAND] No more cards, ending stream");
+                    return Mono.empty();
+                });
+    }
+
+    /**
+     * Legacy method helper (fetches all from 0)
+     */
+    public Flux<TCGCard> getAllCardsForGame(String gameId) {
+        return getCardPagesForGame(gameId, 0)
+                .flatMapIterable(TCGCardsResponse::getCards);
+    }
+
+    private Mono<TCGCardsResponse> getCardsPageByGame(String gameId, int offset) {
+        return webClient.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/cards")
+                        .queryParam("game", gameId)
+                        .queryParam("limit", PAGE_SIZE)
+                        .queryParam("offset", offset)
+                        .build())
+                .header("x-api-key", apiKey)
+                .retrieve()
+                .onStatus(status -> status.isError(), response -> {
+                    return response.bodyToMono(String.class)
+                            .flatMap(body -> {
+                                logger.error(
+                                        "[TCG API ERROR] getCardsPageByGame for {} (offset {}): HTTP {} - Response body: {}",
+                                        gameId, offset, response.statusCode().value(), body);
+                                return Mono.error(new RuntimeException(
+                                        "TCG API error: HTTP " + response.statusCode().value() + " - " + body));
+                            });
+                })
+                .bodyToMono(TCGCardsResponse.class)
+                .map(response -> {
+                    response.currentOffset = offset;
+                    return response;
+                })
+                .doOnSuccess(resp -> {
+                    if (resp != null && resp.getCards() != null) {
+                        logger.info("Fetched cards page for game {}: {} cards (offset: {})",
+                                gameId, resp.getCards().size(), offset);
+                    }
+                })
+                // Add retry mechanism for 500 errors with exponential backoff
+                .retryWhen(reactor.util.retry.Retry.backoff(3, Duration.ofSeconds(2))
+                    .filter(throwable -> {
+                        if (throwable instanceof RuntimeException) {
+                            String message = throwable.getMessage();
+                            return message != null && message.contains("HTTP 500");
+                        }
+                        return false;
+                    })
+                    .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> retrySignal.failure())
+                    .doBeforeRetry(retrySignal -> 
+                        logger.warn("Retrying request for game {} (offset {}) - attempt {}", 
+                            gameId, offset, retrySignal.totalRetries() + 1))
+                )
+                .onErrorResume(e -> {
+                    logger.error("Error fetching cards for game {} (offset {}): {}", gameId, offset, e.getMessage(), e);
+                    // Return empty response but preserve the CURRENT offset (not 0)
+                    // This allows the main flow to detect error and stop without saving wrong
+                    // offset
+                    TCGCardsResponse errorResponse = new TCGCardsResponse();
+                    errorResponse.currentOffset = offset; // Preserve offset where error occurred
+                    return Mono.just(errorResponse);
+                });
+    }
+
+    private Mono<TCGCardsResponse> getCardsPage(String setId, String cursor) {
+        return webClient.get()
+                .uri(uriBuilder -> {
+                    var builder = uriBuilder
+                            .path("/cards")
+                            .queryParam("set", setId)
+                            .queryParam("limit", PAGE_SIZE);
+                    if (cursor != null) {
+                        builder.queryParam("cursor", cursor);
+                    }
+                    return builder.build();
+                })
+                .header("x-api-key", apiKey)
+                .retrieve()
+                .onStatus(status -> status.isError(), response -> {
+                    return response.bodyToMono(String.class)
+                            .flatMap(body -> {
+                                logger.error("[TCG API ERROR] getCardsPage for set {}: HTTP {} - Response body: {}",
+                                        setId, response.statusCode().value(), body);
+                                return Mono.error(new RuntimeException(
+                                        "TCG API error: HTTP " + response.statusCode().value() + " - " + body));
+                            });
+                })
+                .bodyToMono(TCGCardsResponse.class)
+                .doOnSuccess(resp -> logger.debug("Fetched cards page for set {}, count: {}, hasMore: {}",
+                        setId, resp.getCards().size(), resp.hasMore))
+                .retryWhen(reactor.util.retry.Retry.backoff(3, Duration.ofSeconds(2))
+                    .filter(throwable -> {
+                        if (throwable instanceof RuntimeException) {
+                            String message = throwable.getMessage();
+                            return message != null && message.contains("HTTP 500");
+                        }
+                        return false;
+                    })
+                    .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> retrySignal.failure())
+                    .doBeforeRetry(retrySignal -> 
+                        logger.warn("Retrying getCardsPage for set {} - attempt {}", 
+                            setId, retrySignal.totalRetries() + 1))
+                )
+                .onErrorResume(e -> {
+                    logger.error("Error fetching cards for set {}: {}", setId, e.getMessage(), e);
+                    return Mono.just(new TCGCardsResponse());
+                });
+    }
+
+    // ===================== Import Logic =====================
+
+    /**
+     * Import all cards for a specific TCG type
+     * Hybrid approach: fetch sets first for full metadata, then fetch all cards
+     */
+    /**
+     * Import all cards for a specific TCG type
+     * Hybrid approach: fetch sets first for full metadata, then fetch all cards
+     * page by page
+     * Resumable: Stores progress in DB
+     */
+    public Mono<Integer> importCardsForTCG(TCGType tcgType) {
+        // Special handling for Magic using Scryfall
+        if (tcgType == TCGType.MAGIC) {
+            return importMagicCards();
         }
 
-        // Determine starting page based on progress
-        int startPage = progress.getLastProcessedPage() + 1;
-        logger.info("Starting Pokemon import from page " + startPage +
-                " (previously processed: " + progress.getLastProcessedPage() + " pages)");
-
-        // If we need to check for updates (complete but old), start from page 1 to get
-        // current total
-        if (progress.isComplete() && needsUpdateCheck(progress)) {
-            startPage = 1;
-            logger.info("Checking for Pokemon card updates...");
+        String gameId = TCG_TYPE_TO_GAME_ID.get(tcgType);
+        if (gameId == null) {
+            logger.warn("TCG type {} not supported by TCG", tcgType);
+            return Mono.just(0);
         }
 
-        // Start fetching using TCGdex (no pagination, bulk import)
-        final ImportProgress importProgress = progress;
-        final int startIndexFinal = startIndex;
-        final int endIndexFinal = endIndex;
-        return Mono.fromRunnable(() -> {
-            try {
-                // Switch to TCGdex for Pokemon cards
-                fetchPokemonCardsWithTcgdex(importProgress, startIndexFinal, endIndexFinal);
-            } catch (Exception e) {
-                logger.error("Error during Pokemon import: " + e.getMessage());
-                throw new RuntimeException(e);
+        // Clear caches at start of import
+        expansionCache.clear();
+        tcgSetCache.clear();
+
+        logger.info("Starting TCG import for {} (game: {})", tcgType.getDisplayName(), gameId);
+
+        // Get current progress
+        ImportProgress progress = getOrCreateImportProgress(tcgType);
+
+        int startOffset = (progress != null && progress.getLastOffset() != 0) ? progress.getLastOffset() : 0;
+        logger.info("Resuming import from offset: {}", startOffset);
+
+        // Check if import is already complete - but verify if there are actually more data
+        if (progress != null && progress.isComplete()) {
+            logger.info("Import for {} was marked as completed. Checking if there are new data available...", tcgType);
+            
+            // Test if there are more cards available by making a quick API call
+            boolean hasMoreData = checkForNewData(gameId, startOffset);
+            if (!hasMoreData) {
+                logger.info("No new data available for {}. Import remains completed.", tcgType);
+                return Mono.just(0);
+            } else {
+                logger.info("New data found! Resetting completion status and resuming import from offset {}", startOffset);
+                // Reset completion status since there are new data
+                progress.setComplete(false);
+                importProgressRepository.saveAndFlush(progress);
             }
-        });
+        }
+
+        // Track progress in memory during import
+        final int[] lastSuccessfulOffset = { startOffset };
+        final boolean[] importCompleted = { false };
+        final int[] pagesProcessed = { 0 }; // Track number of pages processed
+        final int SAVE_PROGRESS_EVERY_N_PAGES = 5; // Save progress every 5 pages
+
+        // Step 1: Fetch all sets first to get full metadata
+        return getAllSets(gameId)
+                .collectList()
+                .flatMap(sets -> {
+                    logger.info("Fetched {} sets for {}", sets.size(), gameId);
+
+                    // Create all sets in DB first with proper metadata
+                    Map<String, com.tcg.arena.model.TCGSet> setMap = new HashMap<>();
+                    for (TCGSet set : sets) {
+                        try {
+                            com.tcg.arena.model.TCGSet tcgSet = getOrCreateTCGSet(set, tcgType);
+                            setMap.put(set.id, tcgSet);
+                        } catch (Exception e) {
+                            logger.warn("Error creating set {}: {}", set.name, e.getMessage());
+                        }
+                    }
+                    logger.info("Created/loaded {} sets in DB", setMap.size());
+
+                    // Step 2: Fetch cards page by page starting from offset
+                    logger.info("Starting card fetch for {} from offset {}", gameId, startOffset);
+                    return getCardPagesForGame(gameId, startOffset)
+                            .concatMap(response -> { // concatMap ensures sequential processing
+                                List<TCGCard> cards = response.getCards();
+
+                                if (cards.isEmpty()) {
+                                    // Empty response - end of data
+                                    logger.info("No more cards. Import completed successfully at offset: {}",
+                                            lastSuccessfulOffset[0]);
+                                    importCompleted[0] = true;
+                                    return Mono.empty(); // Stop the stream
+                                }
+
+                                // Process cards in this page
+                                int savedInPage = 0;
+                                for (TCGCard card : cards) {
+                                    if (card == null || card.name == null) {
+                                        logger.warn("Skipping null or invalid card at offset {}",
+                                                response.currentOffset);
+                                        continue;
+                                    }
+
+                                    try {
+                                        String setId = card.set != null ? card.set : "unknown";
+                                        com.tcg.arena.model.TCGSet tcgSet = setMap.get(setId);
+                                        if (tcgSet == null) {
+                                            String setName = card.setName != null ? card.setName : setId;
+                                            tcgSet = getOrCreateTCGSetForCard(setId, setName, tcgType);
+                                            setMap.put(setId, tcgSet);
+                                        }
+
+                                        if (saveCardIfNotExists(card, tcgSet, tcgType)) {
+                                            savedInPage++;
+                                        }
+                                    } catch (Exception e) {
+                                        logger.warn("Error saving card '{}': {}", card.name, e.getMessage());
+                                    }
+                                }
+
+                                // Update last successful offset in memory
+                                lastSuccessfulOffset[0] = response.currentOffset;
+                                pagesProcessed[0]++;
+                                
+                                // Save progress to DB every N pages for real-time visibility
+                                if (pagesProcessed[0] % SAVE_PROGRESS_EVERY_N_PAGES == 0) {
+                                    try {
+                                        logger.info("Saving progress checkpoint at offset: {} (page {})", 
+                                            response.currentOffset, pagesProcessed[0]);
+                                        updateProgress(tcgType, lastSuccessfulOffset[0], false);
+                                    } catch (Exception e) {
+                                        logger.warn("Error saving progress checkpoint: {}", e.getMessage());
+                                        // Don't fail the import, just log the warning
+                                    }
+                                }
+                                
+                                logger.debug("Processed page at offset: {} ({} cards saved)", response.currentOffset,
+                                        savedInPage);
+
+                                return Mono.just(savedInPage);
+                            })
+                            .onErrorResume(e -> {
+                                logger.error("Error during import for {}: {}", gameId, e.getMessage(), e);
+                                logger.info("Import stopped at offset: {}", lastSuccessfulOffset[0]);
+                                return Mono.empty(); // Stop processing
+                            })
+                            .reduce(0, Integer::sum)
+                            .doOnSuccess(total -> {
+                                logger.info("Import complete for {}: {} new cards imported", gameId, total);
+                                // Update progress in DB only at the end
+                                try {
+                                    updateProgress(tcgType, lastSuccessfulOffset[0], importCompleted[0]);
+                                } catch (Exception e) {
+                                    logger.error("Error updating progress after successful import: {}", e.getMessage(),
+                                            e);
+                                }
+                            });
+                })
+                .doOnError(e -> {
+                    // Save progress on error
+                    logger.error("Import failed, saving progress at offset: {}", lastSuccessfulOffset[0], e);
+                    try {
+                        updateProgress(tcgType, lastSuccessfulOffset[0], false);
+                    } catch (Exception ex) {
+                        logger.error("Error saving progress after failed import: {}", ex.getMessage(), ex);
+                    }
+                })
+                .doFinally(signal -> {
+                    logger.info("Import finalized with signal: {} for {}", signal, tcgType);
+                    expansionCache.clear();
+                    tcgSetCache.clear();
+                });
+    }
+
+    /**
+     * Synchronize release dates for all existing TCG sets by fetching from TCG
+     * API
+     * This is a synchronous operation that iterates through all TCG types and their
+     * sets
+     * 
+     * @return Map of TCGType to number of sets updated
+     */
+    @Transactional
+    public Map<String, Integer> syncAllSetReleaseDates() {
+        logger.info("Starting release date sync for all sets");
+        Map<String, Integer> results = new HashMap<>();
+
+        for (Map.Entry<TCGType, String> entry : TCG_TYPE_TO_GAME_ID.entrySet()) {
+            TCGType tcgType = entry.getKey();
+            String gameId = entry.getValue();
+
+            try {
+                int updated = syncReleaseDatesForGame(tcgType, gameId);
+                results.put(tcgType.name(), updated);
+                logger.info("Synced {} release dates for {}", updated, tcgType);
+
+                // Small delay between games to avoid rate limiting
+                Thread.sleep(1000);
+            } catch (Exception e) {
+                logger.error("Error syncing release dates for {}: {}", tcgType, e.getMessage());
+                results.put(tcgType.name(), -1); // -1 indicates error
+            }
+        }
+
+        logger.info("Release date sync completed. Results: {}", results);
+        return results;
+    }
+
+    /**
+     * Sync release dates for a specific game/TCG type
+     */
+    private int syncReleaseDatesForGame(TCGType tcgType, String gameId) {
+        logger.info("Fetching sets from TCG for {}", gameId);
+
+        // Fetch all sets from TCG API
+        List<TCGSet> tcgSets = getAllSets(gameId)
+                .collectList()
+                .block(Duration.ofMinutes(5)); // 5 minute timeout
+
+        if (tcgSets == null || tcgSets.isEmpty()) {
+            logger.warn("No sets found from TCG for {}", gameId);
+            return 0;
+        }
+
+        logger.info("Found {} sets from TCG for {}", tcgSets.size(), gameId);
+
+        int updatedCount = 0;
+        for (TCGSet set : tcgSets) {
+            if (set.releaseDate == null || set.releaseDate.isEmpty()) {
+                continue;
+            }
+
+            // Find existing set by setCode
+            Optional<com.tcg.arena.model.TCGSet> existingOpt = tcgSetRepository.findBySetCode(set.id);
+            if (existingOpt.isEmpty()) {
+                logger.debug("Set {} not found in DB, skipping", set.id);
+                continue;
+            }
+
+            com.tcg.arena.model.TCGSet tcgSet = existingOpt.get();
+            LocalDateTime newReleaseDate = parseReleaseDate(set.releaseDate);
+
+            // Only update if the date is different (and not the default "now" date)
+            // Check if current release date is today or very recent (indicating default
+            // value)
+            LocalDateTime now = LocalDateTime.now();
+            boolean isDefaultDate = tcgSet.getReleaseDate().isAfter(now.minusDays(7));
+
+            if (isDefaultDate || !tcgSet.getReleaseDate().toLocalDate().equals(newReleaseDate.toLocalDate())) {
+                logger.debug("Updating release date for {}: {} -> {}",
+                        tcgSet.getName(), tcgSet.getReleaseDate(), newReleaseDate);
+                tcgSet.setReleaseDate(newReleaseDate);
+                tcgSetRepository.save(tcgSet);
+                updatedCount++;
+            }
+        }
+
+        return updatedCount;
     }
 
     @Transactional
-    private void fetchPokemonCardsWithTcgdex(ImportProgress progress, int startIndex, int endIndex) {
-        logger.info("Pokemon: Starting bulk import using TCGdex API");
-
-        try {
-            // Clear caches at the start of import
-            setCache.clear();
-            serieCache.clear();
-
-            // Get all Pokemon cards from TCGdex
-            CardResume[] cardResumes = getTcgdexClient().fetchCards();
-            logger.info("Pokemon: Retrieved " + cardResumes.length + " card resumes from TCGdex");
-
-            // Process each card individually, saving the complete hierarchy
-            int startFrom = (startIndex != -99) ? Math.max(0, startIndex) : 0;
-            int endAt = (endIndex != -99) ? Math.min(cardResumes.length, Math.max(startFrom, endIndex + 1))
-                    : cardResumes.length;
-            logger.info("Pokemon: Starting import from index " + startFrom + " to " + (endAt - 1) + " (total cards: "
-                    + cardResumes.length + ")");
-
-            for (int i = startFrom; i < endAt; i++) {
-                CardResume resume = cardResumes[i];
-
-                try {
-                    // Fetch full card details for each resume
-                    String cleanId = cleanCardId(resume.getId());
-                    Card fullCard = getTcgdexClient().fetchCard(cleanId);
-
-                    // Save complete hierarchy: expansion -> set -> card
-                    saveCardWithHierarchy(fullCard);
-
-                    // Log progress every 100 cards
-                    if ((i + 1) % 100 == 0) {
-                        logger.info("Pokemon: Processed " + (i + 1) + "/" + cardResumes.length + " cards");
-                    }
-
-                } catch (Exception e) {
-                    // Handle specific TCGdex initialization errors
-                    if (e.getMessage() != null
-                            && e.getMessage().contains("lateinit property tcgdex has not been initialized")) {
-                        logger.error("TCGdex client not properly initialized, skipping card " + resume.getId());
-                        // Reset client and clear caches to force re-initialization on next attempt
-                        tcgdexClient = null;
-                        setCache.clear();
-                        serieCache.clear();
-                    } else {
-                        logger.error("Error processing card " + resume.getId() + ": " + e.getMessage());
-                    }
-                    // Continue to next card instead of failing the entire import
-                }
-
-                // Add delay to avoid overwhelming the API (outside try-catch to avoid sleep
-                // interruption errors)
-                if (i % 10 == 0) {
-                    try {
-                        Thread.sleep(50); // Reduced delay to 50ms every 10 cards
-                    } catch (InterruptedException ie) {
-                        // Restore interrupted status
-                        Thread.currentThread().interrupt();
-                        logger.info("Import interrupted, stopping gracefully...");
-                        break; // Exit the loop if interrupted
-                    }
-                }
-            }
-
-            // Mark import as complete
-            progress.setComplete(true);
-            progress.setLastProcessedPage(1); // TCGdex doesn't use pages
-            progress.setTotalPagesKnown(1);
-            progress.setLastCheckDate(LocalDateTime.now());
-            importProgressRepository.save(progress);
-
-            logger.info("Pokemon: Successfully imported all cards using TCGdex");
-
-        } catch (Exception e) {
-            logger.error("Error importing Pokemon cards with TCGdex: " + e.getMessage());
-            e.printStackTrace();
-            throw new RuntimeException("TCGdex import failed", e);
-        }
+    private ImportProgress getOrCreateImportProgress(TCGType tcgType) {
+        ImportProgress progress = importProgressRepository.findByTcgType(tcgType)
+                .orElseGet(() -> {
+                    logger.info("Creating new import progress for {}", tcgType);
+                    ImportProgress p = new ImportProgress(tcgType);
+                    return importProgressRepository.saveAndFlush(p);
+                });
+        logger.info("Import progress loaded/created for {} with ID: {}, offset: {}",
+                tcgType, progress.getId(), progress.getLastOffset());
+        return progress;
     }
 
-    private String cleanCardId(String cardId) {
-        if (cardId == null)
-            return null;
-        try {
-            // Decode URL-encoded characters
-            return URLDecoder.decode(cardId, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            // If decoding fails, return original
-            return cardId;
-        }
+    // Update progress - simplified version that creates or updates by TCGType
+    // Uses REQUIRES_NEW to ensure immediate persistence even if parent transaction fails
+    @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
+    public void updateProgress(TCGType tcgType, int offset, boolean complete) {
+        ImportProgress p = importProgressRepository.findByTcgType(tcgType).orElseGet(() -> {
+            logger.info("Creating new import progress for {}", tcgType);
+            ImportProgress newProgress = new ImportProgress(tcgType);
+            return newProgress;
+        });
+
+        logger.info("📊 Updating progress for {}: offset {} -> {}, complete={}, progressId={}",
+                tcgType, p.getLastOffset(), offset, complete, p.getId());
+        p.setLastOffset(offset);
+        p.setLastUpdated(LocalDateTime.now());
+        p.setComplete(complete);
+        ImportProgress saved = importProgressRepository.saveAndFlush(p);
+        logger.info("✅ Progress persisted for {} (ID: {}). Offset: {}, complete: {}, lastUpdated: {}",
+                tcgType, saved.getId(), saved.getLastOffset(), saved.isComplete(), saved.getLastUpdated());
     }
 
-    private TCGdex getTcgdexClient() {
-        if (tcgdexClient == null) {
-            try {
-                tcgdexClient = new TCGdex("en");
-            } catch (Exception e) {
-                logger.error("Failed to initialize TCGdex client: " + e.getMessage());
-                // Try with default language
-                try {
-                    tcgdexClient = new TCGdex(null);
-                } catch (Exception e2) {
-                    logger.error("Failed to initialize TCGdex client with default language: " + e2.getMessage());
-                    throw new RuntimeException("Cannot initialize TCGdex client", e2);
-                }
-            }
+    /**
+     * Get or create TCGSet for a card (simplified method for direct card import)
+     */
+    @Transactional
+    private synchronized com.tcg.arena.model.TCGSet getOrCreateTCGSetForCard(String setId, String setName, TCGType tcgType) {
+        // Check cache first
+        if (tcgSetCache.containsKey(setId)) {
+            return tcgSetCache.get(setId);
         }
-        return tcgdexClient;
+
+        // Check database for existing set by setCode
+        Optional<com.tcg.arena.model.TCGSet> existingSet = tcgSetRepository.findBySetCode(setId);
+        if (existingSet.isPresent()) {
+            tcgSetCache.put(setId, existingSet.get());
+            return existingSet.get();
+        }
+
+        // Get or create the parent Expansion
+        Expansion expansion = getOrCreateExpansion(setName, tcgType);
+
+        // Create new TCGSet
+        com.tcg.arena.model.TCGSet tcgSet = new com.tcg.arena.model.TCGSet();
+        tcgSet.setName(setName);
+        tcgSet.setSetCode(setId);
+        tcgSet.setExpansion(expansion);
+        tcgSet.setCardCount(0);
+        tcgSet.setReleaseDate(LocalDateTime.now());
+
+        tcgSet = tcgSetRepository.save(tcgSet);
+        tcgSetCache.put(setId, tcgSet);
+
+        logger.debug("Created new TCGSet: {} ({})", tcgSet.getName(), tcgSet.getSetCode());
+        return tcgSet;
     }
 
-    private void saveCardWithHierarchy(net.tcgdex.sdk.models.Card tcgdexCard) {
-        try {
-            // 1. Get or create expansion (serie)
-            Expansion expansion = getOrCreateExpansion(tcgdexCard);
-
-            // 2. Get or create TCG set
-            TCGSet tcgSet = getOrCreateTCGSet(tcgdexCard, expansion);
-
-            // 3. Create and save card template
-            CardTemplate cardTemplate = createCardTemplateFromTcgdexCard(tcgdexCard, tcgSet);
-            if (cardTemplate != null) {
-                cardTemplateRepository.save(cardTemplate);
-            }
-
-        } catch (Exception e) {
-            logger.error("Error saving card hierarchy for " + tcgdexCard.getId() + ": " + e.getMessage());
-            throw e; // Re-throw to be caught by the calling method
+    /**
+     * Get or create TCGSet and its parent Expansion
+     * Uses caching to avoid repeated DB lookups
+     */
+    @Transactional
+    private synchronized com.tcg.arena.model.TCGSet getOrCreateTCGSet(TCGSet tcgSet, TCGType tcgType) {
+        // Check cache first
+        String cacheKey = tcgSet.id;
+        if (tcgSetCache.containsKey(cacheKey)) {
+            return tcgSetCache.get(cacheKey);
         }
+
+        // Check database for existing set by setCode
+        Optional<com.tcg.arena.model.TCGSet> existingSet = tcgSetRepository.findBySetCode(tcgSet.id);
+        if (existingSet.isPresent()) {
+            tcgSetCache.put(cacheKey, existingSet.get());
+            return existingSet.get();
+        }
+
+        // Get or create the parent Expansion
+        Expansion expansion = getOrCreateExpansion(tcgSet.name, tcgType);
+
+        // Create new TCGSet
+        com.tcg.arena.model.TCGSet newTcgSet = new com.tcg.arena.model.TCGSet();
+        newTcgSet.setName(tcgSet.name);
+        newTcgSet.setSetCode(tcgSet.id);
+        newTcgSet.setExpansion(expansion);
+        newTcgSet.setCardCount(tcgSet.cardsCount != null ? tcgSet.cardsCount : 0);
+        newTcgSet.setReleaseDate(parseReleaseDate(tcgSet.releaseDate));
+
+        newTcgSet = tcgSetRepository.save(newTcgSet);
+        tcgSetCache.put(cacheKey, newTcgSet);
+
+        logger.debug("Created new TCGSet: {} ({})", newTcgSet.getName(), newTcgSet.getSetCode());
+        return newTcgSet;
     }
 
-    private Expansion getOrCreateExpansion(net.tcgdex.sdk.models.Card tcgdexCard) {
+    /**
+     * Get or create Expansion
+     * Synchronized to prevent race conditions and duplicate creations
+     */
+    @Transactional
+    private synchronized Expansion getOrCreateExpansion(String name, TCGType tcgType) {
+        String cacheKey = name + "_" + tcgType.name();
+
+        if (expansionCache.containsKey(cacheKey)) {
+            return expansionCache.get(cacheKey);
+        }
+
+        // Check database - look for existing expansion by title and tcgType
+        Expansion existing = expansionRepository.findByTitle(name);
+        if (existing != null && existing.getTcgType() == tcgType) {
+            expansionCache.put(cacheKey, existing);
+            return existing;
+        }
+
+        // Create new Expansion
         try {
-            // Get the set resume first
-            net.tcgdex.sdk.models.SetResume setResume = tcgdexCard.getSet();
-            if (setResume == null) {
-                throw new RuntimeException("Card has no set information");
-            }
-
-            String setId = setResume.getId();
-            if (setId == null || setId.trim().isEmpty()) {
-                throw new RuntimeException("Set has no ID");
-            }
-
-            // Check cache first, then fetch if not available
-            net.tcgdex.sdk.models.Set fullSet = setCache.get(setId);
-            if (fullSet == null) {
-                fullSet = getTcgdexClient().fetchSet(setId);
-                if (fullSet == null) {
-                    throw new RuntimeException("Could not fetch full set information for " + setId);
-                }
-                setCache.put(setId, fullSet);
-            }
-
-            net.tcgdex.sdk.models.SerieResume serieResume = fullSet.getSerie();
-            if (serieResume == null) {
-                throw new RuntimeException("Set has no serie information");
-            }
-
-            String serieId = serieResume.getId();
-            if (serieId == null || serieId.trim().isEmpty()) {
-                throw new RuntimeException("Serie has no ID");
-            }
-
-            String serieName = serieResume.getName();
-            if (serieName == null || serieName.trim().isEmpty()) {
-                throw new RuntimeException("Serie has no name");
-            }
-
-            // Check if expansion already exists
-            Expansion existingExpansion = expansionRepository.findByTitle(serieName);
-            if (existingExpansion != null) {
-                return existingExpansion;
-            }
-
-            // Create new expansion
             Expansion expansion = new Expansion();
-            expansion.setTitle(serieName);
-            expansion.setTcgType(TCGType.POKEMON);
+            expansion.setTitle(name);
+            expansion.setTcgType(tcgType);
 
-            return expansionRepository.save(expansion);
+            expansion = expansionRepository.save(expansion);
+            expansionCache.put(cacheKey, expansion);
 
+            logger.debug("Created new Expansion: {}", name);
+            return expansion;
         } catch (Exception e) {
-            logger.error("Error getting/creating expansion: " + e.getMessage());
+            // Handle duplicate key violation - fetch existing record
+            logger.debug("Expansion already exists (constraint violation), fetching: {}", name);
+            Expansion existing2 = expansionRepository.findByTitle(name);
+            if (existing2 != null && existing2.getTcgType() == tcgType) {
+                expansionCache.put(cacheKey, existing2);
+                return existing2;
+            }
             throw e;
         }
     }
 
-    private TCGSet getOrCreateTCGSet(net.tcgdex.sdk.models.Card tcgdexCard, Expansion expansion) {
-        try {
-            net.tcgdex.sdk.models.SetResume setResume = tcgdexCard.getSet();
-            if (setResume == null) {
-                throw new RuntimeException("Card has no set information");
-            }
+    /**
+     * Save card only if it doesn't already exist (by name + setCode + cardNumber)
+     * Returns true if card was saved, false if it already exists
+     * Handles duplicate key violations gracefully
+     */
+    @Transactional
+    private boolean saveCardIfNotExists(TCGCard card, com.tcg.arena.model.TCGSet tcgSet, TCGType tcgType) {
+        String cardNumber = card.number != null ? card.number : "N/A";
 
-            String setCode = setResume.getId();
-            if (setCode == null || setCode.trim().isEmpty()) {
-                throw new RuntimeException("Set has no code");
-            }
+        // Check for existing card by unique composite key
+        List<CardTemplate> existing = cardTemplateRepository.findByNameAndSetCodeAndCardNumber(
+                card.name, card.set, cardNumber);
 
-            // Check if TCG set already exists
-            Optional<TCGSet> existingSet = tcgSetRepository.findBySetCode(setCode);
-            if (existingSet.isPresent()) {
-                return existingSet.get();
-            }
-
-            // Check cache first, then fetch if not available
-            net.tcgdex.sdk.models.Set fullSet = setCache.get(setCode);
-            if (fullSet == null) {
-                fullSet = getTcgdexClient().fetchSet(setCode);
-                if (fullSet == null) {
-                    throw new RuntimeException("Could not fetch full set information for " + setCode);
-                }
-                setCache.put(setCode, fullSet);
-            }
-
-            // Create new TCG set
-            TCGSet tcgSet = new TCGSet();
-            tcgSet.setSetCode(setCode);
-            tcgSet.setName(setResume.getName() != null ? setResume.getName() : setCode);
-            tcgSet.setExpansion(expansion); // Link to expansion
-
-            // Set release date (parse from string if available)
-            if (fullSet.getReleaseDate() != null) {
-                try {
-                    // Assuming format is YYYY/MM/DD or similar
-                    String[] dateParts = fullSet.getReleaseDate().split("/");
-                    if (dateParts.length == 3) {
-                        int year = Integer.parseInt(dateParts[0]);
-                        int month = Integer.parseInt(dateParts[1]);
-                        int day = Integer.parseInt(dateParts[2]);
-                        tcgSet.setReleaseDate(LocalDateTime.of(year, month, day, 0, 0));
-                    } else {
-                        tcgSet.setReleaseDate(LocalDateTime.now());
-                    }
-                } catch (Exception e) {
-                    tcgSet.setReleaseDate(LocalDateTime.now());
-                }
-            } else {
-                tcgSet.setReleaseDate(LocalDateTime.now());
-            }
-
-            // Set card count
-            if (fullSet.getCardCount() != null) {
-                tcgSet.setCardCount(fullSet.getCardCount().getTotal());
-            } else {
-                tcgSet.setCardCount(0);
-            }
-
-            // Set image URL
-            if (setResume.getLogo() != null && !setResume.getLogo().trim().isEmpty()) {
-                tcgSet.setImageUrl(setResume.getLogo());
-            }
-
-            // Link to expansion
-            tcgSet.setExpansion(expansion);
-
-            return tcgSetRepository.save(tcgSet);
-
-        } catch (Exception e) {
-            logger.error("Error getting/creating TCG set: " + e.getMessage());
-            throw e;
+        if (!existing.isEmpty()) {
+            // Card exists - update prices only
+            CardTemplate existingCard = existing.get(0);
+            setPricesFromVariants(existingCard, card.variants);
+            existingCard.setLastPriceUpdate(LocalDateTime.now());
+            cardTemplateRepository.save(existingCard);
+            logger.debug("Updated prices for existing card: {}", card.name);
+            return false; // Not a new card
         }
-    }
 
-    private CardTemplate createCardTemplateFromTcgdexCard(net.tcgdex.sdk.models.Card tcgdexCard, TCGSet tcgSet) {
+        // Create new CardTemplate
         try {
             CardTemplate template = new CardTemplate();
-            template.setTcgType(TCGType.POKEMON);
-            template.setName(tcgdexCard.getName());
-            template.setDateCreated(LocalDateTime.now());
-
-            // Set references
-            template.setSetCode(tcgSet.getSetCode());
+            template.setName(card.name);
+            template.setTcgType(tcgType);
+            template.setSetCode(card.set);
             template.setExpansion(tcgSet.getExpansion());
-
-            // Card properties
-            template.setRarity(convertRarityStringToEnum(tcgdexCard.getRarity()));
-            template.setCardNumber(tcgdexCard.getLocalId() != null ? tcgdexCard.getLocalId() : "0");
-
-            // Images
-            if (tcgdexCard.getImage() != null && !tcgdexCard.getImage().isEmpty()) {
-                template.setImageUrl(tcgdexCard.getImage());
-            }
-
-            // Build description with additional info
-            StringBuilder description = new StringBuilder();
-            if (tcgdexCard.getCategory() != null) {
-                description.append("Category: ").append(tcgdexCard.getCategory()).append("\n");
-            }
-            if (tcgdexCard.getHp() != null) {
-                description.append("HP: ").append(tcgdexCard.getHp()).append("\n");
-            }
-            if (tcgdexCard.getEvolveFrom() != null) {
-                description.append("Evolves from: ").append(tcgdexCard.getEvolveFrom()).append("\n");
-            }
-            if (tcgdexCard.getTypes() != null && !tcgdexCard.getTypes().isEmpty()) {
-                description.append("Types: ").append(String.join(", ", tcgdexCard.getTypes()));
-            }
-            template.setDescription(description.toString().trim());
-
-            return template;
-
-        } catch (Exception e) {
-            logger.error("Error creating card template for " + tcgdexCard.getId() + ": " + e.getMessage());
-            return null;
-        }
-    }
-
-    private CardTemplate convertTcgdexCardToCardTemplate(net.tcgdex.sdk.models.Card tcgdexCard) {
-        try {
-            CardTemplate template = new CardTemplate();
-            template.setTcgType(TCGType.POKEMON);
-            template.setName(tcgdexCard.getName());
+            template.setCardNumber(cardNumber);
+            template.setRarity(mapRarity(card.rarity));
+            template.setDescription(card.details);
+            template.setImageUrl(card.imageUrl);
+            template.setTcgplayerId(card.tcgplayerId);
             template.setDateCreated(LocalDateTime.now());
 
-            // Set code from set
-            if (tcgdexCard.getSet() != null) {
-                template.setSetCode(tcgdexCard.getSet().getId());
-            }
+            // Set all prices from variants
+            setPricesFromVariants(template, card.variants);
+            template.setLastPriceUpdate(LocalDateTime.now());
 
-            // Convert rarity string to enum
-            if (tcgdexCard.getRarity() != null) {
-                template.setRarity(convertRarityStringToEnum(tcgdexCard.getRarity()));
-            }
-
-            // Use localId as card number
-            template.setCardNumber(tcgdexCard.getLocalId());
-
-            // Images
-            if (tcgdexCard.getImage() != null && !tcgdexCard.getImage().isEmpty()) {
-                template.setImageUrl(tcgdexCard.getImage());
-            }
-
-            // Build description with additional info
-            StringBuilder description = new StringBuilder();
-            if (tcgdexCard.getCategory() != null) {
-                description.append("Category: ").append(tcgdexCard.getCategory()).append("\n");
-            }
-            if (tcgdexCard.getHp() != null) {
-                description.append("HP: ").append(tcgdexCard.getHp()).append("\n");
-            }
-            if (tcgdexCard.getEvolveFrom() != null) {
-                description.append("Evolves from: ").append(tcgdexCard.getEvolveFrom()).append("\n");
-            }
-            if (tcgdexCard.getTypes() != null && !tcgdexCard.getTypes().isEmpty()) {
-                description.append("Types: ").append(String.join(", ", tcgdexCard.getTypes()));
-            }
-            template.setDescription(description.toString().trim());
-
-            return template;
-
+            cardTemplateRepository.save(template);
+            return true;
         } catch (Exception e) {
-            logger.error("Error converting TCGdex card " + tcgdexCard.getId() + ": " + e.getMessage());
-            return null;
-        }
-    }
-
-    private Rarity convertRarityStringToEnum(String rarityString) {
-        if (rarityString == null)
-            return Rarity.COMMON;
-
-        String upperRarity = rarityString.toUpperCase();
-        switch (upperRarity) {
-            case "COMMON":
-                return Rarity.COMMON;
-            case "UNCOMMON":
-                return Rarity.UNCOMMON;
-            case "RARE":
-            case "RARE HOLO":
-                return Rarity.RARE;
-            case "ULTRA RARE":
-            case "SECRET RARE":
-                return Rarity.SECRET_RARE;
-            case "HOLOGRAPHIC":
-            case "HOLOGRAPHIC RARE":
-                return Rarity.HOLOGRAPHIC;
-            default:
-                return Rarity.COMMON;
-        }
-    }
-
-    private void fetchOnePieceCardsFromPageSync(int startPage, ImportProgress progress) {
-        int currentPage = startPage;
-        boolean continueImport = true;
-
-        while (continueImport) {
-            try {
-                // Fetch current page
-                String response = fetchOnePieceCardsFromAPI(currentPage).block();
-                if (response == null) {
-                    logger.error("Failed to fetch One Piece cards for page " + currentPage);
-                    break;
+            // Handle duplicate key violation - card was created by concurrent import
+            if (e.getMessage() != null && e.getMessage().contains("constraint")) {
+                logger.debug("Card already exists (constraint violation), updating prices: {}", card.name);
+                List<CardTemplate> retryExisting = cardTemplateRepository.findByNameAndSetCodeAndCardNumber(
+                        card.name, card.set, cardNumber);
+                if (!retryExisting.isEmpty()) {
+                    CardTemplate existingCard = retryExisting.get(0);
+                    setPricesFromVariants(existingCard, card.variants);
+                    existingCard.setLastPriceUpdate(LocalDateTime.now());
+                    cardTemplateRepository.save(existingCard);
+                    return false;
                 }
-
-                JsonNode jsonResponse = objectMapper.readTree(response);
-                int limit = jsonResponse.path("limit").asInt();
-                int totalCards = jsonResponse.path("total").asInt();
-                int totalPages = jsonResponse.path("totalPages").asInt();
-
-                // Update progress with known total pages
-                progress.setTotalPagesKnown(totalPages);
-                importProgressRepository.save(progress);
-
-                logger.info("One Piece API: Page " + currentPage + "/" + totalPages +
-                        " (Total cards: " + totalCards + ", Limit: " + limit + ")");
-
-                // Safety check: if data array is empty, stop importing
-                JsonNode dataArray = jsonResponse.path("data");
-                if (dataArray.isArray() && dataArray.size() == 0) {
-                    logger.info("One Piece API: Page " + currentPage + " has empty data array, stopping import");
-                    progress.setComplete(true);
-                    progress.setLastCheckDate(LocalDateTime.now());
-                    importProgressRepository.save(progress);
-                    break;
-                }
-
-                // If this is an update check and we have all cards, mark as checked and stop
-                if (progress.isComplete() && progress.getTotalPagesKnown() != null &&
-                        totalPages <= progress.getLastProcessedPage()) {
-                    logger.info("No new One Piece cards available");
-                    progress.setLastCheckDate(LocalDateTime.now());
-                    importProgressRepository.save(progress);
-                    break;
-                }
-
-                // Parse cards from current page (saves directly to database)
-                parseOnePieceCards(response);
-
-                // Update progress for this page
-                progress.setLastProcessedPage(currentPage);
-                importProgressRepository.save(progress);
-
-                // If this is the last page, mark as complete
-                if (currentPage >= totalPages) {
-                    progress.setComplete(true);
-                    progress.setLastCheckDate(LocalDateTime.now());
-                    importProgressRepository.save(progress);
-                    logger.info("One Piece import completed! All " + totalCards + " cards imported.");
-                    break;
-                }
-
-                // Move to next page
-                currentPage++;
-
-            } catch (Exception e) {
-                logger.error("Error processing One Piece page " + currentPage + ": " + e.getMessage());
-                break;
             }
+            logger.error("Error saving card {}: {}", card.name, e.getMessage());
+            throw e;
         }
     }
 
-    private ImportProgress getOrCreateProgress(TCGType tcgType) {
-        Optional<ImportProgress> existingProgress = importProgressRepository.findByTcgType(tcgType);
-        if (existingProgress.isPresent()) {
-            return existingProgress.get();
-        }
-
-        // Create new progress entry
-        ImportProgress newProgress = new ImportProgress(tcgType);
-        newProgress.setLastProcessedPage(0);
-        newProgress.setComplete(false);
-        return importProgressRepository.save(newProgress);
-    }
-
-    private boolean shouldSkipImport(ImportProgress progress) {
-        // In demo environment, never skip imports to allow repeated testing
-        if (demoEnv) {
-            logger.info("Demo environment detected - forcing import execution");
-            return false;
-        }
-
-        // If not complete, we need to continue importing
-        if (!progress.isComplete()) {
-            return false;
-        }
-
-        // If complete but we haven't checked recently, we should check for updates
-        if (needsUpdateCheck(progress)) {
-            return false;
-        }
-
-        // Complete and recently checked - skip
-        return true;
-    }
-
-    private void resetProgressForDemo(TCGType tcgType) {
-        if (!demoEnv) {
+    /**
+     * Extract and set all prices from TCG variants
+     */
+    private void setPricesFromVariants(CardTemplate template, List<TCGVariant> variants) {
+        if (variants == null || variants.isEmpty()) {
             return;
         }
 
-        logger.info("Demo environment: Resetting progress and clearing existing cards for " + tcgType);
+        Double lowPrice = null;
+        Double highPrice = null;
 
-        // Delete all existing card templates for this TCG type
-        cardTemplateRepository.deleteByTcgType(tcgType);
+        for (TCGVariant variant : variants) {
+            if (variant.price == null)
+                continue;
 
-        // Reset import progress
-        ImportProgress progress = getOrCreateProgress(tcgType);
-        progress.setLastProcessedPage(0);
-        progress.setComplete(false);
-        progress.setTotalPagesKnown(null);
-        progress.setLastCheckDate(null);
-        progress.setLastUpdated(LocalDateTime.now());
-        importProgressRepository.save(progress);
+            String condition = variant.condition != null ? variant.condition.toLowerCase() : "";
+            String printing = variant.printing != null ? variant.printing.toLowerCase() : "";
+            boolean isFoil = printing.contains("foil") || printing.contains("holo");
 
-        logger.info("Demo environment: Progress reset complete for " + tcgType);
-    }
+            // Track price range
+            if (lowPrice == null || variant.price < lowPrice)
+                lowPrice = variant.price;
+            if (highPrice == null || variant.price > highPrice)
+                highPrice = variant.price;
 
-    private boolean needsUpdateCheck(ImportProgress progress) {
-        if (progress.getLastCheckDate() == null) {
-            return true;
-        }
-
-        // Check for updates every 6 hours if complete
-        return progress.getLastCheckDate().isBefore(LocalDateTime.now().minusHours(6));
-    }
-
-    private void fetchPokemonCardsFromPageSync(int startPage, ImportProgress progress) {
-        int currentPage = startPage;
-        boolean continueImport = true;
-
-        while (continueImport) {
-            logger.info("Pokemon: Starting processing of page " + currentPage);
-            try {
-                // Fetch current page
-                logger.info("Pokemon: Fetching data from API for page " + currentPage);
-                String response = fetchPokemonCardsFromAPI(currentPage).block();
-                if (response == null) {
-                    logger.error("Failed to fetch Pokemon cards for page " + currentPage);
-                    break;
-                }
-
-                logger.info("Pokemon: Received response for page " + currentPage + ", parsing JSON...");
-
-                JsonNode jsonResponse = objectMapper.readTree(response);
-                int pageSize = jsonResponse.path("pageSize").asInt();
-                int totalCount = jsonResponse.path("totalCount").asInt();
-                int totalPages = (int) Math.ceil((double) totalCount / pageSize);
-
-                // Update progress with known total pages
-                progress.setTotalPagesKnown(totalPages);
-                importProgressRepository.save(progress);
-
-                logger.info("Pokemon API: Page " + currentPage + "/" + totalPages +
-                        " (Total cards: " + totalCount + ")");
-
-                // Safety check: if data array is empty, stop importing
-                JsonNode dataArray = jsonResponse.path("data");
-                if (dataArray.isArray() && dataArray.size() == 0) {
-                    logger.info("Pokemon API: Page " + currentPage + " has empty data array, stopping import");
-                    progress.setComplete(true);
-                    progress.setLastCheckDate(LocalDateTime.now());
-                    importProgressRepository.save(progress);
-                    break;
-                }
-
-                // If this is an update check and we have all cards, mark as checked and stop
-                if (progress.isComplete() && progress.getTotalPagesKnown() != null &&
-                        totalPages <= progress.getLastProcessedPage()) {
-                    logger.info("No new Pokemon cards available");
-                    progress.setLastCheckDate(LocalDateTime.now());
-                    importProgressRepository.save(progress);
-                    break;
-                }
-
-                // Parse cards from current page (saves directly to database)
-                logger.info("Pokemon: Starting to parse page " + currentPage + " response (length: " + response.length()
-                        + " chars)");
-                parsePokemonCards(response);
-                logger.info("Pokemon: Successfully parsed page " + currentPage);
-
-                // Force database commit after each page to ensure data persistence
-                logger.info("Pokemon: Committing database transaction for page " + currentPage);
-                // Note: In Spring Boot with JPA, transactions are auto-committed, but we can
-                // force flush
-                cardTemplateRepository.flush();
-
-                // Update progress for this page
-                progress.setLastProcessedPage(currentPage);
-                importProgressRepository.save(progress);
-
-                // If this is the last page, mark as complete
-                if (currentPage >= totalPages) {
-                    progress.setComplete(true);
-                    progress.setLastCheckDate(LocalDateTime.now());
-                    importProgressRepository.save(progress);
-                    logger.info("Pokemon import completed! All " + totalCount + " cards imported.");
-                    break;
-                }
-
-                // Move to next page
-                currentPage++;
-
-                // Add delay between pages to avoid overwhelming the API
-                logger.info("Pokemon: Waiting 5 seconds before next page...");
-                try {
-                    Thread.sleep(5000); // 5 second delay between pages
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-
-            } catch (Exception e) {
-                logger.error("Error processing Pokemon page " + currentPage + ": " + e.getMessage());
-                logger.error("Error type: " + e.getClass().getSimpleName());
-                logger.error("Stack trace:");
-                e.printStackTrace();
-                break;
-            }
-        }
-    }
-
-    private Mono<String> fetchPokemonCardsFromAPI(int page) {
-        long startTime = System.currentTimeMillis();
-        logger.info("Pokemon: fetchPokemonCardsFromAPI called for page " + page + " at " + LocalDateTime.now());
-
-        return webClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/v2/cards")
-                        .queryParam("page", page)
-                        .queryParam("pageSize", 25) // Reduced to 25 to minimize load on API
-                        .queryParam("orderBy", "set.releaseDate")
-                        .build())
-                .retrieve()
-                .bodyToMono(String.class)
-                .doOnSubscribe(subscription -> logger.info("Pokemon: Starting HTTP request for page " + page))
-                .doOnNext(response -> {
-                    long duration = System.currentTimeMillis() - startTime;
-                    logger.info("Pokemon: API call successful for page " + page +
-                            ", response length: " + response.length() +
-                            ", duration: " + duration + "ms");
-                })
-                .doOnError(error -> {
-                    long duration = System.currentTimeMillis() - startTime;
-                    logger.error("Pokemon: API call failed for page " + page +
-                            " after " + duration + "ms: " + error.getMessage() +
-                            " (type: " + error.getClass().getSimpleName() + ")");
-                })
-                .timeout(Duration.ofSeconds(120)) // Increased to 120 seconds for very slow connections
-                .retryWhen(Retry.backoff(3, Duration.ofSeconds(10))
-                        .maxBackoff(Duration.ofSeconds(30))
-                        .doBeforeRetry(retrySignal -> {
-                            long duration = System.currentTimeMillis() - startTime;
-                            logger.info("Pokemon: Retrying page " + page +
-                                    " (attempt " + (retrySignal.totalRetries() + 1) + "/3) after " + duration + "ms");
-                        }))
-                .doOnTerminate(() -> {
-                    long duration = System.currentTimeMillis() - startTime;
-                    logger.info("Pokemon: Request terminated for page " + page + " after " + duration + "ms");
-                });
-    }
-
-    private Duration getRateLimitDelay() {
-        LocalDateTime now = LocalDateTime.now();
-
-        // Reset counter every minute
-        if (now.minusMinutes(1).isAfter(lastRequestTime)) {
-            requestsThisMinute = 0;
-            lastRequestTime = now;
-        }
-
-        requestsThisMinute++;
-
-        // Pokemon TCG API typically allows 1000 requests per hour (about 16-17 per
-        // minute)
-        // We'll be conservative and limit to 10 per minute
-        if (requestsThisMinute >= 10) {
-            long millisToWait = Duration.between(now, lastRequestTime.plusMinutes(1)).toMillis();
-            return Duration.ofMillis(Math.max(millisToWait, 6000)); // At least 6 seconds
-        }
-
-        // Normal delay between requests
-        return Duration.ofMillis(200); // 200ms delay = max 5 requests/second
-    }
-
-    private Duration getScryfallRateLimitDelay() {
-        LocalDateTime now = LocalDateTime.now();
-
-        // Reset counter every second for Scryfall (10 requests/second limit)
-        if (now.minusSeconds(1).isAfter(lastScryfallRequestTime)) {
-            scryfallRequestsThisSecond = 0;
-            lastScryfallRequestTime = now;
-        }
-
-        scryfallRequestsThisSecond++;
-
-        // Scryfall API allows max 10 requests per second
-        if (scryfallRequestsThisSecond >= 10) {
-            long millisToWait = Duration.between(now, lastScryfallRequestTime.plusSeconds(1)).toMillis();
-            return Duration.ofMillis(Math.max(millisToWait, 100)); // At least 100ms
-        }
-
-        // Normal delay between requests (100ms = max 10 requests/second)
-        return Duration.ofMillis(100);
-    }
-
-    private boolean isRateLimitError(Throwable e) {
-        if (e instanceof WebClientResponseException) {
-            WebClientResponseException we = (WebClientResponseException) e;
-            return we.getStatusCode().value() == 429; // Too Many Requests
-        }
-        return false;
-    }
-
-    private Flux<Card> parsePokemonCards(String jsonResponse)
-            throws com.fasterxml.jackson.core.JsonProcessingException {
-        logger.info("Pokemon: parsePokemonCards called with response length: " + jsonResponse.length());
-        List<CardTemplate> templates = new ArrayList<>();
-        try {
-            logger.info("Pokemon: Parsing JSON response...");
-            JsonNode root = objectMapper.readTree(jsonResponse);
-            JsonNode data = root.path("data");
-
-            logger.info("Pokemon: Found " + data.size() + " cards in data array");
-
-            for (int i = 0; i < data.size(); i++) {
-                JsonNode cardNode = data.get(i);
-                logger.info("Pokemon: Processing card " + (i + 1) + "/" + data.size() + " - Name: "
-                        + cardNode.path("name").asText());
-                CardTemplate template = parsePokemonCardTemplate(cardNode);
-                if (template != null) {
-                    templates.add(template);
-                    logger.info("Pokemon: Successfully parsed card template: " + template.getName());
+            // Set condition-specific prices
+            if (condition.contains("near mint") || condition.equals("nm")) {
+                if (isFoil) {
+                    template.setPriceFoilNearMint(variant.price);
                 } else {
-                    logger.error("Pokemon: Failed to parse card template for card " + (i + 1));
+                    template.setPriceNearMint(variant.price);
+                    template.setMarketPrice(variant.price); // NM is market price
                 }
+            } else if (condition.contains("lightly") || condition.equals("lp")) {
+                template.setPriceLightlyPlayed(variant.price);
+            } else if (condition.contains("moderately") || condition.equals("mp")) {
+                template.setPriceModeratelyPlayed(variant.price);
+            } else if (condition.contains("heavily") || condition.equals("hp")) {
+                template.setPriceHeavilyPlayed(variant.price);
+            } else if (condition.contains("damaged") || condition.equals("dmg")) {
+                template.setPriceDamaged(variant.price);
             }
 
-            logger.info("Parsed " + templates.size() + " Pokemon card templates from API response");
-
-            if (!templates.isEmpty()) {
-                // Save templates in smaller batches to reduce memory usage and database load
-                final int BATCH_SIZE = 50;
-                logger.info("Saving " + templates.size() + " Pokemon card templates in batches of " + BATCH_SIZE);
-
-                for (int i = 0; i < templates.size(); i += BATCH_SIZE) {
-                    int endIndex = Math.min(i + BATCH_SIZE, templates.size());
-                    List<CardTemplate> batch = templates.subList(i, endIndex);
-                    logger.info("Pokemon: Saving batch " + (i / BATCH_SIZE + 1) + "/" +
-                            ((templates.size() + BATCH_SIZE - 1) / BATCH_SIZE) +
-                            " (" + batch.size() + " templates)");
-                    try {
-                        cardTemplateRepository.saveAll(batch);
-                        logger.info("Pokemon: Successfully saved batch " + (i / BATCH_SIZE + 1));
-                    } catch (Exception e) {
-                        logger.error("Pokemon: Error saving batch " + (i / BATCH_SIZE + 1) + ": " + e.getMessage());
-                        throw e;
-                    }
-                }
-
-                logger.info("Successfully saved all " + templates.size() + " Pokemon card templates");
-            } else {
-                logger.info("Pokemon: No templates to save");
+            // Set foil price for any foil variant
+            if (isFoil && template.getPriceFoil() == null) {
+                template.setPriceFoil(variant.price);
             }
-        } catch (Exception e) {
-            logger.error("Error parsing Pokemon cards: " + e.getMessage());
-            e.printStackTrace();
-            throw e; // Re-throw to propagate the error
         }
 
-        return Flux.empty(); // Return empty since we're saving templates, not cards
+        // Set price range
+        template.setPriceLow(lowPrice);
+        template.setPriceHigh(highPrice);
+
+        // If no NM price found, use first available as market price
+        if (template.getMarketPrice() == null && lowPrice != null) {
+            template.setMarketPrice(lowPrice);
+        }
     }
 
-    private CardTemplate parsePokemonCardTemplate(JsonNode cardNode) {
-        try {
-            logger.info("Pokemon: parsePokemonCardTemplate - Processing card: " + cardNode.path("name").asText());
-            CardTemplate template = new CardTemplate();
+    /**
+     * Update TCGSet card count after import
+     */
+    private void updateSetCardCount(com.tcg.arena.model.TCGSet tcgSet, int cardCount) {
+        if (tcgSet.getCardCount() == null || tcgSet.getCardCount() != cardCount) {
+            tcgSet.setCardCount(cardCount);
+            tcgSetRepository.save(tcgSet);
+        }
+    }
 
-            // Basic info
-            String name = cardNode.path("name").asText();
-            logger.info("Pokemon: Setting name: " + name);
-            template.setName(name);
-            template.setTcgType(TCGType.POKEMON);
+    // ===================== Utility Methods =====================
 
-            // Set and card number
-            JsonNode setNode = cardNode.path("set");
-            if (!setNode.isMissingNode()) {
-                String setCode = setNode.path("id").asText();
-                String cardNumber = cardNode.path("number").asText();
-                logger.info("Pokemon: Setting setCode: " + setCode + ", cardNumber: " + cardNumber);
-                template.setSetCode(setCode);
-                template.setCardNumber(cardNumber);
-            } else {
-                logger.info("Pokemon: No set information found for card");
-            }
-
-            // Rarity
-            String rarityStr = cardNode.path("rarity").asText();
-            Rarity rarity = mapPokemonRarity(rarityStr);
-            logger.info("Pokemon: Setting rarity: " + rarityStr + " -> " + rarity);
-            template.setRarity(rarity);
-
-            // Images
-            JsonNode images = cardNode.path("images");
-            if (!images.isMissingNode()) {
-                template.setImageUrl(images.path("large").asText());
-            }
-
-            // Description/flavor text
-            template.setDescription(cardNode.path("flavorText").asText());
-
-            // Market price (simplified - would need additional API call)
-            template.setMarketPrice(1.0); // Default price
-
-            // Other fields
-            template.setManaCost(cardNode.path("convertedEnergyCost").asInt());
-
-            // Set creation date
-            template.setDateCreated(LocalDateTime.now());
-
-            logger.info("Pokemon: Successfully created template for: " + template.getName());
-            return template;
-        } catch (Exception e) {
-            logger.error("Error parsing individual Pokemon card template: " + e.getMessage());
-            logger.error("Card data: " + cardNode.toString());
-            e.printStackTrace();
+    private Double extractNearMintPrice(List<TCGVariant> variants) {
+        if (variants == null || variants.isEmpty()) {
             return null;
         }
+
+        for (TCGVariant variant : variants) {
+            if (("Near Mint".equalsIgnoreCase(variant.condition) ||
+                    "NM".equalsIgnoreCase(variant.condition)) &&
+                    variant.price != null) {
+                return variant.price;
+            }
+        }
+
+        // Fallback: return first available price
+        return variants.stream()
+                .filter(v -> v.price != null)
+                .findFirst()
+                .map(v -> v.price)
+                .orElse(null);
     }
 
-    private Rarity mapPokemonRarity(String rarityStr) {
-        if (rarityStr == null || rarityStr.isEmpty()) {
+    private LocalDateTime parseReleaseDate(String dateStr) {
+        if (dateStr == null || dateStr.isEmpty()) {
+            return LocalDateTime.now();
+        }
+
+        try {
+            // Try ISO format (2024-01-15)
+            if (dateStr.matches("\\d{4}-\\d{2}-\\d{2}")) {
+                String[] parts = dateStr.split("-");
+                return LocalDateTime.of(
+                        Integer.parseInt(parts[0]),
+                        Integer.parseInt(parts[1]),
+                        Integer.parseInt(parts[2]),
+                        0, 0);
+            }
+            // Try other common formats
+            return LocalDateTime.parse(dateStr, DateTimeFormatter.ISO_DATE_TIME);
+        } catch (Exception e) {
+            logger.debug("Could not parse date '{}', using current date", dateStr);
+            return LocalDateTime.now();
+        }
+    }
+
+    private Rarity mapRarity(String rarityStr) {
+        if (rarityStr == null)
             return Rarity.COMMON;
-        }
 
-        return switch (rarityStr.toLowerCase()) {
-            case "common" -> Rarity.COMMON;
-            case "uncommon" -> Rarity.UNCOMMON;
-            case "rare" -> Rarity.RARE;
-            case "rare holo" -> Rarity.RARE;
-            case "rare holo ex" -> Rarity.RARE;
-            case "rare holo gx" -> Rarity.RARE;
-            case "rare holo v" -> Rarity.RARE;
-            case "rare holo vmax" -> Rarity.RARE;
-            case "rare ultra" -> Rarity.RARE;
-            case "rare secret" -> Rarity.RARE;
-            case "amazing rare" -> Rarity.RARE;
-            case "legendary" -> Rarity.RARE;
-            default -> Rarity.COMMON;
-        };
+        String lower = rarityStr.toLowerCase();
+
+        // Order matters - check more specific terms first
+        if (lower.contains("mythic"))
+            return Rarity.MYTHIC_RARE;
+        if (lower.contains("secret"))
+            return Rarity.SECRET_RARE;
+        if (lower.contains("ultra"))
+            return Rarity.ULTRA_RARE;
+        if (lower.contains("super"))
+            return Rarity.SUPER_RARE;
+        if (lower.contains("hyper"))
+            return Rarity.HYPER_RARE;
+        if (lower.contains("rare"))
+            return Rarity.RARE;
+        if (lower.contains("uncommon"))
+            return Rarity.UNCOMMON;
+        if (lower.contains("promo"))
+            return Rarity.PROMO;
+        if (lower.contains("special"))
+            return Rarity.SPECIAL_ART_RARE;
+        if (lower.contains("holo"))
+            return Rarity.HOLOGRAPHIC;
+
+        return Rarity.COMMON;
     }
 
-    public Mono<Void> fetchMagicCards() {
-        // Reset progress and clear existing cards in demo environment
-        resetProgressForDemo(TCGType.MAGIC);
+    public boolean isTCGSupported(TCGType tcgType) {
+        return TCG_TYPE_TO_GAME_ID.containsKey(tcgType);
+    }
 
-        // Get or create import progress for Magic
-        ImportProgress progress = getOrCreateProgress(TCGType.MAGIC);
+    public List<TCGType> getSupportedTCGTypes() {
+        return new ArrayList<>(TCG_TYPE_TO_GAME_ID.keySet());
+    }
 
-        // Check if we should skip import entirely
-        if (shouldSkipImport(progress)) {
-            logger.info("Skipping Magic import - recently completed and no need to check for updates yet");
-            return Mono.empty();
-        }
-
-        // Define categories to import in smaller batches (~50-100 cards per category)
-        List<String> categories = List.of(
-                "color:red", // Red cards
-                "color:blue", // Blue cards
-                "color:black", // Black cards
-                "color:white", // White cards
-                "color:green", // Green cards
-                "colorless", // Colorless cards
-                "type:land", // Lands
-                "type:artifact", // Artifacts
-                "type:instant", // Instants
-                "type:sorcery", // Sorceries
-                "type:creature", // Creatures
-                "type:planeswalker" // Planeswalkers
-        );
-
-        logger.info("Starting Magic import with " + categories.size() + " categories (~50-100 cards per category)");
-
-        // Use synchronous sequential processing
-        return Mono.fromRunnable(() -> {
-            try {
-                for (String category : categories) {
-                    logger.info("Processing Magic category: " + category);
-                    fetchMagicCardsByCategorySync(category, progress);
-                    logger.info("Completed category: " + category);
-                }
-
-                // Mark as complete
-                progress.setComplete(true);
-                progress.setLastCheckDate(LocalDateTime.now());
-                importProgressRepository.save(progress);
-                logger.info("Magic import completed! All categories processed.");
-
-            } catch (Exception e) {
-                logger.error("Error during Magic import: " + e.getMessage());
-                throw new RuntimeException(e);
+    /**
+     * Check if there are new data available in the API beyond the current offset
+     * This is used to determine if a "completed" import should be resumed
+     */
+    private boolean checkForNewData(String gameId, int currentOffset) {
+        try {
+            logger.debug("Checking for new data in {} at offset {}", gameId, currentOffset);
+            TCGCardsResponse response = getCardsPageByGame(gameId, currentOffset)
+                    .block(Duration.ofSeconds(30)); // Timeout for this check
+            
+            if (response == null) {
+                logger.warn("Null response when checking for new data");
+                return false;
             }
-        });
-    }
-
-    private void fetchMagicCardsByCategorySync(String category, ImportProgress progress) {
-        int page = 1;
-        boolean hasMore = true;
-
-        while (hasMore) {
-            try {
-                // Fetch page synchronously
-                String response = fetchMagicCardsFromAPIByCategory(category, page).block();
-
-                if (response == null) {
-                    logger.info("No response received for category " + category + ", page " + page);
-                    break;
-                }
-
-                // Parse JSON response
-                JsonNode jsonResponse;
-                try {
-                    jsonResponse = objectMapper.readTree(response);
-                } catch (Exception e) {
-                    logger.error("Error parsing JSON response for category " + category + ", page " + page + ": "
-                            + e.getMessage());
-                    break;
-                }
-
-                hasMore = jsonResponse.path("has_more").asBoolean();
-                int totalCards = jsonResponse.path("total_cards").asInt();
-
-                logger.info("Magic API [" + category + "]: Page " + page +
-                        " (Total cards in category: " + totalCards + ", Has more: " + hasMore + ")");
-
-                // Check for empty data
-                JsonNode dataArray = jsonResponse.path("data");
-                if (dataArray.isArray() && dataArray.size() == 0) {
-                    logger.info("Magic API [" + category + "]: Page " + page
-                            + " has empty data array, moving to next category");
-                    break;
-                }
-
-                // Parse and save cards synchronously
-                parseMagicCardsSync(response);
-
-                page++;
-
-            } catch (Exception e) {
-                logger.error("Error processing category " + category + ", page " + page + ": " + e.getMessage());
-                break;
-            }
+            
+            List<TCGCard> cards = response.getCards();
+            boolean hasData = cards != null && !cards.isEmpty();
+            
+            logger.info("New data check for {} at offset {}: {} cards found", 
+                    gameId, currentOffset, cards != null ? cards.size() : 0);
+            
+            return hasData;
+        } catch (Exception e) {
+            logger.error("Error checking for new data in {} at offset {}: {}", 
+                    gameId, currentOffset, e.getMessage());
+            // On error, assume no new data to be safe
+            return false;
         }
     }
 
-    private void parseMagicCardsSync(String jsonResponse) throws Exception {
-        JsonNode root = objectMapper.readTree(jsonResponse);
-        JsonNode data = root.path("data");
+    // ===================== Scryfall-specific methods for Magic =====================
 
-        List<CardTemplate> templates = new ArrayList<>();
-        for (JsonNode cardNode : data) {
-            CardTemplate template = parseMagicCardTemplate(cardNode);
-            if (template != null) {
-                templates.add(template);
-            }
-        }
-
-        logger.info("Parsed " + templates.size() + " Magic card templates from API response");
-
-        if (!templates.isEmpty()) {
-            // Save templates in smaller batches to reduce memory usage and database load
-            final int BATCH_SIZE = 50;
-            logger.info("Saving " + templates.size() + " Magic card templates in batches of " + BATCH_SIZE);
-
-            for (int i = 0; i < templates.size(); i += BATCH_SIZE) {
-                int endIndex = Math.min(i + BATCH_SIZE, templates.size());
-                List<CardTemplate> batch = templates.subList(i, endIndex);
-                logger.info("Saving batch " + (i / BATCH_SIZE + 1) + "/" +
-                        ((templates.size() + BATCH_SIZE - 1) / BATCH_SIZE) +
-                        " (" + batch.size() + " templates)");
-                cardTemplateRepository.saveAll(batch);
-            }
-
-            logger.info("Successfully saved all " + templates.size() + " Magic card templates");
-        }
-    }
-
-    public Mono<Void> fetchOnePieceCards() {
-        // Reset progress and clear existing cards in demo environment
-        resetProgressForDemo(TCGType.ONE_PIECE);
-
-        // Get or create import progress for One Piece
-        ImportProgress progress = getOrCreateProgress(TCGType.ONE_PIECE);
-
-        // Check if we should skip import entirely
-        if (shouldSkipImport(progress)) {
-            logger.info("Skipping One Piece import - recently completed and no need to check for updates yet");
-            return Mono.empty();
-        }
-
-        // Determine starting page based on progress
-        int startPage = progress.getLastProcessedPage() + 1;
-        logger.info("Starting One Piece import from page " + startPage +
-                " (previously processed: " + progress.getLastProcessedPage() + " pages)");
-
-        // If we need to check for updates (complete but old), start from page 1 to get
-        // current total
-        if (progress.isComplete() && needsUpdateCheck(progress)) {
-            startPage = 1;
-            logger.info("Checking for One Piece card updates...");
-        }
-
-        // Start fetching from the determined page
-        final ImportProgress importProgress = progress;
-        final int startPageFinal = startPage;
-        return Mono.fromRunnable(() -> {
-            try {
-                fetchOnePieceCardsFromPageSync(startPageFinal, importProgress);
-            } catch (Exception e) {
-                logger.error("Error during One Piece import: " + e.getMessage());
-                throw new RuntimeException(e);
-            }
-        });
-    }
-
-    public Flux<Card> fetchOnePieceCardsLimited(int maxPages) {
-        return fetchOnePieceCardsInternal(maxPages);
-    }
-
-    private Flux<Card> fetchOnePieceCardsInternal(int maxPages) {
-        // Reset progress and clear existing cards in demo environment
-        resetProgressForDemo(TCGType.ONE_PIECE);
-
-        // Get or create import progress for One Piece
-        ImportProgress progress = getOrCreateProgress(TCGType.ONE_PIECE);
-
-        // Check if we should skip import entirely
-        if (shouldSkipImport(progress)) {
-            logger.info("Skipping One Piece import - recently completed and no need to check for updates yet");
-            return Flux.empty();
-        }
-
-        // Determine starting page based on progress
-        int startPage = progress.getLastProcessedPage() + 1;
-        logger.info("Starting One Piece import from page " + startPage +
-                " (previously processed: " + progress.getLastProcessedPage() + " pages, max pages: " + maxPages + ")");
-
-        // If we need to check for updates (complete but old), start from page 1 to get
-        // current total
-        if (progress.isComplete() && needsUpdateCheck(progress)) {
-            startPage = 1;
-            logger.info("Checking for One Piece card updates...");
-        }
-
-        // Start fetching from the determined page with page limit
-        return fetchOnePieceCardsFromPage(startPage, progress, maxPages);
-    }
-
-    private Mono<Void> fetchMagicCardsFromPageByCategory(String category, int page, ImportProgress progress) {
-        return fetchMagicCardsFromAPIByCategory(category, page)
-                .flatMap(response -> {
-                    try {
-                        JsonNode jsonResponse = objectMapper.readTree(response);
-
-                        // Scryfall pagination structure
-                        boolean hasMore = jsonResponse.path("has_more").asBoolean();
-                        int totalCards = jsonResponse.path("total_cards").asInt();
-
-                        logger.info("Magic API [" + category + "]: Page " + page +
-                                " (Total cards in category: " + totalCards + ", Has more: " + hasMore + ")");
-
-                        // Safety check: if data array is empty, stop this category
-                        JsonNode dataArray = jsonResponse.path("data");
-                        if (dataArray.isArray() && dataArray.size() == 0) {
-                            logger.info("Magic API [" + category + "]: Page " + page
-                                    + " has empty data array, moving to next category");
-                            return Mono.empty();
-                        }
-
-                        // Parse and save cards from current page
-                        return parseMagicCards(response)
-                                .then(hasMore ? fetchMagicCardsFromPageByCategory(category, page + 1, progress)
-                                        : Mono.empty());
-
-                    } catch (Exception e) {
-                        logger.error(
-                                "Error parsing Magic API response for category " + category + ": " + e.getMessage());
-                        return Mono.empty();
-                    }
-                });
-    }
-
-    private Flux<Card> fetchOnePieceCardsFromPage(int startPage, ImportProgress progress, int maxPages) {
-        return fetchOnePieceCardsFromAPI(startPage)
-                .flatMapMany(response -> {
-                    try {
-                        JsonNode jsonResponse = objectMapper.readTree(response);
-
-                        // One Piece TCG API response structure
-                        int currentPage = jsonResponse.path("page").asInt();
-                        int limit = jsonResponse.path("limit").asInt();
-                        int totalCards = jsonResponse.path("total").asInt();
-                        int totalPages = jsonResponse.path("totalPages").asInt();
-
-                        // Update progress
-                        progress.setTotalPagesKnown(totalPages);
-                        importProgressRepository.save(progress);
-
-                        logger.info("One Piece API: Page " + currentPage + "/" + totalPages +
-                                " (Total cards: " + totalCards + ", Limit: " + limit + ")");
-
-                        // Parse cards from current page
-                        Flux<Card> currentPageCards = parseOnePieceCards(response);
-
-                        // Update progress for this page
-                        progress.setLastProcessedPage(currentPage);
-                        importProgressRepository.save(progress);
-
-                        // In demo mode, limit to first few pages to avoid overwhelming the system
-                        int maxPagesInDemo = 100; // Only import first 100 pages (10,000 cards) in demo mode
-                        boolean isLastPage = currentPage >= totalPages;
-                        if (demoEnv && currentPage >= maxPagesInDemo) {
-                            isLastPage = true;
-                            logger.info("Demo mode: Limiting import to first " + maxPagesInDemo + " pages ("
-                                    + (maxPagesInDemo * limit) + " cards max)");
-                        }
-
-                        // If this is the last page, mark as complete
-                        if (isLastPage) {
-                            progress.setComplete(true);
-                            progress.setLastCheckDate(LocalDateTime.now());
-                            importProgressRepository.save(progress);
-                            int importedCards = demoEnv ? Math.min(totalCards, maxPagesInDemo * limit) : totalCards;
-                            logger.info("One Piece import completed! " + importedCards + " cards imported." +
-                                    (demoEnv ? " (Limited by demo mode)" : ""));
-                            return currentPageCards;
-                        }
-
-                        // Check if we've reached the max pages limit
-                        if (currentPage >= maxPages) {
-                            logger.info("Reached max pages limit (" + maxPages + "), stopping import");
-                            progress.setComplete(true);
-                            progress.setLastCheckDate(LocalDateTime.now());
-                            importProgressRepository.save(progress);
-                            logger.info("One Piece import completed! Limited to " + (currentPage * limit)
-                                    + " cards (page limit).");
-                            return currentPageCards;
-                        }
-
-                        // Continue with next page
-                        return currentPageCards.concatWith(
-                                fetchOnePieceCardsFromPage(currentPage + 1, progress, maxPages));
-
-                    } catch (Exception e) {
-                        logger.error("Error parsing One Piece API response: " + e.getMessage());
-                        return Flux.empty();
-                    }
-                });
-    }
-
-    private Mono<String> fetchMagicCardsFromAPIByCategory(String category, int page) {
-        // Scryfall API: Use /cards/search endpoint with specific category query
-        // This reduces the number of cards per request (typically ~50-100 instead of
-        // 175)
-        return scryfallWebClient.get()
-                .uri("https://api.scryfall.com/cards/search?q=" + category + "&page=" + page)
-                .exchangeToMono(response -> {
-                    if (response.statusCode().isError()) {
-                        return response.bodyToMono(String.class)
-                                .flatMap(body -> Mono.error(
-                                        new RuntimeException("HTTP error " + response.statusCode() + ": " + body)));
-                    }
-                    return response.bodyToMono(String.class);
-                })
-                .doOnNext(response -> logger
-                        .info("Scryfall response received for [" + category + "], length: " + response.length()
-                                + ", starts with: " + response.substring(0, Math.min(100, response.length()))))
-                .doOnError(e -> logger.info("Error in fetchMagicCardsFromAPIByCategory [" + category + "]: "
-                        + e.getMessage() + ", type: " + e.getClass().getSimpleName()))
-                .delayElement(getScryfallRateLimitDelay()); // Scryfall: max 10 requests/second
-    }
-
-    private Mono<String> fetchOnePieceCardsFromAPI(int page) {
-        // Use the API endpoint directly
-        String url = "https://apitcg.com/api/one-piece/cards?page=" + page + "&limit=100";
-        logger.info("Making One Piece API request to: " + url);
-
-        // One Piece TCG API: Use correct endpoint with limit parameter (max 100 per
-        // page)
-        WebClient.RequestHeadersSpec<?> request = onePieceWebClient.get()
-                .uri(url);
-
-        // Add API key header if available
-        if (onePieceApiKey != null && !onePieceApiKey.isEmpty()) {
-            request = request.header("x-api-key", onePieceApiKey);
-            logger.info("Added API key header to One Piece request");
-        } else {
-            logger.info("No onepiece.api.key configured in application.properties");
-        }
-
-        // Handle redirects manually but simply - max 1 redirect to prevent loops
-        return request.exchangeToMono(response -> {
-            if (response.statusCode().is3xxRedirection()) {
-                // Get redirect location
-                String location = response.headers().header("Location").stream().findFirst().orElse(null);
-                if (location != null && !location.equals(url)) {
-                    logger.info("Following redirect to: " + location);
-                    // Make second request to redirect location (only once to prevent loops)
-                    WebClient.RequestHeadersSpec<?> redirectRequest = onePieceWebClient.get().uri(location);
-                    if (onePieceApiKey != null && !onePieceApiKey.isEmpty()) {
-                        redirectRequest = redirectRequest.header("x-api-key", onePieceApiKey);
-                    }
-                    return redirectRequest.retrieve().bodyToMono(String.class);
-                } else if (location != null && location.equals(url)) {
-                    logger.info("Redirect location same as original URL, skipping to prevent loop: " + location);
-                }
-            }
-            // For direct responses or when redirect location is same as original, return
-            // the body
-            return response.bodyToMono(String.class);
-        })
-                .delayElement(getRateLimitDelay()) // Conservative rate limiting since not documented
-                .doOnNext(body -> logger.info(
-                        "One Piece API response (first 200 chars): " + body.substring(0, Math.min(200, body.length()))))
-                .doOnError(error -> logger.info("One Piece API request failed: " + error.getMessage()));
-    }
-
-    private Mono<Void> parseMagicCards(String jsonResponse) {
+    /**
+     * Import Magic cards using Scryfall bulk data
+     */
+    public Mono<Integer> importMagicCards() {
         return Mono.fromCallable(() -> {
+            logger.info("Starting Magic import using Scryfall");
+
+            // Clear caches
+            expansionCache.clear();
+            tcgSetCache.clear();
+
             try {
-                JsonNode root = objectMapper.readTree(jsonResponse);
-                JsonNode data = root.path("data");
+                // Import sets first
+                importMagicSets();
 
-                List<CardTemplate> templates = new ArrayList<>();
-                for (JsonNode cardNode : data) {
-                    CardTemplate template = parseMagicCardTemplate(cardNode);
-                    if (template != null) {
-                        templates.add(template);
-                    }
-                }
+                // Import cards from bulk data
+                return importMagicCardsFromBulk();
 
-                logger.info("Parsed " + templates.size() + " Magic card templates from API response");
-
-                if (!templates.isEmpty()) {
-                    // Save templates in smaller batches to reduce memory usage and database load
-                    final int BATCH_SIZE = 50;
-                    logger.info("Saving " + templates.size() + " Magic card templates in batches of " + BATCH_SIZE);
-
-                    for (int i = 0; i < templates.size(); i += BATCH_SIZE) {
-                        int endIndex = Math.min(i + BATCH_SIZE, templates.size());
-                        List<CardTemplate> batch = templates.subList(i, endIndex);
-                        logger.info("Saving batch " + (i / BATCH_SIZE + 1) + "/" +
-                                ((templates.size() + BATCH_SIZE - 1) / BATCH_SIZE) +
-                                " (" + batch.size() + " templates)");
-                        cardTemplateRepository.saveAll(batch);
-                    }
-
-                    logger.info("Successfully saved all " + templates.size() + " Magic card templates");
-                }
-
-                return null;
             } catch (Exception e) {
-                logger.error("Error parsing Magic cards: " + e.getMessage());
-                throw e;
+                logger.error("Error during Magic import: {}", e.getMessage(), e);
+                return 0;
             }
-        })
-                .subscribeOn(Schedulers.boundedElastic())
-                .doOnSuccess(v -> logger.info("Magic card template processing completed"))
-                .doOnError(e -> logger.error("Error in Magic card template processing: " + e.getMessage()))
-                .then();
+        });
     }
 
-    private Flux<Card> parseOnePieceCards(String jsonResponse) {
-        List<CardTemplate> templates = new ArrayList<>();
+    /**
+     * Import Magic sets from Scryfall
+     */
+    private void importMagicSets() {
+        logger.info("Importing Magic sets from Scryfall");
+
         try {
-            JsonNode root = objectMapper.readTree(jsonResponse);
-            JsonNode data = root.path("data");
+            ScryfallSetsResponse response = scryfallWebClient.get()
+                    .uri("/sets")
+                    .retrieve()
+                    .bodyToMono(ScryfallSetsResponse.class)
+                    .block(Duration.ofSeconds(30));
 
-            for (JsonNode cardNode : data) {
-                CardTemplate template = parseOnePieceCardTemplate(cardNode);
-                if (template != null) {
-                    templates.add(template);
+            if (response == null || response.data == null) {
+                logger.warn("No sets data from Scryfall");
+                return;
+            }
+
+            int imported = 0;
+            for (ScryfallSet set : response.data) {
+                try {
+                    saveScryfallSet(set, TCGType.MAGIC);
+                    imported++;
+                } catch (Exception e) {
+                    logger.warn("Error saving set {}: {}", set.name, e.getMessage());
                 }
             }
 
-            logger.info("Parsed " + templates.size() + " One Piece card templates from API response");
+            logger.info("Imported {} Magic sets from Scryfall", imported);
 
-            if (!templates.isEmpty()) {
-                // Save templates in smaller batches to reduce memory usage and database load
-                final int BATCH_SIZE = 50;
-                logger.info("Saving " + templates.size() + " One Piece card templates in batches of " + BATCH_SIZE);
-
-                for (int i = 0; i < templates.size(); i += BATCH_SIZE) {
-                    int endIndex = Math.min(i + BATCH_SIZE, templates.size());
-                    List<CardTemplate> batch = templates.subList(i, endIndex);
-                    logger.info("Saving batch " + (i / BATCH_SIZE + 1) + "/" +
-                            ((templates.size() + BATCH_SIZE - 1) / BATCH_SIZE) +
-                            " (" + batch.size() + " templates)");
-                    cardTemplateRepository.saveAll(batch);
-                }
-
-                logger.info("Successfully saved all " + templates.size() + " One Piece card templates");
-            }
         } catch (Exception e) {
-            logger.error("Error parsing One Piece cards: " + e.getMessage());
+            logger.error("Error importing Magic sets: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Save Scryfall set to database
+     */
+    private void saveScryfallSet(ScryfallSet scryfallSet, TCGType tcgType) {
+        // Check if set already exists
+        Optional<com.tcg.arena.model.TCGSet> existing = tcgSetRepository.findBySetCode(scryfallSet.code);
+        if (existing.isPresent()) {
+            logger.debug("Set {} already exists, skipping", scryfallSet.name);
+            return;
         }
 
-        return Flux.empty(); // Return empty since we're saving templates, not cards
+        // Get or create expansion
+        Expansion expansion = getOrCreateExpansion(scryfallSet.name, tcgType);
+
+        // Create TCGSet
+        com.tcg.arena.model.TCGSet tcgSet = new com.tcg.arena.model.TCGSet();
+        tcgSet.setName(scryfallSet.name);
+        tcgSet.setSetCode(scryfallSet.code);
+        tcgSet.setExpansion(expansion);
+        tcgSet.setCardCount(scryfallSet.card_count);
+        tcgSet.setReleaseDate(parseReleaseDate(scryfallSet.released_at));
+        tcgSet.setDescription(scryfallSet.set_type);
+
+        tcgSetRepository.save(tcgSet);
+        logger.debug("Saved Scryfall set: {}", scryfallSet.name);
     }
 
-    private CardTemplate parseMagicCardTemplate(JsonNode cardNode) {
+    /**
+     * Import Magic cards from Scryfall bulk data
+     */
+    private int importMagicCardsFromBulk() {
+        logger.info("Importing Magic cards from Scryfall bulk data");
+
         try {
-            CardTemplate template = new CardTemplate();
-            template.setTcgType(TCGType.MAGIC);
+            // Get bulk data info
+            ScryfallBulkDataResponse bulkResponse = scryfallWebClient.get()
+                    .uri("/bulk-data")
+                    .retrieve()
+                    .bodyToMono(ScryfallBulkDataResponse.class)
+                    .block(Duration.ofSeconds(30));
 
-            // Map Scryfall fields to our CardTemplate model
-            template.setName(cardNode.path("name").asText());
-            template.setSetCode(cardNode.path("set").asText()); // set code
+            if (bulkResponse == null || bulkResponse.data == null) {
+                logger.warn("No bulk data from Scryfall");
+                return 0;
+            }
 
-            // Card number - use collector number from Scryfall
-            String collectorNumber = cardNode.path("collector_number").asText();
-            template.setCardNumber(collectorNumber);
+            // Find "Default Cards" bulk data
+            ScryfallBulkData defaultCards = bulkResponse.data.stream()
+                    .filter(b -> "default_cards".equals(b.type))
+                    .findFirst()
+                    .orElse(null);
 
-            // Map rarity to our enum
-            String rarityStr = cardNode.path("rarity").asText();
+            if (defaultCards == null || defaultCards.download_uri == null) {
+                logger.warn("Default cards bulk data not found");
+                return 0;
+            }
+
+            logger.info("Downloading bulk cards from: {}", defaultCards.download_uri);
+
+            // Download and process bulk data
+            List<ScryfallCard> cards = scryfallWebClient.get()
+                    .uri(defaultCards.download_uri)
+                    .retrieve()
+                    .bodyToFlux(ScryfallCard.class)
+                    .collectList()
+                    .block(Duration.ofMinutes(10)); // Allow 10 minutes for download
+
+            if (cards == null) {
+                logger.warn("No cards downloaded from bulk data");
+                return 0;
+            }
+
+            logger.info("Downloaded {} cards from Scryfall bulk data", cards.size());
+
+            int saved = 0;
+            for (ScryfallCard card : cards) {
+                try {
+                    if (saveScryfallCard(card, TCGType.MAGIC)) {
+                        saved++;
+                    }
+                } catch (Exception e) {
+                    logger.warn("Error saving card {}: {}", card.name, e.getMessage());
+                }
+            }
+
+            logger.info("Saved {} new Magic cards from Scryfall", saved);
+            return saved;
+
+        } catch (Exception e) {
+            logger.error("Error importing Magic cards from bulk: {}", e.getMessage(), e);
+            return 0;
+        }
+    }
+
+    /**
+     * Save Scryfall card to database
+     */
+    private boolean saveScryfallCard(ScryfallCard card, TCGType tcgType) {
+        // Skip digital/oversized cards
+        if (card.digital || card.oversized) {
+            return false;
+        }
+
+        String cardNumber = card.collector_number != null ? card.collector_number : "N/A";
+
+        // Check for existing card
+        List<CardTemplate> existing = cardTemplateRepository.findByNameAndSetCodeAndCardNumber(
+                card.name, card.set, cardNumber);
+
+        if (!existing.isEmpty()) {
+            // Update existing card with Scryfall data
+            CardTemplate existingCard = existing.get(0);
+            updateCardWithScryfallData(existingCard, card);
+            return false; // Not new
+        }
+
+        // Get TCGSet
+        com.tcg.arena.model.TCGSet tcgSet = tcgSetCache.computeIfAbsent(card.set, setCode -> {
+            Optional<com.tcg.arena.model.TCGSet> opt = tcgSetRepository.findBySetCode(setCode);
+            return opt.orElse(null);
+        });
+
+        if (tcgSet == null) {
+            logger.warn("TCGSet not found for card {} in set {}", card.name, card.set);
+            return false;
+        }
+
+        // Create new CardTemplate
+        CardTemplate template = new CardTemplate();
+        template.setName(card.name);
+        template.setTcgType(tcgType);
+        template.setSetCode(card.set);
+        template.setExpansion(tcgSet.getExpansion());
+        template.setCardNumber(cardNumber);
+        template.setRarity(mapRarity(card.rarity));
+        template.setDescription(card.oracle_text);
+        template.setImageUrl(getScryfallImageUrl(card));
+        template.setTcgplayerId(card.id); // Save Scryfall ID here
+        template.setDateCreated(LocalDateTime.now());
+
+        // Set prices
+        setPricesFromScryfall(template, card);
+
+        cardTemplateRepository.save(template);
+        logger.debug("Saved new Scryfall card: {}", card.name);
+        return true;
+    }
+
+    /**
+     * Update existing card with Scryfall data
+     */
+    private void updateCardWithScryfallData(CardTemplate template, ScryfallCard card) {
+        // Update Scryfall ID if not set
+        if (template.getTcgplayerId() == null) {
+            template.setTcgplayerId(card.id);
+        }
+
+        // Update image URL if not set
+        if (template.getImageUrl() == null) {
+            template.setImageUrl(getScryfallImageUrl(card));
+        }
+
+        // Update prices
+        setPricesFromScryfall(template, card);
+
+        cardTemplateRepository.save(template);
+    }
+
+    /**
+     * Get image URL from Scryfall card
+     */
+    private String getScryfallImageUrl(ScryfallCard card) {
+        if (card.image_uris != null && card.image_uris.normal != null) {
+            return card.image_uris.normal;
+        }
+        if (card.card_faces != null && !card.card_faces.isEmpty()) {
+            ScryfallCardFace face = card.card_faces.get(0);
+            if (face.image_uris != null && face.image_uris.normal != null) {
+                return face.image_uris.normal;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Set prices from Scryfall data
+     */
+    private void setPricesFromScryfall(CardTemplate template, ScryfallCard card) {
+        if (card.prices != null) {
             try {
-                template.setRarity(Rarity.valueOf(rarityStr.toUpperCase()));
-            } catch (IllegalArgumentException e) {
-                template.setRarity(Rarity.COMMON); // Default fallback
-            }
-
-            // Image URLs - use normal size as default
-            JsonNode imageUris = cardNode.path("image_uris");
-            if (!imageUris.isMissingNode()) {
-                template.setImageUrl(imageUris.path("normal").asText());
-            }
-
-            // Description - use oracle text
-            template.setDescription(cardNode.path("oracle_text").asText());
-
-            // Mana cost - convert CMC to Integer
-            double cmc = cardNode.path("cmc").asDouble();
-            template.setManaCost((int) Math.round(cmc));
-
-            // Prices - use USD price
-            JsonNode prices = cardNode.path("prices");
-            if (!prices.isMissingNode()) {
-                String usdPrice = prices.path("usd").asText();
-                if (!usdPrice.isEmpty() && !"null".equals(usdPrice)) {
-                    try {
-                        template.setMarketPrice(Double.parseDouble(usdPrice));
-                    } catch (NumberFormatException e) {
-                        // Ignore invalid price
-                    }
+                if (card.prices.usd != null) {
+                    template.setMarketPrice(Double.parseDouble(card.prices.usd));
                 }
+                if (card.prices.usd_foil != null) {
+                    template.setPriceFoil(Double.parseDouble(card.prices.usd_foil));
+                }
+            } catch (NumberFormatException e) {
+                logger.warn("Invalid price format for card {}: {}", card.name, e.getMessage());
             }
-
-            // Set creation date
-            template.setDateCreated(LocalDateTime.now());
-
-            return template;
-        } catch (Exception e) {
-            logger.error("Error parsing individual Magic card template: " + e.getMessage());
-            return null;
         }
-    }
-
-    private CardTemplate parseOnePieceCardTemplate(JsonNode cardNode) {
-        try {
-            CardTemplate template = new CardTemplate();
-            template.setTcgType(TCGType.ONE_PIECE);
-
-            // Map One Piece TCG fields to our CardTemplate model
-            String cardName = cardNode.path("name").asText();
-            if (cardName == null || cardName.trim().isEmpty()) {
-                cardName = "Unknown Card";
-            }
-            template.setName(cardName);
-
-            // Use code as card number (base code without _p1/_p2 suffix)
-            String code = cardNode.path("code").asText();
-            String cardNumber;
-            if (!code.isEmpty()) {
-                cardNumber = code;
-            } else {
-                // Fallback to id if code is not available
-                String id = cardNode.path("id").asText();
-                if (!id.isEmpty()) {
-                    cardNumber = id;
-                } else {
-                    cardNumber = "UNKNOWN";
-                }
-            }
-            template.setCardNumber(cardNumber);
-
-            // Map rarity - One Piece uses various codes
-            String rarityStr = cardNode.path("rarity").asText();
-            try {
-                switch (rarityStr.toUpperCase()) {
-                    case "L":
-                        template.setRarity(Rarity.RARE); // Leader cards are rare
-                        break;
-                    case "R":
-                        template.setRarity(Rarity.RARE);
-                        break;
-                    case "SR":
-                    case "SEC":
-                        template.setRarity(Rarity.SECRET_RARE);
-                        break;
-                    case "UR":
-                        template.setRarity(Rarity.ULTRA_RARE);
-                        break;
-                    case "UC":
-                        template.setRarity(Rarity.UNCOMMON);
-                        break;
-                    case "C":
-                        template.setRarity(Rarity.COMMON);
-                        break;
-                    case "P":
-                        template.setRarity(Rarity.RARE); // Promo cards as rare
-                        break;
-                    default:
-                        template.setRarity(Rarity.COMMON); // Default fallback
-                        break;
-                }
-            } catch (Exception e) {
-                template.setRarity(Rarity.COMMON); // Default fallback
-            }
-
-            // Images - use large as default, small as alternative
-            JsonNode images = cardNode.path("images");
-            if (!images.isMissingNode()) {
-                template.setImageUrl(images.path("large").asText());
-                if (template.getImageUrl() == null || template.getImageUrl().isEmpty()) {
-                    template.setImageUrl(images.path("small").asText());
-                }
-            }
-
-            // Description - combine ability and trigger with more details
-            StringBuilder description = new StringBuilder();
-
-            // Add type information
-            String type = cardNode.path("type").asText();
-            if (!type.isEmpty()) {
-                description.append("Type: ").append(type).append("\n");
-            }
-
-            // Add cost information
-            if (cardNode.has("cost") && !cardNode.path("cost").isNull()) {
-                description.append("Cost: ").append(cardNode.path("cost").asInt()).append("\n");
-            }
-
-            // Add power information
-            if (cardNode.has("power") && !cardNode.path("power").isNull()) {
-                description.append("Power: ").append(cardNode.path("power").asInt()).append("\n");
-            }
-
-            // Add counter information
-            String counter = cardNode.path("counter").asText();
-            if (!counter.isEmpty() && !counter.equals("-")) {
-                description.append("Counter: ").append(counter).append("\n");
-            }
-
-            // Add color information
-            String color = cardNode.path("color").asText();
-            if (!color.isEmpty()) {
-                description.append("Color: ").append(color).append("\n");
-            }
-
-            // Add family information
-            String family = cardNode.path("family").asText();
-            if (!family.isEmpty()) {
-                description.append("Family: ").append(family).append("\n");
-            }
-
-            // Add ability
-            String ability = cardNode.path("ability").asText();
-            if (!ability.isEmpty() && !ability.equals("-")) {
-                description.append("Ability: ").append(ability).append("\n");
-            }
-
-            // Add trigger
-            String trigger = cardNode.path("trigger").asText();
-            if (!trigger.isEmpty()) {
-                description.append("Trigger: ").append(trigger).append("\n");
-            }
-
-            template.setDescription(description.toString().trim());
-
-            // Cost as mana cost
-            if (cardNode.has("cost") && !cardNode.path("cost").isNull()) {
-                template.setManaCost(cardNode.path("cost").asInt());
-            }
-
-            // Set code from the set information
-            JsonNode setNode = cardNode.path("set");
-            if (!setNode.isMissingNode()) {
-                String setName = setNode.path("name").asText();
-                if (!setName.isEmpty()) {
-                    template.setSetCode(setName);
-                } else {
-                    // Fallback: try to extract set code from card code
-                    String cardCode = cardNode.path("code").asText();
-                    if (!cardCode.isEmpty()) {
-                        // Extract set code from card code (e.g., "OP01-001" -> "OP01")
-                        String[] parts = cardCode.split("-");
-                        if (parts.length > 0) {
-                            template.setSetCode(parts[0]);
-                        } else {
-                            template.setSetCode("UNKNOWN");
-                        }
-                    } else {
-                        template.setSetCode("UNKNOWN");
-                    }
-                }
-            } else {
-                // Fallback: try to extract set code from card code
-                String cardCode = cardNode.path("code").asText();
-                if (!cardCode.isEmpty()) {
-                    // Extract set code from card code (e.g., "OP01-001" -> "OP01")
-                    String[] parts = cardCode.split("-");
-                    if (parts.length > 0) {
-                        template.setSetCode(parts[0]);
-                    } else {
-                        template.setSetCode("UNKNOWN");
-                    }
-                } else {
-                    template.setSetCode("UNKNOWN");
-                }
-            }
-
-            // Set creation date
-            template.setDateCreated(LocalDateTime.now());
-
-            return template;
-        } catch (Exception e) {
-            logger.error("Error parsing One Piece card template: " + e.getMessage());
-            return null;
-        }
-    }
-
-    // Legacy method for backward compatibility
-    public Double getMarketPrice(String cardName, String setCode) {
-        // Stub: return a random price
-        return Math.random() * 100 + 1;
     }
 }

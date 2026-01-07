@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Represents a trading card from JustTCG API.
+ * Represents a trading card from TCG API.
  * Contains all card metadata and references to variants (condition/printing
  * combinations).
  */
@@ -21,7 +21,7 @@ public class ArenaCard {
 
     @Id
     @Column(nullable = false, length = 512)
-    private String id; // JustTCG card ID: "pokemon-battle-academy-fire-energy-22-charizard-stamped"
+    private String id; // TCG card ID: "pokemon-battle-academy-fire-energy-22-charizard-stamped"
 
     @Column(nullable = false)
     private String name; // "Fire Energy (#22 Charizard Stamped)"

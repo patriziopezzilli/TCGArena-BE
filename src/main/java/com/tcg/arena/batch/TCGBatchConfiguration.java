@@ -2,7 +2,7 @@ package com.tcg.arena.batch;
 
 import com.tcg.arena.model.TCGType;
 import com.tcg.arena.service.ImportStatsCollector;
-import com.tcg.arena.service.JustTCGApiClient;
+import com.tcg.arena.service.TCGApiClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.Job;
@@ -21,46 +21,46 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 
 /**
- * Spring Batch configuration for JustTCG API import
+ * Spring Batch configuration for TCG API import
  * Uses Tasklet approach for simple API-to-DB import
  */
 @Configuration
-public class JustTCGBatchConfiguration {
+public class TCGBatchConfiguration {
 
-    private static final Logger logger = LoggerFactory.getLogger(JustTCGBatchConfiguration.class);
+    private static final Logger logger = LoggerFactory.getLogger(TCGBatchConfiguration.class);
 
     @Autowired
-    private JustTCGApiClient justTCGApiClient;
+    private TCGApiClient tcgApiClient;
     
     @Autowired
     private ImportStatsCollector statsCollector;
 
     @Bean
-    public Job justTCGImportJob(JobRepository jobRepository,
-            @Qualifier("justTCGImportStep") Step justTCGImportStep) {
-        return new JobBuilder("justTCGImportJob", jobRepository)
-                .start(justTCGImportStep)
+    public Job tcgImportJob(JobRepository jobRepository,
+            @Qualifier("tcgImportStep") Step tcgImportStep) {
+        return new JobBuilder("tcgImportJob", jobRepository)
+                .start(tcgImportStep)
                 .build();
     }
 
     @Bean
-    @Qualifier("justTCGImportStep")
-    public Step justTCGImportStep(JobRepository jobRepository,
+    @Qualifier("tcgImportStep")
+    public Step tcgImportStep(JobRepository jobRepository,
             PlatformTransactionManager transactionManager,
-            @Qualifier("justTCGImportTasklet") Tasklet tasklet) {
-        return new StepBuilder("justTCGImportStep", jobRepository)
+            @Qualifier("tcgImportTasklet") Tasklet tasklet) {
+        return new StepBuilder("tcgImportStep", jobRepository)
                 .tasklet(tasklet, transactionManager)
                 .build();
     }
 
     @Bean
     @StepScope
-    @Qualifier("justTCGImportTasklet")
-    public Tasklet justTCGImportTasklet(
+    @Qualifier("tcgImportTasklet")
+    public Tasklet tcgImportTasklet(
             @Value("#{jobParameters['tcgType']}") String tcgTypeParam) {
 
         return (contribution, chunkContext) -> {
-            logger.info("Starting JustTCG import tasklet with tcgType: {}", tcgTypeParam);
+            logger.info("Starting TCG import tasklet with tcgType: {}", tcgTypeParam);
 
             TCGType tcgType;
             try {
@@ -70,9 +70,9 @@ public class JustTCGBatchConfiguration {
                 return RepeatStatus.FINISHED;
             }
 
-            if (!justTCGApiClient.isTCGSupported(tcgType)) {
-                logger.warn("TCG type {} is not supported by JustTCG API", tcgType);
-                statsCollector.recordImportFailure(tcgType, "TCG not supported by JustTCG API");
+            if (!tcgApiClient.isTCGSupported(tcgType)) {
+                logger.warn("TCG type {} is not supported by TCG API", tcgType);
+                statsCollector.recordImportFailure(tcgType, "TCG not supported by TCG API");
                 return RepeatStatus.FINISHED;
             }
 
@@ -81,18 +81,18 @@ public class JustTCGBatchConfiguration {
 
             try {
                 logger.info("Starting reactive import for {}", tcgType.getDisplayName());
-                Integer importedCount = justTCGApiClient.importCardsForTCG(tcgType)
+                Integer importedCount = tcgApiClient.importCardsForTCG(tcgType)
                         .timeout(java.time.Duration.ofHours(4)) // 4 hour timeout
                         .block();
                 
                 int imported = (importedCount != null) ? importedCount : 0;
-                logger.info("JustTCG import completed. Imported {} cards for {}",
+                logger.info("TCG import completed. Imported {} cards for {}",
                         imported, tcgType.getDisplayName());
                 
                 // Record success
                 statsCollector.recordImportSuccess(tcgType, imported, imported, 0);
             } catch (Exception e) {
-                logger.error("Error during JustTCG import: {}", e.getMessage(), e);
+                logger.error("Error during TCG import: {}", e.getMessage(), e);
                 statsCollector.recordImportFailure(tcgType, e.getMessage());
             }
 

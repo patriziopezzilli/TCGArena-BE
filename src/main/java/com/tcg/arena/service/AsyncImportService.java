@@ -30,23 +30,23 @@ public class AsyncImportService {
     private ImportProgressRepository importProgressRepository;
 
     /**
-     * Starts an async import job for JustTCG API
+     * Starts an async import job for TCG API
      */
-    public ImportJob triggerJustTCGImportAsync(TCGType tcgType) {
+    public ImportJob triggerTCGImportAsync(TCGType tcgType) {
         // Create job record
         ImportJob job = new ImportJob(tcgType);
         jobs.put(job.getId(), job);
 
         // Execute asynchronously
-        runJustTCGImport(job);
+        runTCGImport(job);
 
         return job;
     }
 
     @Async
-    protected void runJustTCGImport(ImportJob job) {
+    protected void runTCGImport(ImportJob job) {
         job.setStatus(JobStatus.RUNNING);
-        job.setMessage("Starting import via JustTCG API...");
+        job.setMessage("Starting import via TCG API...");
 
         try {
             logger.info("Starting Async JustTCG Import for Job ID: {}", job.getId());

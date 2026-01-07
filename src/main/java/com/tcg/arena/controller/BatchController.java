@@ -2,7 +2,7 @@ package com.tcg.arena.controller;
 
 import com.tcg.arena.model.TCGType;
 import com.tcg.arena.service.BatchService;
-import com.tcg.arena.service.JustTCGApiClient;
+import com.tcg.arena.service.TCGApiClient;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -26,18 +26,18 @@ public class BatchController {
     private static final Logger logger = LoggerFactory.getLogger(BatchController.class);
 
     @Autowired
-    private JustTCGApiClient justTCGApiClient;
+    private TCGApiClient tcgApiClient;
 
     @Autowired
     private com.tcg.arena.service.AsyncImportService asyncImportService;
 
-    @PostMapping("/justtcg/{tcgType}")
-    @Operation(summary = "Trigger JustTCG import", description = "Triggers a JustTCG API import for a specific TCG type with real-time pricing (Async)")
+    @PostMapping("/tcg/{tcgType}")
+    @Operation(summary = "Trigger TCG import", description = "Triggers a TCG API import for a specific TCG type with real-time pricing (Async)")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "JustTCG import started successfully"),
+            @ApiResponse(responseCode = "200", description = "TCG import started successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid or unsupported TCG type")
     })
-    public ResponseEntity<Map<String, Object>> triggerJustTCGImport(
+    public ResponseEntity<Map<String, Object>> triggerTCGImport(
             @Parameter(description = "TCG type to import") @PathVariable String tcgType) {
 
         Map<String, Object> response = new HashMap<>();
@@ -45,31 +45,31 @@ public class BatchController {
         try {
             TCGType type = TCGType.valueOf(tcgType.toUpperCase());
 
-            if (!justTCGApiClient.isTCGSupported(type)) {
+            if (!tcgApiClient.isTCGSupported(type)) {
                 response.put("success", false);
-                response.put("message", type.getDisplayName() + " is not supported by JustTCG API");
-                response.put("supportedTypes", justTCGApiClient.getSupportedTCGTypes());
+                response.put("message", type.getDisplayName() + " is not supported by TCG API");
+                response.put("supportedTypes", tcgApiClient.getSupportedTCGTypes());
                 return ResponseEntity.badRequest().body(response);
             }
 
             // Start async job
-            com.tcg.arena.model.ImportJob job = asyncImportService.triggerJustTCGImportAsync(type);
+            com.tcg.arena.model.ImportJob job = asyncImportService.triggerTCGImportAsync(type);
 
             response.put("success", true);
-            response.put("message", "JustTCG import started async for " + type.getDisplayName());
+            response.put("message", "TCG import started async for " + type.getDisplayName());
             response.put("tcgType", type.name());
             response.put("jobId", job.getId()); // Return Job ID for polling
 
-            logger.info("JustTCG import triggered async for {}, Job ID: {}", type, job.getId());
+            logger.info("TCG import triggered async for {}, Job ID: {}", type, job.getId());
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             response.put("success", false);
             response.put("message", "Invalid TCG type: " + tcgType);
             return ResponseEntity.badRequest().body(response);
         } catch (Exception e) {
-            logger.error("Error triggering JustTCG import: {}", e.getMessage(), e);
+            logger.error("Error triggering TCG import: {}", e.getMessage(), e);
             response.put("success", false);
-            response.put("message", "Error starting JustTCG import: " + e.getMessage());
+            response.put("message", "Error starting TCG import: " + e.getMessage());
             return ResponseEntity.internalServerError().body(response);
         }
     }
@@ -92,33 +92,33 @@ public class BatchController {
         }
     }
 
-    @GetMapping("/justtcg/supported")
-    @Operation(summary = "Get supported TCG types", description = "Returns list of TCG types supported by JustTCG API")
+    @GetMapping("/tcg/supported")
+    @Operation(summary = "Get supported TCG types", description = "Returns list of TCG types supported by TCG API")
     @ApiResponse(responseCode = "200", description = "List of supported TCG types")
     public ResponseEntity<Map<String, Object>> getSupportedTCGTypes() {
         Map<String, Object> response = new HashMap<>();
 
-        List<TCGType> supportedTypes = justTCGApiClient.getSupportedTCGTypes();
+        List<TCGType> supportedTypes = tcgApiClient.getSupportedTCGTypes();
         response.put("supportedTypes", supportedTypes);
         response.put("count", supportedTypes.size());
 
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/justtcg/games")
-    @Operation(summary = "Get available JustTCG games", description = "Fetches the list of available games from JustTCG API to verify game IDs")
-    @ApiResponse(responseCode = "200", description = "List of available games from JustTCG")
-    public ResponseEntity<Map<String, Object>> getJustTCGGames() {
+    @GetMapping("/tcg/games")
+    @Operation(summary = "Get available TCG games", description = "Fetches the list of available games from TCG API to verify game IDs")
+    @ApiResponse(responseCode = "200", description = "List of available games from TCG")
+    public ResponseEntity<Map<String, Object>> getTCGGames() {
         Map<String, Object> response = new HashMap<>();
 
         try {
-            List<?> games = justTCGApiClient.getGames().block();
+            List<?> games = tcgApiClient.getGames().block();
             response.put("success", true);
             response.put("games", games);
             response.put("count", games != null ? games.size() : 0);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            logger.error("Error fetching JustTCG games: {}", e.getMessage());
+            logger.error("Error fetching TCG games: {}", e.getMessage());
             response.put("success", false);
             response.put("message", e.getMessage());
             return ResponseEntity.internalServerError().body(response);

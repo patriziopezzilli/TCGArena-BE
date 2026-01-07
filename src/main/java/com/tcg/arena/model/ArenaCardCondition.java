@@ -1,7 +1,7 @@
 package com.tcg.arena.model;
 
 /**
- * Card condition enum matching JustTCG API conditions.
+ * Card condition enum matching TCG API conditions.
  * Used for ArenaCardVariant to track price per condition.
  */
 public enum ArenaCardCondition {
@@ -29,7 +29,7 @@ public enum ArenaCardCondition {
     }
 
     /**
-     * Parse condition from JustTCG API string.
+     * Parse condition from TCG API string.
      * Supports both full names and abbreviations.
      */
     public static ArenaCardCondition fromString(String value) {

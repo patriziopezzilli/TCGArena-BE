@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 
 /**
- * Represents a card variant from JustTCG API.
+ * Represents a card variant from TCG API.
  * Each variant is a unique combination of condition + printing for a card,
  * with its own price and tracking information.
  */
@@ -21,7 +21,7 @@ public class ArenaCardVariant {
 
     @Id
     @Column(nullable = false, length = 600)
-    private String id; // JustTCG variant ID:
+    private String id; // TCG variant ID:
                        // "pokemon-battle-academy-fire-energy-22-charizard-stamped_near-mint"
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -39,7 +39,7 @@ public class ArenaCardVariant {
 
     private Double price;
 
-    private Long lastUpdatedEpoch; // Unix timestamp from JustTCG API
+    private Long lastUpdatedEpoch; // Unix timestamp from TCG API
 
     private LocalDateTime lastUpdated; // Converted for internal use
 

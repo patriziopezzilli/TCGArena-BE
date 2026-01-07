@@ -5,7 +5,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 /**
- * Price statistics for a card variant from JustTCG API.
+ * Price statistics for a card variant from TCG API.
  * Contains min/max/avg/change data for 7d, 30d, 90d, 1y, and all-time periods.
  */
 @Entity

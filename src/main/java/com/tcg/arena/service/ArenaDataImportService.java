@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Creates a complete dataset: ArenaGame → ArenaSet → ArenaCard →
  * ArenaCardVariant
  * 
- * This service is separate from JustTCGApiClient which imports into the legacy
+ * This service is separate from TCGApiClient which imports into the legacy
  * Expansion → TCGSet → CardTemplate hierarchy.
  */
 @Service
@@ -85,7 +85,7 @@ public class ArenaDataImportService {
                 .collectList()
                 .map(games -> {
                     int count = 0;
-                    for (JustTCGApiClient.JustTCGGame game : games) {
+                    for (TCGApiClient.TCGGame game : games) {
                         ArenaGame arenaGame = arenaGameRepository.findById(game.id)
                                 .orElseGet(() -> new ArenaGame(game.id, game.name));
                         arenaGame.setName(game.name);
@@ -114,7 +114,7 @@ public class ArenaDataImportService {
                         .collectList()
                         .map(sets -> {
                             int count = 0;
-                            for (JustTCGApiClient.JustTCGSet set : sets) {
+                            for (TCGApiClient.TCGSet set : sets) {
                                 ArenaSet arenaSet = arenaSetRepository.findById(set.id)
                                         .orElseGet(() -> new ArenaSet(set.id, set.name));
                                 arenaSet.setName(set.name);
@@ -152,7 +152,7 @@ public class ArenaDataImportService {
                             logger.info("Fetched {} sets for {}", sets.size(), gameId);
 
                             // Save all sets first
-                            for (JustTCGApiClient.JustTCGSet set : sets) {
+                            for (TCGApiClient.TCGSet set : sets) {
                                 ArenaSet arenaSet = arenaSetRepository.findById(set.id)
                                         .orElseGet(() -> new ArenaSet(set.id, set.name));
                                 arenaSet.setName(set.name);
@@ -166,13 +166,13 @@ public class ArenaDataImportService {
                             // Step 2: Fetch all cards page by page
                             return fetchCardPages(gameId, 0)
                                     .concatMap(response -> {
-                                        List<JustTCGApiClient.JustTCGCard> cards = response.getCards();
+                                        List<TCGApiClient.TCGCard> cards = response.getCards();
                                         if (cards.isEmpty()) {
                                             return Mono.empty();
                                         }
 
                                         int savedCount = 0;
-                                        for (JustTCGApiClient.JustTCGCard card : cards) {
+                                        for (TCGApiClient.TCGCard card : cards) {
                                             if (card == null || card.name == null)
                                                 continue;
 
@@ -205,7 +205,7 @@ public class ArenaDataImportService {
     // ==================== Card Saving Logic ====================
 
     @Transactional
-    protected void saveCard(JustTCGApiClient.JustTCGCard card, ArenaGame game, String gameId) {
+    protected void saveCard(TCGApiClient.TCGCard card, ArenaGame game, String gameId) {
         // Get or create set
         ArenaSet set = null;
         if (card.set != null) {
@@ -248,8 +248,8 @@ public class ArenaDataImportService {
     }
 
     @Transactional
-    protected void saveVariants(ArenaCard arenaCard, List<JustTCGApiClient.JustTCGVariant> variants) {
-        for (JustTCGApiClient.JustTCGVariant variant : variants) {
+    protected void saveVariants(ArenaCard arenaCard, List<TCGApiClient.TCGVariant> variants) {
+        for (TCGApiClient.TCGVariant variant : variants) {
             if (variant.id == null)
                 continue;
 
@@ -282,12 +282,12 @@ public class ArenaDataImportService {
 
     // ==================== API Fetching Methods ====================
 
-    private Flux<JustTCGApiClient.JustTCGGame> fetchGames() {
+    private Flux<TCGApiClient.TCGGame> fetchGames() {
         return webClient.get()
                 .uri("/games")
                 .header("x-api-key", apiKey)
                 .retrieve()
-                .bodyToFlux(JustTCGApiClient.JustTCGGame.class)
+                .bodyToFlux(TCGApiClient.TCGGame.class)
                 .doOnNext(game -> logger.debug("Fetched game: {}", game.id))
                 .onErrorResume(e -> {
                     logger.error("Error fetching games: {}", e.getMessage());
@@ -295,7 +295,7 @@ public class ArenaDataImportService {
                 });
     }
 
-    private Flux<JustTCGApiClient.JustTCGSet> fetchSets(String gameId) {
+    private Flux<TCGApiClient.TCGSet> fetchSets(String gameId) {
         return fetchSetsPage(gameId, null)
                 .expand(response -> {
                     if (response.hasMore && response.nextCursor != null) {
@@ -304,10 +304,10 @@ public class ArenaDataImportService {
                     }
                     return Mono.empty();
                 })
-                .flatMapIterable(JustTCGApiClient.JustTCGSetsResponse::getSets);
+                .flatMapIterable(TCGApiClient.TCGSetsResponse::getSets);
     }
 
-    private Mono<JustTCGApiClient.JustTCGSetsResponse> fetchSetsPage(String gameId, String cursor) {
+    private Mono<TCGApiClient.TCGSetsResponse> fetchSetsPage(String gameId, String cursor) {
         return webClient.get()
                 .uri(uriBuilder -> {
                     var builder = uriBuilder.path("/sets").queryParam("game", gameId);
@@ -318,18 +318,18 @@ public class ArenaDataImportService {
                 })
                 .header("x-api-key", apiKey)
                 .retrieve()
-                .bodyToMono(JustTCGApiClient.JustTCGSetsResponse.class)
+                .bodyToMono(TCGApiClient.TCGSetsResponse.class)
                 .doOnSuccess(resp -> logger.debug("Fetched {} sets for {}", resp.getSets().size(), gameId))
                 .onErrorResume(e -> {
                     logger.error("Error fetching sets for {}: {}", gameId, e.getMessage());
-                    return Mono.just(new JustTCGApiClient.JustTCGSetsResponse());
+                    return Mono.just(new TCGApiClient.TCGSetsResponse());
                 });
     }
 
-    private Flux<JustTCGApiClient.JustTCGCardsResponse> fetchCardPages(String gameId, int startOffset) {
+    private Flux<TCGApiClient.TCGCardsResponse> fetchCardPages(String gameId, int startOffset) {
         return fetchCardsPage(gameId, startOffset)
                 .expand(response -> {
-                    List<JustTCGApiClient.JustTCGCard> cards = response.getCards();
+                    List<TCGApiClient.TCGCard> cards = response.getCards();
                     if (!cards.isEmpty()) {
                         int nextOffset = response.currentOffset + PAGE_SIZE;
                         return fetchCardsPage(gameId, nextOffset)
@@ -339,7 +339,7 @@ public class ArenaDataImportService {
                 });
     }
 
-    private Mono<JustTCGApiClient.JustTCGCardsResponse> fetchCardsPage(String gameId, int offset) {
+    private Mono<TCGApiClient.TCGCardsResponse> fetchCardsPage(String gameId, int offset) {
         return webClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/cards")
@@ -349,7 +349,7 @@ public class ArenaDataImportService {
                         .build())
                 .header("x-api-key", apiKey)
                 .retrieve()
-                .bodyToMono(JustTCGApiClient.JustTCGCardsResponse.class)
+                .bodyToMono(TCGApiClient.TCGCardsResponse.class)
                 .map(response -> {
                     response.currentOffset = offset;
                     return response;
@@ -362,7 +362,7 @@ public class ArenaDataImportService {
                 })
                 .onErrorResume(e -> {
                     logger.error("Error fetching cards for {} (offset {}): {}", gameId, offset, e.getMessage());
-                    JustTCGApiClient.JustTCGCardsResponse errorResponse = new JustTCGApiClient.JustTCGCardsResponse();
+                    TCGApiClient.TCGCardsResponse errorResponse = new TCGApiClient.TCGCardsResponse();
                     errorResponse.currentOffset = offset;
                     return Mono.just(errorResponse);
                 });
@@ -386,7 +386,7 @@ public class ArenaDataImportService {
                 .uri("/games")
                 .header("x-api-key", apiKey)
                 .retrieve()
-                .bodyToFlux(JustTCGApiClient.JustTCGGame.class)
+                .bodyToFlux(TCGApiClient.TCGGame.class)
                 .filter(g -> g.id.equals(gameId))
                 .next()
                 .map(g -> {
