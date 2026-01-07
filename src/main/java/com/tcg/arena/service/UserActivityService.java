@@ -61,7 +61,10 @@ public class UserActivityService {
 
     public List<UserActivityDTO> getRecentGlobalActivities(int limit) {
         List<UserActivity> activities = userActivityRepository.findAllByOrderByTimestampDesc();
-        List<UserActivity> limitedActivities = activities.stream().limit(limit).collect(Collectors.toList());
+        List<UserActivity> limitedActivities = activities.stream()
+                .filter(activity -> activity.getActivityType() != ActivityType.USER_PREFERENCES_UPDATED)
+                .limit(limit)
+                .collect(Collectors.toList());
         Map<Long, User> userMap = getUserMap(limitedActivities);
         return limitedActivities.stream()
                 .map(a -> convertToDTO(a, userMap))

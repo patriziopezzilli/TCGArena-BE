@@ -367,7 +367,7 @@ public class UserController {
 
                         // Log preference update activity
                         userActivityService.logActivity(id,
-                                        com.tcg.arena.model.ActivityType.USER_PROFILE_UPDATED,
+                                        com.tcg.arena.model.ActivityType.USER_PREFERENCES_UPDATED,
                                         "Aggiornate preferenze notifiche email: " + (emailNotificationsEnabled ? "abilitate" : "disabilitate"));
 
                         return ResponseEntity.ok(updatedUser);

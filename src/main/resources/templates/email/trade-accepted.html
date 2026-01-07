@@ -29,7 +29,9 @@
             margin-bottom: 8px;
         }
         .header-icon {
-            font-size: 48px;
+            font-size: 32px;
+            font-weight: 700;
+            color: white;
             margin-bottom: 12px;
         }
         .content {
@@ -67,12 +69,47 @@
             font-size: 13px;
             color: #6b7280;
         }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #0f0f0f;
+                color: #e5e5e5;
+            }
+            .container {
+                background: #1a1a1a;
+            }
+            .header {
+                background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            }
+            .content {
+                color: #d1d5db;
+            }
+            .info-box {
+                background: #1e3a8a;
+                border-left-color: #3b82f6;
+            }
+            .info-text {
+                color: #dbeafe;
+            }
+            .cta-button {
+                background: #e5e5e5;
+                color: #0f0f0f;
+            }
+            .footer {
+                background: #1a1a1a;
+                border-color: #404040;
+            }
+            .footer-text {
+                color: #a3a3a3;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div class="header-icon">✅</div>
+            <div class="header-icon">✓</div>
             <h1>Scambio Accettato!</h1>
         </div>
         
@@ -84,7 +121,7 @@
             
             <div class="info-box">
                 <p class="info-text">
-                    <strong>📍 Prossimi passi:</strong><br>
+                    <strong>Prossimi passi:</strong><br>
                     1. Accordatevi su luogo e ora tramite chat<br>
                     2. Incontratevi per lo scambio<br>
                     3. Segnate lo scambio come completato
@@ -98,13 +135,13 @@
             </div>
             
             <p style="font-size: 14px; color: #6b7280; text-align: center;">
-                Ricordati di controllare sempre le carte prima di completare lo scambio! 🔍
+                Ricordati di controllare sempre le carte prima di completare lo scambio!
             </p>
         </div>
         
         <div class="footer">
             <p class="footer-text">
-                © 2026 TCG Arena • Buon trading! 🎴
+                © 2026 TCG Arena • Buon trading!
             </p>
         </div>
     </div>

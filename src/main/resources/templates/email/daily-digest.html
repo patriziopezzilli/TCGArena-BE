@@ -197,13 +197,13 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1>📊 Riepilogo Giornaliero</h1>
+            <h1>Riepilogo Giornaliero</h1>
             <div class="header-date" th:text="${digestDate}">4 Gennaio 2026</div>
         </div>
         
         <!-- Content -->
         <div class="content">
-            <p class="greeting">Ciao <span th:text="${username}">User</span>! 👋</p>
+            <p class="greeting">Ciao <span th:text="${username}">User</span>!</p>
             <p class="subtitle">Ecco cosa è successo ieri su TCG Arena</p>
             
             <!-- User Stats -->
@@ -324,15 +324,15 @@
                 <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px;">
                     <a th:href="${frontendUrl + '/trades'}" 
                        style="background: #10b981; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
-                        🔄 Scambia carte
+                        Scambia carte
                     </a>
                     <a th:href="${frontendUrl + '/events'}" 
                        style="background: #f59e0b; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
-                        📅 Eventi
+                        Eventi
                     </a>
                     <a th:href="${frontendUrl + '/collection'}" 
                        style="background: #8b5cf6; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
-                        🎴 Collezione
+                        Collezione
                     </a>
                 </div>
                 <p style="font-size: 14px; color: #6b7280; margin-top: 16px;">

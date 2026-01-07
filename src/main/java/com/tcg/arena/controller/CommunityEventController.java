@@ -97,11 +97,7 @@ public class CommunityEventController {
                 // Get full event details for email
                 CommunityEvent event = eventRepository.findById(id).orElse(null);
                 if (event != null) {
-                    emailService.sendTournamentRegistration(
-                        user.getEmail(),
-                        user.getUsername(),
-                        event
-                    );
+                    emailService.sendTournamentRegistration(user, event);
                     logger.info("Event registration email sent to: {}", user.getEmail());
                 }
             }

@@ -13,10 +13,6 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
-import org.thymeleaf.context.Context;
-import org.thymeleaf.spring6.SpringTemplateEngine;
-
-import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -132,7 +128,7 @@ public class EmailService {
     // ===== TRANSACTIONAL EMAILS =====
     
     /**
-     * Check if user has enabled email notifications
+     * Check if user has enabled email notifications (general flag)
      */
     private boolean shouldSendEmail(User user) {
         return user.getEmailNotificationsEnabled() != null ? user.getEmailNotificationsEnabled() : true;
@@ -156,7 +152,26 @@ public class EmailService {
     /**
      * Send tournament registration confirmation
      */
+    public void sendTournamentRegistration(User user, CommunityEvent event) {
+        if (!shouldSendEmail(user)) {
+            logger.debug("Skipping tournament registration email for user {} - email notifications disabled", user.getId());
+            return;
+        }
+        
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("username", user.getUsername());
+        variables.put("eventName", event.getTitle());
+        variables.put("eventDate", event.getEventDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+        variables.put("eventLocation", event.getLocationName());
+        variables.put("eventId", event.getId());
+        sendHtmlEmail(user.getEmail(), "Iscrizione Torneo Confermata - " + event.getTitle(), "email/tournament-registration", variables);
+    }
+    
+    /**
+     * Send tournament registration confirmation (for non-registered users)
+     */
     public void sendTournamentRegistration(String email, String username, CommunityEvent event) {
+        // For non-registered users, we don't have preferences to check, so send the email
         Map<String, Object> variables = new HashMap<>();
         variables.put("username", username);
         variables.put("eventName", event.getTitle());
@@ -169,13 +184,18 @@ public class EmailService {
     /**
      * Send card reservation with QR code
      */
-    public void sendCardReservation(String email, String username, String cardName, String shopName, String qrCodeUrl) {
+    public void sendCardReservation(User user, String cardName, String shopName, String qrCodeUrl) {
+        if (!shouldSendEmail(user)) {
+            logger.debug("Skipping card reservation email for user {} - email notifications disabled", user.getId());
+            return;
+        }
+        
         Map<String, Object> variables = new HashMap<>();
-        variables.put("username", username);
+        variables.put("username", user.getUsername());
         variables.put("cardName", cardName);
         variables.put("shopName", shopName);
         variables.put("qrCodeUrl", qrCodeUrl);
-        sendHtmlEmail(email, "Prenotazione Carta - " + cardName, "email/card-reservation", variables);
+        sendHtmlEmail(user.getEmail(), "Prenotazione Carta - " + cardName, "email/card-reservation", variables);
     }
     
     /**
@@ -288,9 +308,14 @@ public class EmailService {
     /**
      * Send event reminder (24h before)
      */
-    public void sendEventReminder(String email, String username, CommunityEvent event) {
+    public void sendEventReminder(User user, CommunityEvent event) {
+        if (!shouldSendEmail(user)) {
+            logger.debug("Skipping event reminder email for user {} - email notifications disabled", user.getId());
+            return;
+        }
+        
         Map<String, Object> variables = new HashMap<>();
-        variables.put("username", username);
+        variables.put("username", user.getUsername());
         variables.put("eventTitle", event.getTitle());
         variables.put("eventDate", event.getEventDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
         variables.put("eventTime", event.getEventDate().format(DateTimeFormatter.ofPattern("HH:mm")));
@@ -299,37 +324,47 @@ public class EmailService {
         if (event.getShop() != null) {
             variables.put("eventShopName", event.getShop().getName());
         }
-        sendHtmlEmail(email, "Promemoria: " + event.getTitle() + " domani!", "email/event-reminder", variables);
+        sendHtmlEmail(user.getEmail(), "Promemoria: " + event.getTitle() + " domani!", "email/event-reminder", variables);
     }
     
     /**
      * Send event cancelled notification
      */
-    public void sendEventCancelled(String email, String username, String eventTitle, String eventDate, 
+    public void sendEventCancelled(User user, String eventTitle, String eventDate, 
                                     String eventLocation, String cancellationReason) {
+        if (!shouldSendEmail(user)) {
+            logger.debug("Skipping event cancelled email for user {} - email notifications disabled", user.getId());
+            return;
+        }
+        
         Map<String, Object> variables = new HashMap<>();
-        variables.put("username", username);
+        variables.put("username", user.getUsername());
         variables.put("eventTitle", eventTitle);
         variables.put("eventDate", eventDate);
         variables.put("eventLocation", eventLocation);
         variables.put("cancellationReason", cancellationReason);
-        sendHtmlEmail(email, "Evento Cancellato: " + eventTitle, "email/event-cancelled", variables);
+        sendHtmlEmail(user.getEmail(), "Evento Cancellato: " + eventTitle, "email/event-cancelled", variables);
     }
     
     /**
      * Send event updated notification
      */
-    public void sendEventUpdated(String email, String username, String eventTitle, Long eventId, 
+    public void sendEventUpdated(User user, String eventTitle, Long eventId, 
                                   String newDate, String newTime, String newLocation, String updateNote) {
+        if (!shouldSendEmail(user)) {
+            logger.debug("Skipping event updated email for user {} - email notifications disabled", user.getId());
+            return;
+        }
+        
         Map<String, Object> variables = new HashMap<>();
-        variables.put("username", username);
+        variables.put("username", user.getUsername());
         variables.put("eventTitle", eventTitle);
         variables.put("eventId", eventId);
         if (newDate != null) variables.put("newDate", newDate);
         if (newTime != null) variables.put("newTime", newTime);
         if (newLocation != null) variables.put("newLocation", newLocation);
         if (updateNote != null) variables.put("updateNote", updateNote);
-        sendHtmlEmail(email, "Evento Aggiornato: " + eventTitle, "email/event-updated", variables);
+        sendHtmlEmail(user.getEmail(), "Evento Aggiornato: " + eventTitle, "email/event-updated", variables);
     }
     
     // ===== SECURITY & SHOP NOTIFICATIONS =====

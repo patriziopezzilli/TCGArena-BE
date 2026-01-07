@@ -62,13 +62,35 @@
         .button:hover {
             opacity: 0.9;
         }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #1a1a1a;
+                color: #e5e5e5;
+            }
+            .container {
+                background: #2d2d2d;
+                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            }
+            .header {
+                background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            }
+            .footer {
+                background: #1f1f1f;
+                color: #a3a3a3;
+            }
+            .footer-link {
+                color: #818cf8;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1>🎴 TCG Arena</h1>
+            <h1>TCG Arena</h1>
         </div>
         
         <!-- Dynamic Content -->

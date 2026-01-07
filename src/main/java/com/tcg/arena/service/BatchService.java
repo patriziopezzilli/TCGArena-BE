@@ -16,18 +16,18 @@ public class BatchService {
     private JobLauncher jobLauncher;
 
     @Autowired
-    @Qualifier("justTCGImportJob")
-    private Job justTCGImportJob;
+    @Qualifier("tcgImportJob")
+    private Job tcgImportJob;
 
     /**
-     * Trigger JustTCG API import for a specific TCG type
+     * Trigger TCG API import for a specific TCG type
      */
-    public void triggerJustTCGImport(TCGType tcgType) throws Exception {
+    public void triggerTCGImport(TCGType tcgType) throws Exception {
         JobParameters jobParameters = new JobParametersBuilder()
                 .addLong("time", System.currentTimeMillis())
                 .addString("tcgType", tcgType.name())
                 .toJobParameters();
 
-        jobLauncher.run(justTCGImportJob, jobParameters);
+        jobLauncher.run(tcgImportJob, jobParameters);
     }
 }

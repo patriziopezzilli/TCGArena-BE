@@ -481,7 +481,7 @@ public class AdminController {
             @Parameter(description = "Starting index for import (-99 to import all)") @RequestParam(defaultValue = "-99") int startIndex,
             @Parameter(description = "Ending index for import (-99 to import until end)") @RequestParam(defaultValue = "-99") int endIndex) {
         try {
-            batchService.triggerJustTCGImport(tcgType);
+            batchService.triggerTCGImport(tcgType);
             String message;
             if (startIndex == -99 && endIndex == -99) {
                 message = "Batch import triggered successfully for " + tcgType;

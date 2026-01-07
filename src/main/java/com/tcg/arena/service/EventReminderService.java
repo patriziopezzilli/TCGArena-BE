@@ -5,7 +5,6 @@ import com.tcg.arena.model.CommunityEventParticipant;
 import com.tcg.arena.model.User;
 import com.tcg.arena.repository.CommunityEventRepository;
 import com.tcg.arena.repository.EventParticipantRepository;
-import com.tcg.arena.repository.UserEmailPreferencesRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -21,16 +20,13 @@ public class EventReminderService {
     
     private final CommunityEventRepository eventRepository;
     private final EventParticipantRepository participantRepository;
-    private final UserEmailPreferencesRepository preferencesRepository;
     private final EmailService emailService;
 
     public EventReminderService(CommunityEventRepository eventRepository,
                                 EventParticipantRepository participantRepository,
-                                UserEmailPreferencesRepository preferencesRepository,
                                 EmailService emailService) {
         this.eventRepository = eventRepository;
         this.participantRepository = participantRepository;
-        this.preferencesRepository = preferencesRepository;
         this.emailService = emailService;
     }
 
@@ -67,24 +63,12 @@ public class EventReminderService {
         for (CommunityEventParticipant participant : participants) {
             User user = participant.getUser();
             
-            // Check email preferences
-            if (shouldSendEventNotification(user)) {
-                try {
-                    emailService.sendEventReminder(user.getEmail(), user.getUsername(), event);
-                    logger.info("Event reminder sent to user: {}", user.getUsername());
-                } catch (Exception e) {
-                    logger.error("Failed to send event reminder to user: {}", user.getUsername(), e);
-                }
+            try {
+                emailService.sendEventReminder(user, event);
+                logger.info("Event reminder sent to user: {}", user.getUsername());
+            } catch (Exception e) {
+                logger.error("Failed to send event reminder to user: {}", user.getUsername(), e);
             }
         }
-    }
-
-    /**
-     * Check if user wants to receive event notifications
-     */
-    private boolean shouldSendEventNotification(User user) {
-        return preferencesRepository.findByUser(user)
-                .map(prefs -> prefs.getEventNotifications())
-                .orElse(true); // Default to true if no preferences set
     }
 }

@@ -29,7 +29,9 @@
             margin-bottom: 8px;
         }
         .header-icon {
-            font-size: 48px;
+            font-size: 32px;
+            font-weight: 700;
+            color: white;
             margin-bottom: 12px;
         }
         .content {
@@ -86,12 +88,55 @@
             font-size: 13px;
             color: #6b7280;
         }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #0f0f0f;
+                color: #e5e5e5;
+            }
+            .container {
+                background: #1a1a1a;
+            }
+            .header {
+                background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+            }
+            .content {
+                color: #d1d5db;
+            }
+            .event-box {
+                background: #1e3a8a;
+                border-color: #3b82f6;
+            }
+            .event-title {
+                color: #dbeafe;
+            }
+            .change-item {
+                background: #2d2d2d;
+            }
+            .change-label {
+                color: #93c5fd;
+            }
+            .change-value {
+                color: #bfdbfe;
+            }
+            .cta-button {
+                background: #3b82f6;
+            }
+            .footer {
+                background: #1a1a1a;
+                border-color: #404040;
+            }
+            .footer-text {
+                color: #a3a3a3;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <div class="header-icon">📝</div>
+            <div class="header-icon">i</div>
             <h1>Evento Aggiornato</h1>
         </div>
         
@@ -105,22 +150,22 @@
                 <p class="event-title" th:text="${eventTitle}">Event Title</p>
                 
                 <div class="change-item" th:if="${newDate}">
-                    <p class="change-label">📅 Nuova Data</p>
+                    <p class="change-label">Nuova Data</p>
                     <p class="change-value" th:text="${newDate}">New Date</p>
                 </div>
                 
                 <div class="change-item" th:if="${newTime}">
-                    <p class="change-label">🕐 Nuovo Orario</p>
+                    <p class="change-label">Nuovo Orario</p>
                     <p class="change-value" th:text="${newTime}">New Time</p>
                 </div>
                 
                 <div class="change-item" th:if="${newLocation}">
-                    <p class="change-label">📍 Nuova Posizione</p>
+                    <p class="change-label">Nuova Posizione</p>
                     <p class="change-value" th:text="${newLocation}">New Location</p>
                 </div>
                 
                 <div class="change-item" th:if="${updateNote}">
-                    <p class="change-label">ℹ️ Note</p>
+                    <p class="change-label">Note</p>
                     <p class="change-value" th:text="${updateNote}">Notes</p>
                 </div>
             </div>
@@ -144,7 +189,7 @@
         
         <div class="footer">
             <p class="footer-text">
-                © 2026 TCG Arena • Ci vediamo all'evento! 🎉
+                © 2026 TCG Arena • Ci vediamo all'evento!
             </p>
         </div>
     </div>

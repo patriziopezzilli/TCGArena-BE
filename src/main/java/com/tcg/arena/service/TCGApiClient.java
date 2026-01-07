@@ -258,6 +258,15 @@ public class TCGApiClient {
         public List<ScryfallBulkData> data;
     }
 
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class ScryfallSearchResponse {
+        public List<ScryfallCard> data;
+        public boolean has_more;
+        public String next_page;
+        public int total_cards;
+        public Object warnings; // Scryfall sometimes includes warnings
+    }
+
     // ===================== API Methods =====================
 
     /**
@@ -1169,6 +1178,35 @@ public class TCGApiClient {
     }
 
     /**
+     * Import Magic delta using Scryfall search API (only new cards since last import)
+     */
+    public Mono<Integer> importMagicDelta() {
+        return Mono.fromCallable(() -> {
+            logger.info("Starting Magic delta import using Scryfall search API");
+
+            try {
+                // Clear caches
+                expansionCache.clear();
+                tcgSetCache.clear();
+
+                // Import sets first (if needed)
+                importMagicSets();
+
+                // Get last import date for delta
+                LocalDateTime lastImport = getLastMagicImportDate();
+                String dateQuery = lastImport.format(DateTimeFormatter.ISO_LOCAL_DATE);
+
+                // Search for new cards since last import
+                return searchAndImportNewMagicCards("date:>" + dateQuery);
+
+            } catch (Exception e) {
+                logger.error("Error during Magic delta import: {}", e.getMessage(), e);
+                return 0;
+            }
+        });
+    }
+
+    /**
      * Import Magic sets from Scryfall
      */
     private void importMagicSets() {
@@ -1233,6 +1271,7 @@ public class TCGApiClient {
     /**
      * Import Magic cards from Scryfall bulk data
      */
+    @Transactional
     private int importMagicCardsFromBulk() {
         logger.info("Importing Magic cards from Scryfall bulk data");
 
@@ -1278,14 +1317,58 @@ public class TCGApiClient {
             logger.info("Downloaded {} cards from Scryfall bulk data", cards.size());
 
             int saved = 0;
+            List<CardTemplate> cardsToSave = new ArrayList<>();
             for (ScryfallCard card : cards) {
-                try {
-                    if (saveScryfallCard(card, TCGType.MAGIC)) {
-                        saved++;
-                    }
-                } catch (Exception e) {
-                    logger.warn("Error saving card {}: {}", card.name, e.getMessage());
+                if (card.digital || card.oversized) {
+                    continue;
                 }
+                String cardNumber = card.collector_number != null ? card.collector_number : "N/A";
+
+                // Get TCGSet
+                com.tcg.arena.model.TCGSet tcgSet = tcgSetCache.computeIfAbsent(card.set, setCode -> {
+                    Optional<com.tcg.arena.model.TCGSet> opt = tcgSetRepository.findBySetCode(setCode);
+                    return opt.orElse(null);
+                });
+
+                if (tcgSet == null) {
+                    logger.warn("TCGSet not found for card {} in set {}", card.name, card.set);
+                    continue;
+                }
+
+                // Create new CardTemplate
+                CardTemplate template = new CardTemplate();
+                template.setName(card.name);
+                template.setTcgType(TCGType.MAGIC);
+                template.setSetCode(card.set);
+                template.setExpansion(tcgSet.getExpansion());
+                template.setCardNumber(cardNumber);
+                template.setRarity(mapRarity(card.rarity));
+                template.setDescription(card.oracle_text);
+                template.setImageUrl(getScryfallImageUrl(card));
+                template.setTcgplayerId(card.id); // Save Scryfall ID here
+                template.setDateCreated(LocalDateTime.now());
+
+                // Set prices
+                setPricesFromScryfall(template, card);
+
+                cardsToSave.add(template);
+
+                if (cardsToSave.size() >= 10000) {
+                    try {
+                        cardTemplateRepository.saveAll(cardsToSave);
+                        saved += cardsToSave.size();
+                        logger.info("Saved batch of 10000 cards, total saved: {}", saved);
+                    } catch (Exception e) {
+                        logger.warn("Error saving batch: {}", e.getMessage());
+                    }
+                    cardsToSave.clear();
+                }
+            }
+            try {
+                cardTemplateRepository.saveAll(cardsToSave);
+                saved += cardsToSave.size();
+            } catch (Exception e) {
+                logger.warn("Error saving final batch: {}", e.getMessage());
             }
 
             logger.info("Saved {} new Magic cards from Scryfall", saved);
@@ -1293,6 +1376,78 @@ public class TCGApiClient {
 
         } catch (Exception e) {
             logger.error("Error importing Magic cards from bulk: {}", e.getMessage(), e);
+            return 0;
+        }
+    }
+
+    /**
+     * Get the last import date for Magic cards
+     */
+    private LocalDateTime getLastMagicImportDate() {
+        // Try to get from ImportProgress, fallback to 30 days ago
+        Optional<ImportProgress> progress = importProgressRepository.findByTcgType(TCGType.MAGIC);
+        if (progress.isPresent() && progress.get().getLastUpdated() != null) {
+            return progress.get().getLastUpdated().toLocalDate().atStartOfDay();
+        }
+        // Fallback: 30 days ago to be safe
+        return LocalDateTime.now().minusDays(30);
+    }
+
+    /**
+     * Search and import new Magic cards using Scryfall API
+     */
+    private int searchAndImportNewMagicCards(String query) {
+        logger.info("Searching Scryfall for: {}", query);
+
+        try {
+            final int[] totalImported = {0};
+            int page = 1;
+            boolean hasMore = true;
+
+            while (hasMore) {
+                final int currentPage = page;
+                ScryfallSearchResponse response = scryfallWebClient.get()
+                        .uri(uriBuilder -> uriBuilder
+                                .path("/cards/search")
+                                .queryParam("q", query)
+                                .queryParam("page", currentPage)
+                                .queryParam("unique", "prints") // Include all printings
+                                .build())
+                        .retrieve()
+                        .bodyToMono(ScryfallSearchResponse.class)
+                        .block(Duration.ofSeconds(30));
+
+                if (response == null || response.data == null || response.data.isEmpty()) {
+                    break;
+                }
+
+                logger.info("Processing page {}: {} cards", page, response.data.size());
+
+                for (ScryfallCard card : response.data) {
+                    try {
+                        if (saveScryfallCard(card, TCGType.MAGIC)) {
+                            totalImported[0]++;
+                        }
+                    } catch (Exception e) {
+                        logger.warn("Error saving card {}: {}", card.name, e.getMessage());
+                    }
+                }
+
+                hasMore = response.has_more;
+                page++;
+
+                // Safety limit to avoid infinite loops
+                if (page > 100) {
+                    logger.warn("Reached page limit (100), stopping search");
+                    break;
+                }
+            }
+
+            logger.info("Delta import completed: {} new cards imported", totalImported[0]);
+            return totalImported[0];
+
+        } catch (Exception e) {
+            logger.error("Error searching new Magic cards: {}", e.getMessage(), e);
             return 0;
         }
     }

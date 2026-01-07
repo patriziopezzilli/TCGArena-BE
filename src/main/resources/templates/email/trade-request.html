@@ -94,12 +94,57 @@
             font-size: 13px;
             color: #6b7280;
         }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #0f0f0f;
+                color: #e5e5e5;
+            }
+            .container {
+                background: #1a1a1a;
+            }
+            .header {
+                background: linear-gradient(135deg, #0f0f0f 0%, #2d2d2d 100%);
+            }
+            .header h1 {
+                color: #e5e5e5;
+            }
+            .content {
+                color: #d1d5db;
+            }
+            .trade-card {
+                background: #2d2d2d;
+                border-color: #404040;
+            }
+            .trade-header {
+                color: #e5e5e5;
+                border-color: #404040;
+            }
+            .card-name {
+                color: #d1d5db;
+            }
+            .card-qty {
+                color: #a3a3a3;
+            }
+            .btn-secondary {
+                background: #374151;
+                color: #e5e5e5;
+            }
+            .footer {
+                background: #1a1a1a;
+                border-color: #404040;
+            }
+            .footer-text {
+                color: #a3a3a3;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔄 Proposta di Scambio</h1>
+            <h1>Proposta di Scambio</h1>
         </div>
         
         <div class="content">
@@ -111,7 +156,7 @@
             </p>
             
             <div class="trade-card">
-                <div class="trade-header">📤 Ti offre</div>
+                <div class="trade-header">Ti offre</div>
                 <div class="card-list" th:if="${offeredCards != null}">
                     <div th:each="card : ${offeredCards}" class="card-item">
                         <span class="card-name" th:text="${card.name}">Charizard V</span>
@@ -121,7 +166,7 @@
             </div>
             
             <div class="trade-card">
-                <div class="trade-header">📥 Richiede</div>
+                <div class="trade-header">Richiede</div>
                 <div class="card-list" th:if="${requestedCards != null}">
                     <div th:each="card : ${requestedCards}" class="card-item">
                         <span class="card-name" th:text="${card.name}">Pikachu VMAX</span>
@@ -132,10 +177,10 @@
             
             <div class="cta-buttons">
                 <a th:href="${frontendUrl + '/trades/' + tradeId + '/accept'}" class="btn btn-primary" href="#">
-                    ✅ Accetta Scambio
+                    Accetta Scambio
                 </a>
                 <a th:href="${frontendUrl + '/trades/' + tradeId}" class="btn btn-secondary" href="#">
-                    👀 Visualizza Dettagli
+                    Visualizza Dettagli
                 </a>
             </div>
             
@@ -153,7 +198,7 @@
         
         <div class="footer">
             <p class="footer-text">
-                © 2026 TCG Arena • Buon trading! 🎴
+                © 2026 TCG Arena • Buon trading!
             </p>
         </div>
     </div>

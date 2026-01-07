@@ -21,7 +21,7 @@ import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Service for importing data from JustTCG API into the Arena* entity hierarchy.
+ * Service for importing data from TCG API into the Arena* entity hierarchy.
  * Creates a complete dataset: ArenaGame → ArenaSet → ArenaCard →
  * ArenaCardVariant
  * 
@@ -53,14 +53,14 @@ public class ArenaDataImportService {
     @Autowired
     private ArenaPriceStatisticsRepository arenaPriceStatisticsRepository;
 
-    @Value("${justtcg.api.key}")
+    @Value("${tcg.api.key}")
     private String apiKey;
 
     // Cache for current import session
     private final Map<String, ArenaGame> gameCache = new ConcurrentHashMap<>();
     private final Map<String, ArenaSet> setCache = new ConcurrentHashMap<>();
 
-    public ArenaDataImportService(@Value("${justtcg.api.base-url}") String baseUrl) {
+    public ArenaDataImportService(@Value("${tcg.api.base-url}") String baseUrl) {
         this.webClient = WebClient.builder()
                 .baseUrl(baseUrl)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
@@ -73,13 +73,13 @@ public class ArenaDataImportService {
     // ==================== Public Import Methods ====================
 
     /**
-     * Import all games from JustTCG API.
+     * Import all games from TCG API.
      * 
      * @return Number of games imported
      */
     @Transactional
     public Mono<Integer> importGames() {
-        logger.info("Starting Arena games import from JustTCG...");
+        logger.info("Starting Arena games import from TCG...");
 
         return fetchGames()
                 .collectList()
@@ -102,7 +102,7 @@ public class ArenaDataImportService {
     /**
      * Import all sets for a specific game.
      * 
-     * @param gameId JustTCG game ID (e.g., "pokemon", "magic-the-gathering")
+     * @param gameId TCG game ID (e.g., "pokemon", "magic-the-gathering")
      * @return Number of sets imported
      */
     @Transactional
@@ -133,7 +133,7 @@ public class ArenaDataImportService {
     /**
      * Full import: game → sets → cards → variants for a specific game.
      * 
-     * @param gameId JustTCG game ID
+     * @param gameId TCG game ID
      * @return Total number of cards imported
      */
     public Mono<Integer> fullImportForGame(String gameId) {
@@ -407,7 +407,7 @@ public class ArenaDataImportService {
     }
 
     /**
-     * Get list of supported game IDs from JustTCG.
+     * Get list of supported game IDs from TCG.
      */
     public List<String> getSupportedGameIds() {
         return List.of(

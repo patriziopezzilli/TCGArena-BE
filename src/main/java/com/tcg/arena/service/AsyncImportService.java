@@ -49,8 +49,8 @@ public class AsyncImportService {
         job.setMessage("Starting import via TCG API...");
 
         try {
-            logger.info("Starting Async JustTCG Import for Job ID: {}", job.getId());
-            batchService.triggerJustTCGImport(job.getTcgType());
+            logger.info("Starting Async TCG Import for Job ID: {}", job.getId());
+            batchService.triggerTCGImport(job.getTcgType());
 
             job.setStatus(JobStatus.COMPLETED);
             job.setMessage("Import completed successfully!");
