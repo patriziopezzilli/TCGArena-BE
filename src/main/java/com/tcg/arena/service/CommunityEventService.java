@@ -248,8 +248,7 @@ public class CommunityEventService {
                 if (shouldSendEventNotification(participant.getUser())) {
                     try {
                         emailService.sendEventCancelled(
-                            participant.getUser().getEmail(),
-                            participant.getUser().getUsername(),
+                            participant.getUser(),
                             event.getTitle(),
                             formattedDate,
                             event.getLocationName(),
@@ -324,8 +323,7 @@ public class CommunityEventService {
                     if (shouldSendEventNotification(participant.getUser())) {
                         try {
                             emailService.sendEventUpdated(
-                                participant.getUser().getEmail(),
-                                participant.getUser().getUsername(),
+                                participant.getUser(),
                                 event.getTitle(),
                                 eventId,
                                 newDate != null ? event.getEventDate().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) : null,

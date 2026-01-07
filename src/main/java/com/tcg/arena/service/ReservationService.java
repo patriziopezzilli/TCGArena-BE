@@ -101,8 +101,7 @@ public class ReservationService {
                     java.net.URLEncoder.encode(deepLink, java.nio.charset.StandardCharsets.UTF_8);
 
             emailService.sendCardReservation(
-                    user.getEmail(),
-                    user.getDisplayName() != null ? user.getDisplayName() : user.getUsername(),
+                    user,
                     inventoryCard.getCardTemplate().getName(),
                     shop.getName(),
                     qrCodeImageUrl);
