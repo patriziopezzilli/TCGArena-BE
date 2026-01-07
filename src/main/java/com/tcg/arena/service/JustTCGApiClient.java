@@ -430,14 +430,25 @@ public class JustTCGApiClient {
         // Get current progress
         ImportProgress progress = getOrCreateImportProgress(tcgType);
 
-        // Check if import is already complete
-        if (progress != null && progress.isComplete()) {
-            logger.info("Import for {} already completed. Skipping.", tcgType);
-            return Mono.just(0);
-        }
-
         int startOffset = (progress != null && progress.getLastOffset() != 0) ? progress.getLastOffset() : 0;
         logger.info("Resuming import from offset: {}", startOffset);
+
+        // Check if import is already complete - but verify if there are actually more data
+        if (progress != null && progress.isComplete()) {
+            logger.info("Import for {} was marked as completed. Checking if there are new data available...", tcgType);
+            
+            // Test if there are more cards available by making a quick API call
+            boolean hasMoreData = checkForNewData(gameId, startOffset);
+            if (!hasMoreData) {
+                logger.info("No new data available for {}. Import remains completed.", tcgType);
+                return Mono.just(0);
+            } else {
+                logger.info("New data found! Resetting completion status and resuming import from offset {}", startOffset);
+                // Reset completion status since there are new data
+                progress.setComplete(false);
+                importProgressRepository.saveAndFlush(progress);
+            }
+        }
 
         // Track progress in memory during import
         final int[] lastSuccessfulOffset = { startOffset };
@@ -1004,5 +1015,35 @@ public class JustTCGApiClient {
 
     public List<TCGType> getSupportedTCGTypes() {
         return new ArrayList<>(TCG_TYPE_TO_GAME_ID.keySet());
+    }
+
+    /**
+     * Check if there are new data available in the API beyond the current offset
+     * This is used to determine if a "completed" import should be resumed
+     */
+    private boolean checkForNewData(String gameId, int currentOffset) {
+        try {
+            logger.debug("Checking for new data in {} at offset {}", gameId, currentOffset);
+            JustTCGCardsResponse response = getCardsPageByGame(gameId, currentOffset)
+                    .block(Duration.ofSeconds(30)); // Timeout for this check
+            
+            if (response == null) {
+                logger.warn("Null response when checking for new data");
+                return false;
+            }
+            
+            List<JustTCGCard> cards = response.getCards();
+            boolean hasData = cards != null && !cards.isEmpty();
+            
+            logger.info("New data check for {} at offset {}: {} cards found", 
+                    gameId, currentOffset, cards != null ? cards.size() : 0);
+            
+            return hasData;
+        } catch (Exception e) {
+            logger.error("Error checking for new data in {} at offset {}: {}", 
+                    gameId, currentOffset, e.getMessage());
+            // On error, assume no new data to be safe
+            return false;
+        }
     }
 }
