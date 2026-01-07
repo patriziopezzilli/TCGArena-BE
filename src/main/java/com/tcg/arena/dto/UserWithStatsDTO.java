@@ -32,6 +32,7 @@ public class UserWithStatsDTO {
     private UserLocation location;
     private Double tradeRating;
     private Integer tradeRatingCount;
+    private Boolean emailNotificationsEnabled;
 
     // Embedded stats
     private UserStatsDTO stats;
@@ -63,6 +64,7 @@ public class UserWithStatsDTO {
         dto.bio = user.getBio();
         dto.tradeRating = user.getTradeRating();
         dto.tradeRatingCount = user.getTradeRatingCount();
+        dto.emailNotificationsEnabled = user.getEmailNotificationsEnabled();
 
         // Build stats DTO
         if (stats != null) {
@@ -216,6 +218,14 @@ public class UserWithStatsDTO {
 
     public void setTradeRatingCount(Integer tradeRatingCount) {
         this.tradeRatingCount = tradeRatingCount;
+    }
+
+    public Boolean getEmailNotificationsEnabled() {
+        return emailNotificationsEnabled;
+    }
+
+    public void setEmailNotificationsEnabled(Boolean emailNotificationsEnabled) {
+        this.emailNotificationsEnabled = emailNotificationsEnabled;
     }
 
     public UserStatsDTO getStats() {

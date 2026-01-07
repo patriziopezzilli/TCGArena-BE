@@ -42,23 +42,30 @@ public class UserStatsService {
             }
             return stats;
         } else {
-            return createUserStats(user);
+            // Use synchronized block to prevent concurrent creation
+            synchronized (this) {
+                // Double-check after acquiring lock
+                existingStats = userStatsRepository.findByUser(user);
+                if (existingStats.isPresent()) {
+                    UserStats stats = existingStats.get();
+                    if (stats.getLastActivity().isBefore(LocalDateTime.now().minusHours(1))) {
+                        return updateUserStats(stats);
+                    }
+                    return stats;
+                }
+                return createUserStats(user);
+            }
         }
     }
 
     private UserStats createUserStats(User user) {
-        // Double-check to avoid duplicates in concurrent scenarios
-        Optional<UserStats> existing = userStatsRepository.findByUser(user);
-        if (existing.isPresent()) {
-            return existing.get();
-        }
-        
         UserStats stats = new UserStats();
         stats.setUser(user);
         stats.setJoinDate(user.getDateJoined());
         return updateUserStats(stats);
     }
 
+    @CacheEvict(value = "userStats", key = "#stats.user.id")
     private UserStats updateUserStats(UserStats stats) {
         User user = stats.getUser();
 

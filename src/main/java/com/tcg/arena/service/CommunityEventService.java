@@ -157,10 +157,16 @@ public class CommunityEventService {
 
         // Notify event creator
         if (!event.getCreator().getId().equals(userId)) {
+            Map<String, String> notificationData = Map.of(
+                "type", "event",
+                "id", event.getId().toString(),
+                "action", "view"
+            );
             notificationService.sendPushNotification(
                     event.getCreator().getId(),
                     "Nuovo partecipante",
-                    user.getDisplayName().toLowerCase() + " si è iscritto al tuo evento: " + event.getTitle());
+                    user.getDisplayName().toLowerCase() + " si è iscritto al tuo evento: " + event.getTitle(),
+                    notificationData);
         }
 
         return CommunityEventDTO.fromEntity(event, userId);
@@ -225,11 +231,17 @@ public class CommunityEventService {
         // Notify all participants via push and email
         for (CommunityEventParticipant participant : event.getParticipants()) {
             if (!participant.getUser().getId().equals(userId)) {
-                // Push notification
+                // Push notification with deep linking
+                Map<String, String> notificationData = Map.of(
+                    "type", "event",
+                    "id", event.getId().toString(),
+                    "action", "view"
+                );
                 notificationService.sendPushNotification(
                         participant.getUser().getId(),
                         "Evento annullato",
-                        "L'evento \"" + event.getTitle() + "\" è stato annullato");
+                        "L'evento \"" + event.getTitle() + "\" è stato annullato",
+                        notificationData);
                 
                 // Email notification
                 if (shouldSendEventNotification(participant.getUser())) {
@@ -295,11 +307,17 @@ public class CommunityEventService {
             // Notify all participants
             for (CommunityEventParticipant participant : event.getParticipants()) {
                 if (!participant.getUser().getId().equals(userId)) {
-                    // Push notification
+                    // Push notification with deep linking
+                    Map<String, String> notificationData = Map.of(
+                        "type", "event",
+                        "id", event.getId().toString(),
+                        "action", "view"
+                    );
                     notificationService.sendPushNotification(
                             participant.getUser().getId(),
                             "Evento modificato",
-                            "L'evento \"" + event.getTitle() + "\" è stato aggiornato");
+                            "L'evento \"" + event.getTitle() + "\" è stato aggiornato",
+                            notificationData);
                     
                     // Email notification
                     if (shouldSendEventNotification(participant.getUser())) {

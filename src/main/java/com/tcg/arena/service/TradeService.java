@@ -318,7 +318,14 @@ public class TradeService {
         // Send Push Notification to the other user
         User recipient = match.getUser1().getId().equals(senderId) ? match.getUser2() : match.getUser1();
         String title = "Nuovo messaggio da " + sender.getUsername().toLowerCase();
-        notificationService.sendPushNotification(recipient.getId(), title, content);
+        
+        // Add deep linking data for trade chat
+        Map<String, String> notificationData = Map.of(
+            "type", "trade",
+            "id", matchId.toString(),
+            "action", "view"
+        );
+        notificationService.sendPushNotification(recipient.getId(), title, content, notificationData);
     }
 
     public com.tcg.arena.dto.TradeChatResponseDTO getMessages(Long matchId, Long currentUserId) {
@@ -429,8 +436,7 @@ public class TradeService {
             // Email to user1
             if (shouldSendTradeNotification(match.getUser1())) {
                 emailService.sendTradeCompleted(
-                    match.getUser1().getEmail(),
-                    match.getUser1().getUsername(),
+                    match.getUser1(),
                     match.getUser2().getUsername(),
                     matchId
                 );
@@ -438,8 +444,7 @@ public class TradeService {
             // Email to user2
             if (shouldSendTradeNotification(match.getUser2())) {
                 emailService.sendTradeCompleted(
-                    match.getUser2().getEmail(),
-                    match.getUser2().getUsername(),
+                    match.getUser2(),
                     match.getUser1().getUsername(),
                     matchId
                 );
@@ -475,7 +480,14 @@ public class TradeService {
         // Send notification to the other user
         String title = "Scambio rifiutato";
         String body = cancellingUser.getUsername() + " ha rifiutato lo scambio";
-        notificationService.sendPushNotification(otherUser.getId(), title, body);
+        
+        // Add deep linking data for trade
+        Map<String, String> notificationData = Map.of(
+            "type", "trade",
+            "id", matchId.toString(),
+            "action", "view"
+        );
+        notificationService.sendPushNotification(otherUser.getId(), title, body, notificationData);
     }
 
     @Transactional

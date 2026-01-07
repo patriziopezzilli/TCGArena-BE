@@ -46,6 +46,9 @@ public class User {
     @Column(nullable = false)
     private Boolean isPrivate = false; // If true, hide from Discover section
 
+    @Column(nullable = false)
+    private Boolean emailNotificationsEnabled = true; // If false, user doesn't want email notifications
+
     private Long shopId;
 
     @Column(nullable = false)
@@ -165,6 +168,14 @@ public class User {
 
     public void setIsPrivate(Boolean isPrivate) {
         this.isPrivate = isPrivate;
+    }
+
+    public Boolean getEmailNotificationsEnabled() {
+        return emailNotificationsEnabled != null ? emailNotificationsEnabled : true;
+    }
+
+    public void setEmailNotificationsEnabled(Boolean emailNotificationsEnabled) {
+        this.emailNotificationsEnabled = emailNotificationsEnabled;
     }
 
     public Long getShopId() {

@@ -8,7 +8,7 @@ import com.tcg.arena.model.Shop;
 import com.tcg.arena.repository.ShopRepository;
 import com.tcg.arena.repository.ReservationRepository;
 import com.tcg.arena.service.InventoryCardService;
-import com.tcg.arena.service.UserService;
+import com.tcg.arena.service.EmailService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -34,19 +34,22 @@ public class ReservationService {
     private final ShopRepository shopRepository;
     private final RewardService rewardService;
     private final NotificationService notificationService;
+    private final EmailService emailService;
 
     public ReservationService(ReservationRepository reservationRepository,
             InventoryCardService inventoryCardService,
             UserService userService,
             ShopRepository shopRepository,
             RewardService rewardService,
-            NotificationService notificationService) {
+            NotificationService notificationService,
+            EmailService emailService) {
         this.reservationRepository = reservationRepository;
         this.inventoryCardService = inventoryCardService;
         this.userService = userService;
         this.shopRepository = shopRepository;
         this.rewardService = rewardService;
         this.notificationService = notificationService;
+        this.emailService = emailService;
     }
 
     @Transactional
@@ -90,6 +93,22 @@ public class ReservationService {
 
         // Award points for reservation (+10 points)
         rewardService.earnPoints(user.getId(), 10, "Prenotazione presso " + shop.getName());
+
+        // Send reservation confirmation email
+        try {
+            String qrCodeUrl = "tcgarena://reservation/" + saved.getQrCode() + "?shopId=" + shop.getId();
+            emailService.sendCardReservation(
+                user.getEmail(),
+                user.getDisplayName() != null ? user.getDisplayName() : user.getUsername(),
+                inventoryCard.getCardTemplate().getName(),
+                shop.getName(),
+                qrCodeUrl
+            );
+            log.info("Reservation confirmation email sent to: {}", user.getEmail());
+        } catch (Exception e) {
+            log.error("Failed to send reservation email to: {}", user.getEmail(), e);
+            // Don't fail reservation if email fails
+        }
 
         return new ReservationResponse(
                 saved,

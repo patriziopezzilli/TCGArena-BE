@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -257,7 +258,8 @@ public class ChatService {
             notificationService.sendPushNotification(
                     otherUser.getId(),
                     "Trattativa completata!",
-                    "Lascia una recensione per " + user.getDisplayName().toLowerCase());
+                    "Lascia una recensione per " + user.getDisplayName().toLowerCase(),
+                    Map.of("type", "chat", "id", conversation.getId().toString(), "action", "review"));
         }
 
         return convertToDto(conversation, userId);

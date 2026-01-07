@@ -132,9 +132,21 @@ public class EmailService {
     // ===== TRANSACTIONAL EMAILS =====
     
     /**
+     * Check if user has enabled email notifications
+     */
+    private boolean shouldSendEmail(User user) {
+        return user.getEmailNotificationsEnabled() != null ? user.getEmailNotificationsEnabled() : true;
+    }
+
+    /**
      * Send welcome email to new user
      */
     public void sendWelcomeEmail(User user) {
+        if (!shouldSendEmail(user)) {
+            logger.debug("Skipping welcome email for user {} - email notifications disabled", user.getId());
+            return;
+        }
+        
         Map<String, Object> variables = new HashMap<>();
         variables.put("username", user.getUsername());
         variables.put("displayName", user.getDisplayName() != null ? user.getDisplayName() : user.getUsername());
@@ -170,6 +182,11 @@ public class EmailService {
      * Send inactivity reminder
      */
     public void sendInactivityReminder(User user, int daysInactive) {
+        if (!shouldSendEmail(user)) {
+            logger.debug("Skipping inactivity reminder for user {} - email notifications disabled", user.getId());
+            return;
+        }
+        
         Map<String, Object> variables = new HashMap<>();
         variables.put("username", user.getUsername());
         variables.put("daysInactive", daysInactive);
@@ -237,23 +254,33 @@ public class EmailService {
     /**
      * Send trade accepted notification
      */
-    public void sendTradeAccepted(String email, String username, String partnerUsername, Long tradeId) {
+    public void sendTradeAccepted(User user, String partnerUsername, Long tradeId) {
+        if (!shouldSendEmail(user)) {
+            logger.debug("Skipping trade accepted email for user {} - email notifications disabled", user.getId());
+            return;
+        }
+        
         Map<String, Object> variables = new HashMap<>();
-        variables.put("username", username);
+        variables.put("username", user.getUsername());
         variables.put("partnerUsername", partnerUsername);
         variables.put("tradeId", tradeId);
-        sendHtmlEmail(email, "Scambio Accettato!", "email/trade-accepted", variables);
+        sendHtmlEmail(user.getEmail(), "Scambio Accettato!", "email/trade-accepted", variables);
     }
     
     /**
      * Send trade completed notification
      */
-    public void sendTradeCompleted(String email, String username, String partnerUsername, Long tradeId) {
+    public void sendTradeCompleted(User user, String partnerUsername, Long tradeId) {
+        if (!shouldSendEmail(user)) {
+            logger.debug("Skipping trade completed email for user {} - email notifications disabled", user.getId());
+            return;
+        }
+        
         Map<String, Object> variables = new HashMap<>();
-        variables.put("username", username);
+        variables.put("username", user.getUsername());
         variables.put("partnerUsername", partnerUsername);
         variables.put("tradeId", tradeId);
-        sendHtmlEmail(email, "Scambio Completato!", "email/trade-completed", variables);
+        sendHtmlEmail(user.getEmail(), "Scambio Completato!", "email/trade-completed", variables);
     }
     
     // ===== EVENT NOTIFICATIONS =====

@@ -315,6 +315,32 @@
                     <span class="platform-stat-value" th:text="${platformStats.newShops}">3</span>
                 </div>
             </div>
+            
+            <!-- CTA Section -->
+            <div style="text-align: center; margin: 40px 0; padding: 24px; background: #f9fafb; border-radius: 12px;">
+                <h3 style="font-size: 18px; font-weight: 600; color: #111827; margin-bottom: 16px;">
+                    Continua la tua giornata su TCG Arena
+                </h3>
+                <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px;">
+                    <a th:href="${frontendUrl + '/trades'}" 
+                       style="background: #10b981; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
+                        🔄 Scambia carte
+                    </a>
+                    <a th:href="${frontendUrl + '/events'}" 
+                       style="background: #f59e0b; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
+                        📅 Eventi
+                    </a>
+                    <a th:href="${frontendUrl + '/collection'}" 
+                       style="background: #8b5cf6; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
+                        🎴 Collezione
+                    </a>
+                </div>
+                <p style="font-size: 14px; color: #6b7280; margin-top: 16px;">
+                    <a th:href="${frontendUrl}" style="color: #111827; text-decoration: none; font-weight: 500;">
+                        Apri TCG Arena →
+                    </a>
+                </p>
+            </div>
         </div>
         
         <!-- Footer -->

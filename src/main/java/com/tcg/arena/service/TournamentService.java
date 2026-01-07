@@ -14,6 +14,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.Arrays;
@@ -419,7 +420,8 @@ public class TournamentService {
                     notificationService.sendPushNotification(
                             promoted.getUserId(),
                             notificationTitle,
-                            notificationMessage);
+                            notificationMessage,
+                            Map.of("type", "tournament", "id", tournament.get().getId().toString(), "action", "view"));
                 }
             } catch (Exception e) {
                 // Log error but don't fail the promotion

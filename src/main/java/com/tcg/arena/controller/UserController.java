@@ -335,4 +335,42 @@ public class UserController {
                         return ResponseEntity.ok(updatedUser);
                 }).orElse(ResponseEntity.notFound().build());
         }
+
+        @GetMapping("/{id}/notification-preferences")
+        @Operation(summary = "Get user notification preferences", description = "Retrieves user's current notification preferences")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Notification preferences retrieved successfully"),
+                        @ApiResponse(responseCode = "404", description = "User not found")
+        })
+        public ResponseEntity<java.util.Map<String, Object>> getNotificationPreferences(
+                        @Parameter(description = "Unique identifier of the user") @PathVariable Long id) {
+                return userService.getUserById(id).map(user -> {
+                        java.util.Map<String, Object> preferences = new java.util.HashMap<>();
+                        preferences.put("emailNotificationsEnabled", user.getEmailNotificationsEnabled());
+                        return ResponseEntity.ok(preferences);
+                }).orElse(ResponseEntity.notFound().build());
+        }
+
+        @PatchMapping("/{id}/notification-preferences")
+        @Operation(summary = "Update user notification preferences", description = "Updates user's email notification preferences")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Notification preferences updated successfully"),
+                        @ApiResponse(responseCode = "404", description = "User not found")
+        })
+        public ResponseEntity<User> updateNotificationPreferences(
+                        @Parameter(description = "Unique identifier of the user") @PathVariable Long id,
+                        @Parameter(description = "Email notifications enabled flag") @RequestParam boolean emailNotificationsEnabled) {
+                return userService.getUserById(id).map(user -> {
+                        user.setEmailNotificationsEnabled(emailNotificationsEnabled);
+
+                        User updatedUser = userRepository.save(user);
+
+                        // Log preference update activity
+                        userActivityService.logActivity(id,
+                                        com.tcg.arena.model.ActivityType.USER_PROFILE_UPDATED,
+                                        "Aggiornate preferenze notifiche email: " + (emailNotificationsEnabled ? "abilitate" : "disabilitate"));
+
+                        return ResponseEntity.ok(updatedUser);
+                }).orElse(ResponseEntity.notFound().build());
+        }
 }

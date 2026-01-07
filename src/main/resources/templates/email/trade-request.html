@@ -132,10 +132,17 @@
             
             <div class="cta-buttons">
                 <a th:href="${frontendUrl + '/trades/' + tradeId + '/accept'}" class="btn btn-primary" href="#">
-                    Accetta
+                    ✅ Accetta Scambio
                 </a>
                 <a th:href="${frontendUrl + '/trades/' + tradeId}" class="btn btn-secondary" href="#">
-                    Visualizza
+                    👀 Visualizza Dettagli
+                </a>
+            </div>
+            
+            <div style="text-align: center; margin-top: 16px;">
+                <a th:href="${frontendUrl + '/trades'}" 
+                   style="font-size: 14px; color: #6b7280; text-decoration: none; font-weight: 500;">
+                    Vedi tutte le trattative →
                 </a>
             </div>
             
