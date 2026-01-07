@@ -60,7 +60,7 @@ public class AdminController {
 
     @Autowired
     private UserService userService;
-    
+
     @Autowired
     private ShopSuggestionRepository shopSuggestionRepository;
 
@@ -120,11 +120,10 @@ public class AdminController {
                 User owner = userService.getUserById(shop.getOwnerId()).orElse(null);
                 if (owner != null && shouldSendShopNotification(owner)) {
                     emailService.sendShopApproved(
-                        owner.getEmail(),
-                        owner.getUsername(),
-                        shop.getName(),
-                        shop.getId()
-                    );
+                            owner.getEmail(),
+                            owner.getUsername(),
+                            shop.getName(),
+                            shop.getId());
                 }
             } catch (Exception e) {
                 // Log but don't fail activation
@@ -177,18 +176,17 @@ public class AdminController {
 
         Shop shop = shopOpt.get();
         String rejectionReason = body.getOrDefault("reason", "La richiesta non soddisfa i criteri richiesti");
-        
+
         // Send rejection email
         if (shop.getOwnerId() != null) {
             try {
                 User owner = userService.getUserById(shop.getOwnerId()).orElse(null);
                 if (owner != null && shouldSendShopNotification(owner)) {
                     emailService.sendShopRejected(
-                        owner.getEmail(),
-                        owner.getUsername(),
-                        shop.getName(),
-                        rejectionReason
-                    );
+                            owner.getEmail(),
+                            owner.getUsername(),
+                            shop.getName(),
+                            rejectionReason);
                 }
             } catch (Exception e) {
                 // Log but don't fail
@@ -479,7 +477,7 @@ public class AdminController {
             @Parameter(description = "Starting index for import (-99 to import all)") @RequestParam(defaultValue = "-99") int startIndex,
             @Parameter(description = "Ending index for import (-99 to import until end)") @RequestParam(defaultValue = "-99") int endIndex) {
         try {
-            batchService.triggerBatchImport(tcgType, startIndex, endIndex);
+            batchService.triggerJustTCGImport(tcgType);
             String message;
             if (startIndex == -99 && endIndex == -99) {
                 message = "Batch import triggered successfully for " + tcgType;
@@ -628,8 +626,8 @@ public class AdminController {
     @PreAuthorize("permitAll()")
     @Operation(summary = "Create broadcast news", description = "Creates a new broadcast news item that will be visible to all users. Optionally sends a push notification.")
     public ResponseEntity<?> createBroadcastNews(@RequestBody BroadcastNewsDTO request,
-                                                  @RequestParam(required = false, defaultValue = "false") boolean sendPushNotification,
-                                                  Authentication authentication) {
+            @RequestParam(required = false, defaultValue = "false") boolean sendPushNotification,
+            Authentication authentication) {
         try {
             System.out.println("📰 DEBUG - Creating broadcast news:");
             System.out.println("  Title: " + request.getTitle());
@@ -638,14 +636,15 @@ public class AdminController {
             System.out.println("  StartDate: " + request.getStartDate());
             System.out.println("  ExpiryDate: " + request.getExpiryDate());
             System.out.println("  IsPinned: " + request.getIsPinned());
-            
-            // Get user ID if authenticated, otherwise use null (system will use default admin ID)
+
+            // Get user ID if authenticated, otherwise use null (system will use default
+            // admin ID)
             Long createdBy = null;
             if (authentication != null) {
                 User user = getCurrentUser(authentication);
                 createdBy = user.getId();
             }
-            
+
             BroadcastNews news = broadcastNewsService.createNews(
                     request.getTitle(),
                     request.getContent(),
@@ -654,30 +653,28 @@ public class AdminController {
                     request.getExpiryDate(),
                     request.getImageUrl(),
                     request.getIsPinned(),
-                    createdBy
-            );
-            
+                    createdBy);
+
             System.out.println("✅ DEBUG - Broadcast news created with ID: " + news.getId());
             System.out.println("  Saved StartDate: " + news.getStartDate());
             System.out.println("  Saved ExpiryDate: " + news.getExpiryDate());
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Broadcast news created successfully");
             response.put("news", new BroadcastNewsDTO(news));
-            
+
             // Opzionalmente manda anche una push notification
             if (sendPushNotification) {
                 int usersNotified = notificationService.sendBroadcastNotification(
                         news.getTitle(),
-                        news.getContent()
-                );
+                        news.getContent());
                 response.put("pushNotificationSent", true);
                 response.put("usersNotified", usersNotified);
             } else {
                 response.put("pushNotificationSent", false);
             }
-            
+
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
@@ -691,8 +688,8 @@ public class AdminController {
     @PreAuthorize("permitAll()")
     @Operation(summary = "Update broadcast news", description = "Updates an existing broadcast news item")
     public ResponseEntity<?> updateBroadcastNews(@PathVariable Long newsId,
-                                                  @RequestBody BroadcastNewsDTO request,
-                                                  Authentication authentication) {
+            @RequestBody BroadcastNewsDTO request,
+            Authentication authentication) {
         try {
             BroadcastNews news = broadcastNewsService.updateNews(
                     newsId,
@@ -702,14 +699,13 @@ public class AdminController {
                     request.getStartDate(),
                     request.getExpiryDate(),
                     request.getImageUrl(),
-                    request.getIsPinned()
-            );
-            
+                    request.getIsPinned());
+
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Broadcast news updated successfully");
             response.put("news", new BroadcastNewsDTO(news));
-            
+
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
@@ -723,14 +719,14 @@ public class AdminController {
     @PreAuthorize("permitAll()")
     @Operation(summary = "Delete broadcast news", description = "Deletes a broadcast news item")
     public ResponseEntity<?> deleteBroadcastNews(@PathVariable Long newsId,
-                                                  Authentication authentication) {
+            Authentication authentication) {
         try {
             broadcastNewsService.deleteNews(newsId);
-            
+
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
             response.put("message", "Broadcast news deleted successfully");
-            
+
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -748,11 +744,12 @@ public class AdminController {
     @Operation(summary = "Check for duplicate data", description = "Checks for duplicate expansions and card templates that would violate unique constraints")
     public ResponseEntity<?> checkForDuplicates() {
         Map<String, Object> results = new HashMap<>();
-        
+
         // This would require custom repository queries to find duplicates
         results.put("message", "Duplicate check endpoint - implementation pending");
-        results.put("note", "Before running V27 migration, manually check for duplicates in expansions and card_templates tables");
-        
+        results.put("note",
+                "Before running V27 migration, manually check for duplicates in expansions and card_templates tables");
+
         return ResponseEntity.ok(results);
     }
 
@@ -763,10 +760,11 @@ public class AdminController {
     @Operation(summary = "Get all shop suggestions", description = "Retrieves all shop suggestions from users")
     public ResponseEntity<?> getAllShopSuggestions(@RequestParam(required = false) String status) {
         List<ShopSuggestion> suggestions;
-        
+
         if (status != null && !status.isEmpty()) {
             try {
-                ShopSuggestion.SuggestionStatus statusEnum = ShopSuggestion.SuggestionStatus.valueOf(status.toUpperCase());
+                ShopSuggestion.SuggestionStatus statusEnum = ShopSuggestion.SuggestionStatus
+                        .valueOf(status.toUpperCase());
                 suggestions = shopSuggestionRepository.findByStatusOrderByCreatedAtDesc(statusEnum);
             } catch (IllegalArgumentException e) {
                 return ResponseEntity.badRequest().body(Map.of("error", "Invalid status value"));
@@ -774,7 +772,7 @@ public class AdminController {
         } else {
             suggestions = shopSuggestionRepository.findAllByOrderByCreatedAtDesc();
         }
-        
+
         List<ShopSuggestionDTO> dtos = suggestions.stream().map(s -> {
             ShopSuggestionDTO dto = new ShopSuggestionDTO(s);
             // Add username if needed
@@ -785,7 +783,7 @@ public class AdminController {
             }
             return dto;
         }).collect(Collectors.toList());
-        
+
         return ResponseEntity.ok(dtos);
     }
 
@@ -796,12 +794,12 @@ public class AdminController {
             @PathVariable Long id,
             @RequestParam String status,
             @RequestParam(required = false) String notes) {
-        
+
         Optional<ShopSuggestion> suggestionOpt = shopSuggestionRepository.findById(id);
         if (suggestionOpt.isEmpty()) {
             return ResponseEntity.notFound().build();
         }
-        
+
         try {
             ShopSuggestion.SuggestionStatus statusEnum = ShopSuggestion.SuggestionStatus.valueOf(status.toUpperCase());
             ShopSuggestion suggestion = suggestionOpt.get();
@@ -809,13 +807,12 @@ public class AdminController {
             if (notes != null && !notes.isEmpty()) {
                 suggestion.setNotes(notes);
             }
-            
+
             shopSuggestionRepository.save(suggestion);
-            
+
             return ResponseEntity.ok(Map.of(
-                "message", "Status updated successfully",
-                "suggestion", new ShopSuggestionDTO(suggestion)
-            ));
+                    "message", "Status updated successfully",
+                    "suggestion", new ShopSuggestionDTO(suggestion)));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("error", "Invalid status value"));
         }
