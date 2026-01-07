@@ -132,5 +132,5 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
                         @Param("longToken") String longToken);
 
         @Query("SELECT COUNT(c) FROM CardTemplate c WHERE c.tcgType = :tcgType AND " + EXCLUDE_NA_CONDITION)
-        long countByTcgType(@Param("tcgType") String tcgType);
+        long countByTcgType(@Param("tcgType") TCGType tcgType);
 }

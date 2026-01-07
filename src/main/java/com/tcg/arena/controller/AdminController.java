@@ -505,7 +505,7 @@ public class AdminController {
     public ResponseEntity<Map<String, Long>> getCardTemplateCounts() {
         Map<String, Long> counts = new HashMap<>();
         for (TCGType tcgType : TCGType.values()) {
-            long count = cardTemplateRepository.countByTcgType(tcgType.name());
+            long count = cardTemplateRepository.countByTcgType(tcgType);
             counts.put(tcgType.name(), count);
         }
         return ResponseEntity.ok(counts);
