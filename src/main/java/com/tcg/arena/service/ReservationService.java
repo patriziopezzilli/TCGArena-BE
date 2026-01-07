@@ -96,14 +96,16 @@ public class ReservationService {
 
         // Send reservation confirmation email
         try {
-            String qrCodeUrl = "tcgarena://reservation/" + saved.getQrCode() + "?shopId=" + shop.getId();
+            String deepLink = "tcgarena://reservation/" + saved.getQrCode() + "?shopId=" + shop.getId();
+            String qrCodeImageUrl = "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=" +
+                    java.net.URLEncoder.encode(deepLink, java.nio.charset.StandardCharsets.UTF_8);
+
             emailService.sendCardReservation(
-                user.getEmail(),
-                user.getDisplayName() != null ? user.getDisplayName() : user.getUsername(),
-                inventoryCard.getCardTemplate().getName(),
-                shop.getName(),
-                qrCodeUrl
-            );
+                    user.getEmail(),
+                    user.getDisplayName() != null ? user.getDisplayName() : user.getUsername(),
+                    inventoryCard.getCardTemplate().getName(),
+                    shop.getName(),
+                    qrCodeImageUrl);
             log.info("Reservation confirmation email sent to: {}", user.getEmail());
         } catch (Exception e) {
             log.error("Failed to send reservation email to: {}", user.getEmail(), e);
