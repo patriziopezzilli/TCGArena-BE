@@ -1,10 +1,8 @@
 package com.tcg.arena.controller;
 
-import com.tcg.arena.dto.MerchantRegistrationRequestDTO;
-import com.tcg.arena.dto.MerchantRegistrationResponseDTO;
-import com.tcg.arena.dto.RefreshTokenRequest;
-import com.tcg.arena.dto.RefreshTokenResponse;
-import com.tcg.arena.dto.RegisterRequestDTO;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseToken;
+import com.tcg.arena.dto.*;
 import com.tcg.arena.model.PasswordResetToken;
 import com.tcg.arena.model.Shop;
 import com.tcg.arena.model.ShopType;
@@ -35,6 +33,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -79,8 +78,8 @@ public class JwtAuthenticationController {
     private com.tcg.arena.service.RewardService rewardService;
 
     @PostMapping("/login")
-    public ResponseEntity<?> createAuthenticationToken(@RequestBody JwtRequest authenticationRequest, 
-                                                       jakarta.servlet.http.HttpServletRequest request) throws Exception {
+    public ResponseEntity<?> createAuthenticationToken(@RequestBody JwtRequest authenticationRequest,
+            jakarta.servlet.http.HttpServletRequest request) throws Exception {
         authenticate(authenticationRequest.getUsername(), authenticationRequest.getPassword());
 
         final UserDetails userDetails = userDetailsService.loadUserByUsername(authenticationRequest.getUsername());
@@ -103,6 +102,109 @@ public class JwtAuthenticationController {
         response.put("user", user);
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/social-login")
+    public ResponseEntity<?> socialLogin(@RequestBody SocialAuthRequest socialAuthRequest,
+            jakarta.servlet.http.HttpServletRequest request) throws Exception {
+        logger.info("🟢 Received social login request for provider: {}", socialAuthRequest.getProvider());
+        if (com.google.firebase.FirebaseApp.getApps().isEmpty()) {
+            logger.error("❌ Firebase not initialized in backend!");
+            return ResponseEntity.status(500).body(Map.of("message", "Firebase not initialized in backend"));
+        } else {
+            String projectId = com.google.firebase.FirebaseApp.getInstance().getOptions().getProjectId();
+            logger.info("🔥 Firebase initialized. Project ID: {}", projectId);
+        }
+        try {
+            // Verify Firebase ID Token
+            String idToken = socialAuthRequest.getIdToken();
+            logger.info("🔐 Attempting social login with provider: {}. Token length: {}. Starts with: {}",
+                    socialAuthRequest.getProvider(),
+                    idToken != null ? idToken.length() : 0,
+                    idToken != null && idToken.length() > 10 ? idToken.substring(0, 10) : "N/A");
+
+            FirebaseToken decodedToken = FirebaseAuth.getInstance().verifyIdToken(idToken);
+            String email = decodedToken.getEmail();
+            String name = (String) decodedToken.getClaims().get("name");
+            String picture = (String) decodedToken.getClaims().get("picture");
+
+            if (email == null) {
+                return ResponseEntity.badRequest().body(Map.of("message", "Email not found in token"));
+            }
+
+            // Check if user exists
+            Optional<User> userOpt = userService.getUserByEmail(email);
+            User user;
+
+            if (userOpt.isPresent()) {
+                user = userOpt.get();
+                // Optionally update profile picture if it's missing
+                if (user.getProfileImageUrl() == null && picture != null) {
+                    user.setProfileImageUrl(picture);
+                    userService.saveUser(user);
+                }
+            } else {
+                // Register new user
+                user = new User();
+                user.setEmail(email);
+
+                // Generate username from email
+                String baseUsername = email.split("@")[0].replaceAll("[^a-zA-Z0-9]", "");
+                String username = baseUsername;
+                int counter = 1;
+                while (userService.getUserByUsername(username).isPresent()) {
+                    username = baseUsername + counter++;
+                }
+                user.setUsername(username);
+                user.setDisplayName(name != null && !name.isEmpty() ? name : username);
+
+                // Set a random password for social users
+                String randomPassword = UUID.randomUUID().toString();
+                user.setPassword(passwordEncoder.encode(randomPassword));
+
+                user.setDateJoined(LocalDateTime.now());
+                user.setProfileImageUrl(picture);
+
+                user = userService.saveUser(user);
+
+                // Track signup bonus if needed
+                try {
+                    rewardService.earnPoints(user.getId(), 20, "Registrazione completata (Social)");
+                } catch (Exception e) {
+                    logger.error("Failed to award social registration bonus", e);
+                }
+            }
+
+            final UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUsername());
+            final String token = jwtTokenUtil.generateToken(userDetails);
+            final String refreshToken = jwtTokenUtil.generateRefreshToken(userDetails);
+
+            // Track login
+            try {
+                securityAlertService.trackLoginAndNotify(user, request);
+            } catch (Exception e) {
+                logger.error("Failed to track social login for user: {}", user.getUsername(), e);
+            }
+
+            Map<String, Object> response = new HashMap<>();
+            response.put("token", token);
+            response.put("refreshToken", refreshToken);
+            response.put("user", user);
+
+            return ResponseEntity.ok(response);
+        } catch (com.google.firebase.auth.FirebaseAuthException e) {
+            logger.error("❌ Firebase authentication failed: {}", e.getMessage());
+            return ResponseEntity.status(401).body(Map.of(
+                    "message", "Invalid social token",
+                    "details", e.getMessage()));
+        } catch (Exception e) {
+            logger.error("❌ Internal error during social login: {} - {}", e.getClass().getSimpleName(), e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(Map.of(
+                    "message", "Internal server error during social login",
+                    "details", e.getMessage() != null ? e.getMessage() : "Unknown error",
+                    "type", e.getClass().getSimpleName()));
+        }
     }
 
     @PostMapping("/register")
@@ -148,7 +250,8 @@ public class JwtAuthenticationController {
         User savedUser = userService.saveUser(user);
         logger.debug("User saved with ID: {}", savedUser.getId());
 
-        // Award registration bonus points (+20 points for completing email registration)
+        // Award registration bonus points (+20 points for completing email
+        // registration)
         try {
             rewardService.earnPoints(savedUser.getId(), 20, "Registrazione completata");
             logger.info("Registration bonus awarded to user: {}", savedUser.getUsername());
@@ -317,7 +420,7 @@ public class JwtAuthenticationController {
     @PostMapping("/forgot-password")
     public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> request) {
         String email = request.get("email");
-        
+
         if (email == null || email.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Email is required"));
         }
@@ -331,17 +434,17 @@ public class JwtAuthenticationController {
         try {
             // Genera OTP a 6 cifre
             String otp = generateOTP();
-            
+
             // Elimina eventuali token precedenti per questa email
             passwordResetTokenRepository.deleteByEmail(email);
-            
+
             // Salva nuovo token
             PasswordResetToken token = new PasswordResetToken(email, otp);
             passwordResetTokenRepository.save(token);
-            
+
             // Invia email
             emailService.sendOtpEmail(email, otp);
-            
+
             logger.info("Password reset OTP sent to: {}", email);
             return ResponseEntity.ok(Map.of("message", "OTP sent to your email"));
         } catch (Exception e) {
@@ -360,7 +463,7 @@ public class JwtAuthenticationController {
         }
 
         Optional<PasswordResetToken> tokenOpt = passwordResetTokenRepository.findByEmailAndOtpAndUsedFalse(email, otp);
-        
+
         if (!tokenOpt.isPresent()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Invalid or expired OTP"));
         }
@@ -389,7 +492,7 @@ public class JwtAuthenticationController {
         }
 
         Optional<PasswordResetToken> tokenOpt = passwordResetTokenRepository.findByEmailAndOtpAndUsedFalse(email, otp);
-        
+
         if (!tokenOpt.isPresent()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Invalid or expired OTP"));
         }
@@ -426,7 +529,8 @@ public class JwtAuthenticationController {
         if (verified) {
             return ResponseEntity.ok(Map.of("message", "Email verified successfully", "success", true));
         }
-        return ResponseEntity.badRequest().body(Map.of("message", "Invalid or expired verification token", "success", false));
+        return ResponseEntity.badRequest()
+                .body(Map.of("message", "Invalid or expired verification token", "success", false));
     }
 
     /**
