@@ -193,6 +193,10 @@ public class EmailSchedulerService {
 
             digest.setPlatformStats(platformStats);
 
+            // Extract values for highlights
+            int upcomingEvents = platformStats.getUpcomingEvents();
+            int newShopsYesterday = platformStats.getNewShops();
+
             // Highlights - dynamic based on real data
             List<DailyDigestEmailDTO.Highlight> highlights = new ArrayList<>();
 
