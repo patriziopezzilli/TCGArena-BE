@@ -67,7 +67,7 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
                         "(:expansionId IS NULL OR ct.expansion_id = :expansionId) AND " +
                         "(:setCode IS NULL OR ct.set_code = :setCode) AND " +
                         "(:rarity IS NULL OR ct.rarity = :rarity) AND " +
-                        "(:searchQuery IS NULL OR LOWER(ct.name) LIKE LOWER(CONCAT('%', :searchQuery, '%')) OR LOWER(ct.card_number) LIKE LOWER(CONCAT('%', :searchQuery, '%'))) AND "
+                        "(:searchQuery IS NULL OR LOWER(ct.name) LIKE LOWER('%' || :searchQuery || '%') OR LOWER(ct.card_number) LIKE LOWER('%' || :searchQuery || '%')) AND "
                         +
                         "ct.card_number IS NOT NULL AND ct.card_number <> 'N/A' AND ct.card_number <> '' " +
                         "ORDER BY ct.id", nativeQuery = true)
@@ -125,7 +125,7 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
          */
         @Query(value = "SELECT * FROM card_templates ct WHERE " +
                         "(ct.name IN :tokens) OR " +
-                        "(LOWER(ct.name) LIKE LOWER(CONCAT('%', :longToken, '%'))) " +
+                        "(LOWER(ct.name) LIKE LOWER('%' || :longToken || '%')) " +
                         "AND ct.card_number IS NOT NULL AND ct.card_number <> 'N/A' AND ct.card_number <> '' " +
                         "LIMIT 20", nativeQuery = true)
         List<CardTemplate> findBySmartScanTokens(@Param("tokens") List<String> tokens,
@@ -136,12 +136,12 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
 
         /**
          * Get random card templates from the last N years
-         * Uses native SQL for RAND() function and date filtering
+         * Uses native SQL for RANDOM() function and date filtering
          */
         @Query(value = "SELECT * FROM card_templates ct WHERE " +
-                        "ct.date_created >= DATE_SUB(NOW(), INTERVAL :years YEAR) AND " +
+                        "ct.date_created >= NOW() - MAKE_INTERVAL(YEARS => :years) AND " +
                         "ct.card_number IS NOT NULL AND ct.card_number <> 'N/A' AND ct.card_number <> '' " +
-                        "ORDER BY RAND() " +
+                        "ORDER BY RANDOM() " +
                         "LIMIT :limit", nativeQuery = true)
         List<CardTemplate> findRandomRecentCards(@Param("years") int years, @Param("limit") int limit);
 }
