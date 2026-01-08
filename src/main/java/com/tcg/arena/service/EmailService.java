@@ -236,8 +236,8 @@ public class EmailService {
         variables.put("errorMessage", summary.getErrorMessage());
         
         String subject = summary.getStatus().equals("SUCCESS") 
-            ? "Import JustTCG Completato - " + summary.getCardsAdded() + " carte aggiunte"
-            : "Import JustTCG - Stato: " + summary.getStatus();
+            ? "Import TCG Completato - " + summary.getCardsAdded() + " carte aggiunte"
+            : "Import TCG - Stato: " + summary.getStatus();
             
         sendHtmlEmail(email, subject, "email/import-summary", variables);
     }

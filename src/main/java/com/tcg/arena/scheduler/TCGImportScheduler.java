@@ -4,6 +4,7 @@ import com.tcg.arena.model.TCGType;
 import com.tcg.arena.service.BatchService;
 import com.tcg.arena.service.ImportStatsCollector;
 import com.tcg.arena.service.TCGApiClient;
+import com.tcg.arena.service.SchedulerLockService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,51 +32,67 @@ public class TCGImportScheduler {
     @Autowired
     private TCGApiClient tcgApiClient;
 
+    @Autowired
+    private SchedulerLockService schedulerLockService;
+
     /**
      * Run JustTCG import for all TCG types at 3 AM every night
      * The offset for each TCG is automatically retrieved from the import_progress table
      */
     @Scheduled(cron = "0 0 3 * * ?") // Every day at 3 AM
     public void runNightlyTCGImport() {
-        logger.info("Starting nightly TCG import for all TCG types at 3 AM");
+        String lockKey = "nightly-tcg-import";
         
-        // Reset batch statistics
-        statsCollector.resetBatch();
-
-        // Import for all supported TCG types
-        TCGType[] tcgTypes = {
-            TCGType.MAGIC,
-            TCGType.POKEMON,
-            TCGType.YUGIOH,
-            TCGType.LORCANA,
-            TCGType.ONE_PIECE,
-            TCGType.DIGIMON
-        };
-
-        for (TCGType tcgType : tcgTypes) {
-            try {
-                if (tcgType == TCGType.MAGIC) {
-                    // Use delta import for Magic (fast, only new cards)
-                    logger.info("Starting nightly delta import for {}", tcgType.getDisplayName());
-                    Integer imported = tcgApiClient.importMagicDelta().block(Duration.ofMinutes(15));
-                    logger.info("Nightly delta import completed for {}: {} cards processed", 
-                               tcgType.getDisplayName(), imported);
-                } else {
-                    // Use full import for other TCGs
-                    logger.info("Triggering TCG import for {}", tcgType.getDisplayName());
-                    batchService.triggerTCGImport(tcgType);
-                    logger.info("Successfully triggered TCG import for {}", tcgType.getDisplayName());
-                }
-                
-                // Add a small delay between imports to avoid overloading
-                Thread.sleep(5000); // 5 seconds delay
-            } catch (Exception e) {
-                logger.error("Error during nightly import for {}: {}", 
-                    tcgType.getDisplayName(), e.getMessage(), e);
-                // Continue with next TCG type even if one fails
-            }
+        // Try to acquire lock
+        if (!schedulerLockService.acquireLock(lockKey, Duration.ofHours(6))) {
+            logger.warn("Nightly TCG import is already running or was recently executed. Skipping this execution.");
+            return;
         }
+        
+        try {
+            logger.info("Starting nightly TCG import for all TCG types at 3 AM");
+            
+            // Reset batch statistics
+            statsCollector.resetBatch();
 
-        logger.info("Completed nightly JustTCG import trigger for all TCG types");
+            // Import for all supported TCG types
+            TCGType[] tcgTypes = {
+                TCGType.MAGIC,
+                TCGType.POKEMON,
+                TCGType.YUGIOH,
+                TCGType.LORCANA,
+                TCGType.ONE_PIECE,
+                TCGType.DIGIMON
+            };
+
+            for (TCGType tcgType : tcgTypes) {
+                try {
+                    if (tcgType == TCGType.MAGIC) {
+                        // Use delta import for Magic (fast, only new cards)
+                        logger.info("Starting nightly delta import for {}", tcgType.getDisplayName());
+                        Integer imported = tcgApiClient.importMagicDelta().block(Duration.ofMinutes(15));
+                        logger.info("Nightly delta import completed for {}: {} cards processed", 
+                                   tcgType.getDisplayName(), imported);
+                    } else {
+                        // Use full import for other TCGs
+                        logger.info("Triggering TCG import for {}", tcgType.getDisplayName());
+                        batchService.triggerTCGImport(tcgType);
+                        logger.info("Successfully triggered TCG import for {}", tcgType.getDisplayName());
+                    }
+                    
+                    // Add a small delay between imports to avoid overloading
+                    Thread.sleep(5000); // 5 seconds delay
+                } catch (Exception e) {
+                    logger.error("Error during nightly import for {}: {}", 
+                        tcgType.getDisplayName(), e.getMessage(), e);
+                    // Continue with next TCG type even if one fails
+                }
+            }
+
+            logger.info("Completed nightly TCG import trigger for all TCG types");
+        } finally {
+            // Always release the lock
+            schedulerLockService.releaseLock(lockKey);
+        }
     }
 }

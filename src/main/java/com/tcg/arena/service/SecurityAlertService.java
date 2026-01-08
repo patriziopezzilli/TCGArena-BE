@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
@@ -21,6 +22,7 @@ public class SecurityAlertService {
     private final UserLoginHistoryRepository loginHistoryRepository;
     private final UserEmailPreferencesRepository preferencesRepository;
     private final EmailService emailService;
+    private final WebClient webClient;
 
     public SecurityAlertService(UserLoginHistoryRepository loginHistoryRepository,
                                 UserEmailPreferencesRepository preferencesRepository,
@@ -28,6 +30,7 @@ public class SecurityAlertService {
         this.loginHistoryRepository = loginHistoryRepository;
         this.preferencesRepository = preferencesRepository;
         this.emailService = emailService;
+        this.webClient = WebClient.builder().build();
     }
 
     /**
@@ -98,10 +101,23 @@ public class SecurityAlertService {
      */
     private String getClientIP(HttpServletRequest request) {
         String xfHeader = request.getHeader("X-Forwarded-For");
-        if (xfHeader == null) {
-            return request.getRemoteAddr();
+        String ipAddress;
+        
+        if (xfHeader != null && !xfHeader.isEmpty()) {
+            // X-Forwarded-For can contain multiple IPs, take the first one
+            ipAddress = xfHeader.split(",")[0].trim();
+        } else {
+            ipAddress = request.getRemoteAddr();
         }
-        return xfHeader.split(",")[0];
+        
+        // Handle localhost/private IPs
+        if (ipAddress == null || ipAddress.isEmpty() || 
+            ipAddress.equals("127.0.0.1") || ipAddress.equals("0:0:0:0:0:0:0:1") ||
+            ipAddress.equals("::1") || ipAddress.equals("0.0.0.0")) {
+            return "127.0.0.1"; // Default to localhost for development
+        }
+        
+        return ipAddress;
     }
 
     /**
@@ -129,11 +145,59 @@ public class SecurityAlertService {
     }
 
     /**
-     * Get location from IP (placeholder - integrate with IP geolocation service)
+     * Get location from IP (integrates with IP geolocation service)
      */
     private String getLocationFromIP(String ipAddress) {
-        // TODO: Integrate with IP geolocation service (e.g., ipapi.co, ip-api.com)
-        // For now, return null
-        return null;
+        if (ipAddress == null || ipAddress.equals("0.0.0.0") || ipAddress.equals("127.0.0.1") || ipAddress.equals("localhost")) {
+            return "Sconosciuta";
+        }
+        
+        try {
+            IpApiResponse response = webClient.get()
+                    .uri("http://ip-api.com/json/" + ipAddress)
+                    .retrieve()
+                    .bodyToMono(IpApiResponse.class)
+                    .block();
+            
+            if (response != null && "success".equals(response.status)) {
+                StringBuilder location = new StringBuilder();
+                if (response.city != null && !response.city.isEmpty()) {
+                    location.append(response.city);
+                }
+                if (response.regionName != null && !response.regionName.isEmpty()) {
+                    if (location.length() > 0) location.append(", ");
+                    location.append(response.regionName);
+                }
+                if (response.country != null && !response.country.isEmpty()) {
+                    if (location.length() > 0) location.append(", ");
+                    location.append(response.country);
+                }
+                return location.length() > 0 ? location.toString() : "Sconosciuta";
+            }
+        } catch (Exception e) {
+            logger.warn("Failed to get location for IP {}: {}", ipAddress, e.getMessage());
+        }
+        
+        return "Sconosciuta";
+    }
+
+    /**
+     * DTO for IP-API.com response
+     */
+    private static class IpApiResponse {
+        public String status;
+        public String country;
+        public String countryCode;
+        public String region;
+        public String regionName;
+        public String city;
+        public String zip;
+        public double lat;
+        public double lon;
+        public String timezone;
+        public String isp;
+        public String org;
+        public String as;
+        public String query;
     }
 }

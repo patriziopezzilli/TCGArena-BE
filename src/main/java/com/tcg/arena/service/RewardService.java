@@ -36,7 +36,7 @@ public class RewardService {
 
     @Cacheable(value = CacheConfig.REWARDS_CACHE, key = "'active'")
     public List<Reward> getAllActiveRewards() {
-        return rewardRepository.findByIsActiveTrue();
+        return rewardRepository.findByIsActiveTrueWithPartner();
     }
 
     @Cacheable(value = CacheConfig.REWARDS_CACHE, key = "'partner_' + #partnerId")

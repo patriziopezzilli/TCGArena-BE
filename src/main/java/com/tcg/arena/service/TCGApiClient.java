@@ -43,7 +43,7 @@ public class TCGApiClient {
     // Rate limiting: delay between API calls (ms) -> increased to 3s to avoid 429
     private static final long API_DELAY_MS = 3000;
     // Page size for card fetching
-    private static final int PAGE_SIZE = 100;
+    private static final int PAGE_SIZE = 20;
 
     private final WebClient webClient;
     private final WebClient scryfallWebClient;
