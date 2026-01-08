@@ -173,6 +173,9 @@ public class JwtAuthenticationController {
                 } catch (Exception e) {
                     logger.error("Failed to award social registration bonus", e);
                 }
+
+                // Reload user to get updated points
+                user = userService.getUserById(user.getId()).orElse(user);
             }
 
             final UserDetails userDetails = userDetailsService.loadUserByUsername(user.getUsername());
@@ -274,6 +277,9 @@ public class JwtAuthenticationController {
             deckService.createStarterDecksForUser(savedUser.getId(), registerRequest.getFavoriteGames());
         }
 
+        // Reload user to get updated points
+        savedUser = userService.getUserById(savedUser.getId()).orElse(savedUser);
+
         final UserDetails userDetails = userDetailsService.loadUserByUsername(savedUser.getUsername());
         final String token = jwtTokenUtil.generateToken(userDetails);
         final String refreshToken = jwtTokenUtil.generateRefreshToken(userDetails);
@@ -308,6 +314,23 @@ public class JwtAuthenticationController {
 
         RefreshTokenResponse response = new RefreshTokenResponse(newAccessToken, newRefreshToken);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<?> getCurrentUser(
+            org.springframework.security.core.Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).body("Not authenticated");
+        }
+
+        String username = authentication.getName();
+        Optional<User> userOpt = userService.getUserByUsername(username);
+        
+        if (userOpt.isEmpty()) {
+            return ResponseEntity.status(404).body("User not found");
+        }
+
+        return ResponseEntity.ok(userOpt.get());
     }
 
     @PostMapping("/register-merchant")

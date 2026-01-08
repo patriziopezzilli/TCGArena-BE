@@ -10,6 +10,8 @@ import com.tcg.arena.service.UserCardService;
 import com.tcg.arena.model.UserStats;
 import com.tcg.arena.repository.UserRepository;
 import com.tcg.arena.service.UserActivityService;
+import com.tcg.arena.security.JwtTokenUtil;
+import com.tcg.arena.security.JwtUserDetailsService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -40,6 +42,12 @@ public class UserController {
 
         @Autowired
         private UserCardService userCardService;
+
+        @Autowired
+        private JwtTokenUtil jwtTokenUtil;
+
+        @Autowired
+        private JwtUserDetailsService userDetailsService;
 
         @GetMapping
         @Operation(summary = "Get all users with stats", description = "Retrieves a list of all registered users with their statistics")
@@ -178,6 +186,20 @@ public class UserController {
                         userActivityService.logActivity(id,
                                         com.tcg.arena.model.ActivityType.USER_PROFILE_UPDATED,
                                         "Aggiornato profilo");
+
+                        // If username was updated, generate new tokens
+                        if (request.getUsername() != null && !request.getUsername().isBlank()) {
+                                final org.springframework.security.core.userdetails.UserDetails userDetails = userDetailsService
+                                                .loadUserByUsername(updatedUser.getUsername());
+                                final String token = jwtTokenUtil.generateToken(userDetails);
+                                final String refreshToken = jwtTokenUtil.generateRefreshToken(userDetails);
+
+                                java.util.Map<String, Object> response = new java.util.HashMap<>();
+                                response.put("token", token);
+                                response.put("refreshToken", refreshToken);
+                                response.put("user", updatedUser);
+                                return ResponseEntity.ok(response);
+                        }
 
                         return ResponseEntity.ok((Object) updatedUser);
                 }).orElse(ResponseEntity.notFound().build());
