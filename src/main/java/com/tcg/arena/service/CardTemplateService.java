@@ -257,4 +257,16 @@ public class CardTemplateService {
         }
         return countsMap;
     }
+
+    /**
+     * Get random card templates from recent years
+     * Used for the "Explore Cards" section in the home screen
+     *
+     * @param years Number of years to look back (default: 2)
+     * @param limit Maximum number of cards to return (default: 20)
+     * @return List of random recent card templates
+     */
+    public List<CardTemplate> getRandomRecentCards(int years, int limit) {
+        return cardTemplateRepository.findRandomRecentCards(years, limit);
+    }
 }

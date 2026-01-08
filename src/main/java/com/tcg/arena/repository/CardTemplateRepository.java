@@ -133,4 +133,15 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
 
         @Query("SELECT COUNT(c) FROM CardTemplate c WHERE c.tcgType = :tcgType AND " + EXCLUDE_NA_CONDITION)
         long countByTcgType(@Param("tcgType") TCGType tcgType);
+
+        /**
+         * Get random card templates from the last N years
+         * Uses native SQL for RAND() function and date filtering
+         */
+        @Query(value = "SELECT * FROM card_templates ct WHERE " +
+                        "ct.date_created >= DATE_SUB(NOW(), INTERVAL :years YEAR) AND " +
+                        "ct.card_number IS NOT NULL AND ct.card_number <> 'N/A' AND ct.card_number <> '' " +
+                        "ORDER BY RAND() " +
+                        "LIMIT :limit", nativeQuery = true)
+        List<CardTemplate> findRandomRecentCards(@Param("years") int years, @Param("limit") int limit);
 }

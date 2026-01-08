@@ -230,4 +230,16 @@ public class CardController {
                                 .map(card -> ResponseEntity.ok(card.getMarketPrice()))
                                 .orElse(ResponseEntity.notFound().build());
         }
+
+        @GetMapping("/random-recent")
+        @Operation(summary = "Get random recent card templates", description = "Retrieves random card templates from the last N years. Used for the Explore Cards section in the home screen.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Random cards retrieved successfully")
+        })
+        public ResponseEntity<List<CardTemplate>> getRandomRecentCards(
+                        @Parameter(description = "Number of years to look back") @RequestParam(defaultValue = "2") int years,
+                        @Parameter(description = "Maximum number of cards to return") @RequestParam(defaultValue = "20") int limit) {
+                List<CardTemplate> cards = cardTemplateService.getRandomRecentCards(years, limit);
+                return ResponseEntity.ok(cards);
+        }
 }
