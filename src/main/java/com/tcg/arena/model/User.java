@@ -73,6 +73,9 @@ public class User {
     @Column(nullable = false)
     private Integer tradeRatingCount = 0; // Number of ratings received
 
+    @Column(nullable = false)
+    private Integer usernameChangeCount = 0; // Number of times username was changed (max 2)
+
     // Getters and Setters
     public Long getId() {
         return id;
@@ -277,23 +280,23 @@ public class User {
     public Double getTradeRating() {
         Integer sum = tradeRatingSum;
         Integer count = tradeRatingCount;
-        
+
         if (count == null || count == 0) {
             return null;
         }
-        
+
         // Defensive: if sum is invalid (negative or 0 when count > 0), return null
         if (sum == null || sum <= 0) {
             return null;
         }
-        
+
         double rating = (double) sum / count;
-        
+
         // Validate rating is in valid range (1-5)
         if (rating < 1.0 || rating > 5.0) {
             return null;
         }
-        
+
         return rating;
     }
 
@@ -305,5 +308,13 @@ public class User {
             this.tradeRatingCount = 0;
         this.tradeRatingSum += rating;
         this.tradeRatingCount += 1;
+    }
+
+    public Integer getUsernameChangeCount() {
+        return usernameChangeCount != null ? usernameChangeCount : 0;
+    }
+
+    public void setUsernameChangeCount(Integer usernameChangeCount) {
+        this.usernameChangeCount = usernameChangeCount;
     }
 }

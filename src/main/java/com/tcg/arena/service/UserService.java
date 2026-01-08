@@ -82,6 +82,10 @@ public class UserService {
         return userRepository.findByUsername(username);
     }
 
+    public boolean isUsernameAvailable(String username) {
+        return !userRepository.findByUsername(username).isPresent();
+    }
+
     public User saveUser(User user) {
         // Set default values
         if (user.getIsPremium() == null) {

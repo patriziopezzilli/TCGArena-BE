@@ -70,6 +70,17 @@ public class UserController {
                 return userService.getAllUsersWithStats();
         }
 
+        @GetMapping("/check-username")
+        @Operation(summary = "Check username availability", description = "Checks if a username is already taken")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Returns true if available, false if taken")
+        })
+        public ResponseEntity<java.util.Map<String, Boolean>> checkUsernameAvailability(
+                        @Parameter(description = "Username to check") @RequestParam String username) {
+                boolean available = userService.isUsernameAvailable(username);
+                return ResponseEntity.ok(java.util.Map.of("available", available));
+        }
+
         @GetMapping("/leaderboard")
         @Operation(summary = "Get user leaderboard with stats", description = "Retrieves the leaderboard of users with their full statistics")
         @ApiResponses(value = {
@@ -123,13 +134,34 @@ public class UserController {
                         @ApiResponse(responseCode = "200", description = "Profile updated successfully"),
                         @ApiResponse(responseCode = "404", description = "User not found")
         })
-        public ResponseEntity<User> updateUserProfile(
+        public ResponseEntity<?> updateUserProfile(
                         @Parameter(description = "Unique identifier of the user") @PathVariable Long id,
                         @Parameter(description = "Profile update request") @RequestBody UpdateProfileRequest request) {
                 return userService.getUserById(id).map(user -> {
+                        // Display Name Update
                         if (request.getDisplayName() != null && !request.getDisplayName().isBlank()) {
                                 user.setDisplayName(request.getDisplayName());
                         }
+
+                        // Username Update (Limited to 2 changes)
+                        if (request.getUsername() != null && !request.getUsername().isBlank()
+                                        && !request.getUsername().equals(user.getUsername())) {
+
+                                // Check if user has already changed username 2 times
+                                if (user.getUsernameChangeCount() >= 2) {
+                                        return ResponseEntity.badRequest()
+                                                        .body("Hai già esaurito i 2 cambi username consentiti.");
+                                }
+
+                                // Check if new username is available
+                                if (!userService.isUsernameAvailable(request.getUsername())) {
+                                        return ResponseEntity.badRequest().body("Username già in uso.");
+                                }
+
+                                user.setUsername(request.getUsername());
+                                user.setUsernameChangeCount(user.getUsernameChangeCount() + 1);
+                        }
+
                         if (request.getFavoriteGame() != null && !request.getFavoriteGame().isBlank()) {
                                 try {
                                         user.setFavoriteGame(com.tcg.arena.model.TCGType
@@ -147,7 +179,7 @@ public class UserController {
                                         com.tcg.arena.model.ActivityType.USER_PROFILE_UPDATED,
                                         "Aggiornato profilo");
 
-                        return ResponseEntity.ok(updatedUser);
+                        return ResponseEntity.ok((Object) updatedUser);
                 }).orElse(ResponseEntity.notFound().build());
         }
 
@@ -368,7 +400,8 @@ public class UserController {
                         // Log preference update activity
                         userActivityService.logActivity(id,
                                         com.tcg.arena.model.ActivityType.USER_PREFERENCES_UPDATED,
-                                        "Aggiornate preferenze notifiche email: " + (emailNotificationsEnabled ? "abilitate" : "disabilitate"));
+                                        "Aggiornate preferenze notifiche email: "
+                                                        + (emailNotificationsEnabled ? "abilitate" : "disabilitate"));
 
                         return ResponseEntity.ok(updatedUser);
                 }).orElse(ResponseEntity.notFound().build());
