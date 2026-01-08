@@ -58,6 +58,24 @@ public class UserController {
                 return userService.getAllUsersWithStats();
         }
 
+        @GetMapping("/me")
+        @Operation(summary = "Get current user", description = "Retrieves the currently authenticated user's profile")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Successfully retrieved current user"),
+                        @ApiResponse(responseCode = "401", description = "Not authenticated")
+        })
+        public ResponseEntity<?> getCurrentUser(
+                        org.springframework.security.core.Authentication authentication) {
+                if (authentication == null || !authentication.isAuthenticated()) {
+                        return ResponseEntity.status(401).body("Not authenticated");
+                }
+
+                String username = authentication.getName();
+                return userService.getUserByUsername(username)
+                                .map(ResponseEntity::ok)
+                                .orElse(ResponseEntity.status(404).build());
+        }
+
         @GetMapping("/{id}")
         @Operation(summary = "Get user by ID", description = "Retrieves a specific user by their unique ID with stats")
         public ResponseEntity<UserWithStatsDTO> getUserById(@PathVariable Long id) {

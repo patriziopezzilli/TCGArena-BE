@@ -316,23 +316,6 @@ public class JwtAuthenticationController {
         return ResponseEntity.ok(response);
     }
 
-    @GetMapping("/me")
-    public ResponseEntity<?> getCurrentUser(
-            org.springframework.security.core.Authentication authentication) {
-        if (authentication == null || !authentication.isAuthenticated()) {
-            return ResponseEntity.status(401).body("Not authenticated");
-        }
-
-        String username = authentication.getName();
-        Optional<User> userOpt = userService.getUserByUsername(username);
-        
-        if (userOpt.isEmpty()) {
-            return ResponseEntity.status(404).body("User not found");
-        }
-
-        return ResponseEntity.ok(userOpt.get());
-    }
-
     @PostMapping("/register-merchant")
     public ResponseEntity<?> registerMerchant(@RequestBody MerchantRegistrationRequestDTO request) throws Exception {
         // Check if username or email already exists
