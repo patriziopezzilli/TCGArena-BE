@@ -56,6 +56,7 @@ public class TournamentService {
                     .println("   - " + t.getTitle() + " | Status: " + t.getStatus() + " | Start: " + t.getStartDate());
         });
         populateParticipantCounts(tournaments);
+        populateShopIds(tournaments);
         return tournaments;
     }
 
@@ -68,6 +69,14 @@ public class TournamentService {
         }
     }
 
+    private void populateShopIds(List<Tournament> tournaments) {
+        for (Tournament tournament : tournaments) {
+            // Get organizer's shopId
+            Optional<User> organizer = userRepository.findById(tournament.getOrganizerId());
+            organizer.ifPresent(user -> tournament.setShopId(user.getShopId()));
+        }
+    }
+
     @Cacheable(value = CacheConfig.TOURNAMENT_BY_ID_CACHE, key = "#id")
     public Optional<Tournament> getTournamentById(Long id) {
         Optional<Tournament> tournamentOpt = tournamentRepository.findById(id);
@@ -77,6 +86,10 @@ public class TournamentService {
                     tournament.getId(),
                     Arrays.asList(ParticipantStatus.REGISTERED, ParticipantStatus.CHECKED_IN));
             tournament.setCurrentParticipants((int) participantCount);
+
+            // Populate shopId
+            Optional<User> organizer = userRepository.findById(tournament.getOrganizerId());
+            organizer.ifPresent(user -> tournament.setShopId(user.getShopId()));
         }
         return tournamentOpt;
     }
@@ -98,6 +111,7 @@ public class TournamentService {
             return getAllTournaments();
         }
         populateParticipantCounts(tournaments);
+        populateShopIds(tournaments);
         return tournaments;
     }
 
@@ -106,6 +120,7 @@ public class TournamentService {
         LocalDateTime fiveHoursAgo = LocalDateTime.now().minusHours(5);
         List<Tournament> tournaments = tournamentRepository.findPastTournaments(fiveHoursAgo);
         populateParticipantCounts(tournaments);
+        populateShopIds(tournaments);
         return tournaments;
     }
 
@@ -136,7 +151,7 @@ public class TournamentService {
         // If no tournaments are found within radius, return all tournaments sorted by
         // distance
         if (nearbyTournaments.isEmpty()) {
-            return allTournaments.stream()
+            List<Tournament> sortedTournaments = allTournaments.stream()
                     .sorted((t1, t2) -> {
                         // Handle null coordinates by putting them at the end
                         Double lat1 = t1.getLocation() != null ? t1.getLocation().getLatitude() : null;
@@ -154,8 +169,13 @@ public class TournamentService {
                         return Double.compare(dist1, dist2);
                     })
                     .toList();
+            populateParticipantCounts(sortedTournaments);
+            populateShopIds(sortedTournaments);
+            return sortedTournaments;
         }
 
+        populateParticipantCounts(nearbyTournaments);
+        populateShopIds(nearbyTournaments);
         return nearbyTournaments;
     }
 

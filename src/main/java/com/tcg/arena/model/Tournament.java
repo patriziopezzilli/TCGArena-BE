@@ -39,6 +39,9 @@ public class Tournament {
     @Transient
     private Integer currentParticipants;
 
+    @Transient
+    private Long shopId; // Derived from organizer's shopId
+
     private Double entryFee;
 
     private String prizePool;
@@ -258,5 +261,13 @@ public class Tournament {
 
     public void setRegistrationCode(String registrationCode) {
         this.registrationCode = registrationCode;
+    }
+
+    public Long getShopId() {
+        return shopId;
+    }
+
+    public void setShopId(Long shopId) {
+        this.shopId = shopId;
     }
 }
