@@ -446,4 +446,81 @@ public class UserController {
                         return ResponseEntity.ok(updatedUser);
                 }).orElse(ResponseEntity.notFound().build());
         }
+
+        @PostMapping("/favorite-tcgs")
+        @Operation(summary = "Update favorite TCGs", description = "Updates user's favorite TCG types for event notifications")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Favorite TCGs updated successfully"),
+                        @ApiResponse(responseCode = "401", description = "Not authenticated")
+        })
+        public ResponseEntity<?> updateFavoriteTCGs(
+                        @RequestBody java.util.Map<String, Object> requestBody,
+                        org.springframework.security.core.Authentication authentication) {
+                if (authentication == null || !authentication.isAuthenticated()) {
+                        return ResponseEntity.status(401).body("Not authenticated");
+                }
+
+                String username = authentication.getName();
+                return userService.getUserByUsername(username).map(user -> {
+                        @SuppressWarnings("unchecked")
+                        java.util.List<String> favoriteTCGs = (java.util.List<String>) requestBody.get("favoriteTCGs");
+
+                        if (favoriteTCGs == null || favoriteTCGs.isEmpty()) {
+                                user.setFavoriteTCGTypesString("");
+                        } else {
+                                // Convert list to comma-separated string
+                                String tcgString = String.join(",", favoriteTCGs);
+                                user.setFavoriteTCGTypesString(tcgString);
+                        }
+
+                        User updatedUser = userRepository.save(user);
+
+                        // Log activity
+                        userActivityService.logActivity(user.getId(),
+                                        com.tcg.arena.model.ActivityType.USER_PREFERENCES_UPDATED,
+                                        "Aggiornati TCG favoriti per notifiche: " + String.join(", ", favoriteTCGs));
+
+                        java.util.Map<String, Object> response = new java.util.HashMap<>();
+                        response.put("message", "Favorite TCGs updated successfully");
+                        response.put("favoriteTCGs", favoriteTCGs);
+
+                        return ResponseEntity.ok(response);
+                }).orElseGet(() -> {
+                        java.util.Map<String, Object> errorResponse = new java.util.HashMap<>();
+                        errorResponse.put("error", "User not found");
+                        return ResponseEntity.status(404).body(errorResponse);
+                });
+        }
+
+        @GetMapping("/favorite-tcgs")
+        @Operation(summary = "Get favorite TCGs", description = "Retrieves user's favorite TCG types")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Favorite TCGs retrieved successfully"),
+                        @ApiResponse(responseCode = "401", description = "Not authenticated")
+        })
+        public ResponseEntity<?> getFavoriteTCGs(
+                        org.springframework.security.core.Authentication authentication) {
+                if (authentication == null || !authentication.isAuthenticated()) {
+                        return ResponseEntity.status(401).body("Not authenticated");
+                }
+
+                String username = authentication.getName();
+                return userService.getUserByUsername(username).map(user -> {
+                        String tcgString = user.getFavoriteTCGTypesString();
+                        java.util.List<String> favoriteTCGs = new java.util.ArrayList<>();
+
+                        if (tcgString != null && !tcgString.isEmpty()) {
+                                favoriteTCGs = java.util.Arrays.asList(tcgString.split(","));
+                        }
+
+                        java.util.Map<String, Object> response = new java.util.HashMap<>();
+                        response.put("favoriteTCGs", favoriteTCGs);
+
+                        return ResponseEntity.ok(response);
+                }).orElseGet(() -> {
+                        java.util.Map<String, Object> errorResponse = new java.util.HashMap<>();
+                        errorResponse.put("error", "User not found");
+                        return ResponseEntity.status(404).body(errorResponse);
+                });
+        }
 }

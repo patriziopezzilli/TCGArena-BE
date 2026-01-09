@@ -34,6 +34,9 @@ public class CommunityEventController {
     @Autowired
     private com.tcg.arena.repository.CommunityEventRepository eventRepository;
 
+    @Autowired
+    private com.tcg.arena.service.FirebaseMessagingService firebaseService;
+
     /**
      * Create a new community event
      */
@@ -43,7 +46,96 @@ public class CommunityEventController {
             @RequestBody CreateCommunityEventRequest request) {
         Long userId = getUserId(userDetails);
         CommunityEventDTO event = eventService.createEvent(userId, request);
+
+        // Send push notifications to users interested in this TCG type
+        sendEventNotifications(event);
+
         return ResponseEntity.ok(event);
+    }
+
+    /**
+     * Send push notifications to users interested in the event's TCG type
+     */
+    private void sendEventNotifications(CommunityEventDTO event) {
+        try {
+            String tcgType = event.getTcgType();
+            if (tcgType == null || tcgType.isEmpty()) {
+                logger.info("Event has no TCG type, skipping notifications");
+                return;
+            }
+
+            // Find all users who have this TCG in their favorites
+            List<User> interestedUsers = userRepository.findAll().stream()
+                    .filter(user -> {
+                        // Check if user has TCG in favorites
+                        String favoriteTCGs = user.getFavoriteTCGTypesString();
+                        if (favoriteTCGs == null || favoriteTCGs.isEmpty()) {
+                            return false;
+                        }
+
+                        // Check if user has a device token
+                        String deviceToken = user.getDeviceToken();
+                        if (deviceToken == null || deviceToken.isEmpty()) {
+                            return false;
+                        }
+
+                        // Check if TCG is in favorites (case-insensitive)
+                        String[] tcgArray = favoriteTCGs.toUpperCase().split(",");
+                        return java.util.Arrays.asList(tcgArray).contains(tcgType.toUpperCase());
+                    })
+                    .toList();
+
+            logger.info("Found {} users interested in {} events", interestedUsers.size(), tcgType);
+
+            // Send notifications asynchronously
+            for (User user : interestedUsers) {
+                try {
+                    // Prepare notification data
+                    java.util.Map<String, String> data = new java.util.HashMap<>();
+                    data.put("type", "new_event");
+                    data.put("eventId", String.valueOf(event.getId()));
+                    data.put("eventTitle", event.getTitle());
+                    data.put("tcgType", tcgType);
+
+                    String title = "🎉 Nuovo Evento " + getTCGDisplayName(tcgType) + "!";
+                    String body = event.getTitle() + " - " + event.getLocationName();
+
+                    firebaseService.sendPushNotification(
+                            user.getDeviceToken(),
+                            title,
+                            body,
+                            data);
+
+                    logger.info("Sent event notification to user: {}", user.getUsername());
+                } catch (com.tcg.arena.service.FirebaseMessagingService.InvalidTokenException e) {
+                    // Token is invalid, clear it from user
+                    logger.warn("Invalid token for user {}, clearing it", user.getUsername());
+                    user.setDeviceToken(null);
+                    userRepository.save(user);
+                } catch (Exception e) {
+                    logger.error("Failed to send notification to user {}: {}", user.getUsername(), e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Failed to send event notifications: {}", e.getMessage());
+            // Don't fail event creation if notifications fail
+        }
+    }
+
+    /**
+     * Get display name for TCG type
+     */
+    private String getTCGDisplayName(String tcgType) {
+        if (tcgType == null) return "";
+        return switch (tcgType.toUpperCase()) {
+            case "POKEMON" -> "Pokémon";
+            case "MAGIC" -> "Magic: The Gathering";
+            case "YUGIOH" -> "Yu-Gi-Oh!";
+            case "ONEPIECE" -> "One Piece";
+            case "LORCANA" -> "Lorcana";
+            case "FLESH_AND_BLOOD", "FLESHANDBLOOD" -> "Flesh and Blood";
+            default -> tcgType;
+        };
     }
 
     /**
