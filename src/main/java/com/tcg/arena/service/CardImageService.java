@@ -60,7 +60,7 @@ public class CardImageService {
                     .filter(card -> {
                         if (tcgTypeFilter != null && !tcgTypeFilter.isEmpty()) {
                             return card.getTcgType() != null &&
-                                    card.getTcgType().name().equalsIgnoreCase(tcgTypeFilter);
+                                    card.getTcgType().name().replace("_", "").equalsIgnoreCase(tcgTypeFilter.replace("_", ""));
                         }
                         return true;
                     })
