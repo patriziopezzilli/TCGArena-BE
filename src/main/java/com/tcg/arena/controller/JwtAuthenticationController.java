@@ -437,6 +437,16 @@ public class JwtAuthenticationController {
             return ResponseEntity.ok(Map.of("message", "If the email exists, an OTP has been sent"));
         }
 
+        User user = userOpt.get();
+        
+        // Check if user has an Apple private relay email (cannot receive emails)
+        if (isApplePrivateRelayEmail(email)) {
+            logger.info("Password reset requested for Apple relay email: {}. Cannot send OTP.", email);
+            return ResponseEntity.badRequest().body(Map.of(
+                "message", "Password reset via email is not available for this account. Please use 'Sign in with Apple' to access your account."
+            ));
+        }
+
         try {
             // Genera OTP a 6 cifre
             String otp = generateOTP();
@@ -568,6 +578,18 @@ public class JwtAuthenticationController {
         SecureRandom random = new SecureRandom();
         int otp = 100000 + random.nextInt(900000); // Genera numero tra 100000 e 999999
         return String.valueOf(otp);
+    }
+
+    /**
+     * Check if the email address is an Apple Private Relay address
+     * Apple Private Relay addresses have the domain privaterelay.appleid.com
+     * These addresses cannot receive emails from external senders
+     */
+    private boolean isApplePrivateRelayEmail(String email) {
+        if (email == null) {
+            return false;
+        }
+        return email.toLowerCase().endsWith("@privaterelay.appleid.com");
     }
 
     private void authenticate(String username, String password) throws Exception {

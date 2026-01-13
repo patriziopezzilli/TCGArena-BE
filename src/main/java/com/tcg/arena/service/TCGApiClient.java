@@ -1320,8 +1320,22 @@ public class TCGApiClient {
 
             logger.info("Downloaded {} cards from Scryfall bulk data", cards.size());
 
+            // Load existing card keys in memory for fast lookup
+            logger.info("Loading existing card keys for duplicate checking...");
+            List<Object[]> existingKeys = cardTemplateRepository.findAllCardKeys();
+            Set<String> existingCardKeys = new HashSet<>();
+            for (Object[] key : existingKeys) {
+                String name = (String) key[0];
+                String setCode = (String) key[1];
+                String cardNumber = (String) key[2];
+                String compositeKey = name + "|" + setCode + "|" + cardNumber;
+                existingCardKeys.add(compositeKey);
+            }
+            logger.info("Loaded {} existing card keys", existingCardKeys.size());
+
             int saved = 0;
             List<CardTemplate> cardsToSave = new ArrayList<>();
+            int skipped = 0;
             for (ScryfallCard card : cards) {
                 if (card.digital || card.oversized) {
                     continue;
@@ -1336,6 +1350,13 @@ public class TCGApiClient {
 
                 if (tcgSet == null) {
                     logger.warn("TCGSet not found for card {} in set {}", card.name, card.set);
+                    continue;
+                }
+
+                // Check if card already exists using in-memory lookup
+                String compositeKey = card.name + "|" + card.set + "|" + cardNumber;
+                if (existingCardKeys.contains(compositeKey)) {
+                    skipped++;
                     continue;
                 }
 
@@ -1361,9 +1382,18 @@ public class TCGApiClient {
                     try {
                         cardTemplateRepository.saveAll(cardsToSave);
                         saved += cardsToSave.size();
-                        logger.info("Saved batch of 10000 cards, total saved: {}", saved);
+                        logger.info("Saved batch of {} cards, total saved: {}", cardsToSave.size(), saved);
                     } catch (Exception e) {
-                        logger.warn("Error saving batch: {}", e.getMessage());
+                        logger.error("Error saving batch of {} cards: {}", cardsToSave.size(), e.getMessage(), e);
+                        // Try to save individually to identify problematic cards
+                        for (CardTemplate cardTemplate : cardsToSave) {
+                            try {
+                                cardTemplateRepository.save(cardTemplate);
+                                saved++;
+                            } catch (Exception ex) {
+                                logger.warn("Failed to save card {}: {}", cardTemplate.getName(), ex.getMessage());
+                            }
+                        }
                     }
                     cardsToSave.clear();
                 }
@@ -1371,11 +1401,21 @@ public class TCGApiClient {
             try {
                 cardTemplateRepository.saveAll(cardsToSave);
                 saved += cardsToSave.size();
+                logger.info("Saved final batch of {} cards, total saved: {}", cardsToSave.size(), saved);
             } catch (Exception e) {
-                logger.warn("Error saving final batch: {}", e.getMessage());
+                logger.error("Error saving final batch of {} cards: {}", cardsToSave.size(), e.getMessage(), e);
+                // Try to save individually to identify problematic cards
+                for (CardTemplate cardTemplate : cardsToSave) {
+                    try {
+                        cardTemplateRepository.save(cardTemplate);
+                        saved++;
+                    } catch (Exception ex) {
+                        logger.warn("Failed to save card {}: {}", cardTemplate.getName(), ex.getMessage());
+                    }
+                }
             }
 
-            logger.info("Saved {} new Magic cards from Scryfall", saved);
+            logger.info("Saved {} new Magic cards from Scryfall ({} skipped as duplicates)", saved, skipped);
             return saved;
 
         } catch (Exception e) {

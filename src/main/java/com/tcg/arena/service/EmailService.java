@@ -42,6 +42,12 @@ public class EmailService {
      * Send simple text email
      */
     public void sendSimpleEmail(String to, String subject, String text) {
+        // Check if email is an Apple private relay address
+        if (isApplePrivateRelayEmail(to)) {
+            logger.info("Skipping email to Apple private relay address: {} (subject: {})", to, subject);
+            return; // Don't attempt to send to Apple relay addresses
+        }
+        
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
@@ -60,6 +66,12 @@ public class EmailService {
      * Send HTML email using Thymeleaf template
      */
     public void sendHtmlEmail(String to, String subject, String templateName, Map<String, Object> variables) {
+        // Check if email is an Apple private relay address
+        if (isApplePrivateRelayEmail(to)) {
+            logger.info("Skipping HTML email to Apple private relay address: {} (template: {})", to, templateName);
+            return; // Don't attempt to send to Apple relay addresses
+        }
+        
         try {
             MimeMessage message = mailSender.createMimeMessage();
             // Use MimeMessageHelper with explicit encoding for headers
@@ -95,6 +107,12 @@ public class EmailService {
      * Send OTP for password reset (simple text version)
      */
     public void sendOtpEmail(String toEmail, String otp) {
+        // Check if email is an Apple private relay address
+        if (isApplePrivateRelayEmail(toEmail)) {
+            logger.info("Skipping OTP email to Apple private relay address: {}", toEmail);
+            return; // Don't attempt to send OTP to Apple relay addresses
+        }
+        
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
@@ -132,9 +150,17 @@ public class EmailService {
     
     /**
      * Check if user has enabled email notifications (general flag)
+     * Also checks if email is an Apple private relay address (which cannot receive emails)
      */
     private boolean shouldSendEmail(User user) {
-        return user.getEmailNotificationsEnabled() != null ? user.getEmailNotificationsEnabled() : true;
+        // First check if user has email notifications enabled
+        boolean notificationsEnabled = user.getEmailNotificationsEnabled() != null ? user.getEmailNotificationsEnabled() : true;
+        if (!notificationsEnabled) {
+            return false;
+        }
+        
+        // Check if email is an Apple private relay address
+        return !isApplePrivateRelayEmail(user.getEmail());
     }
 
     /**
@@ -412,6 +438,12 @@ public class EmailService {
      * Send email verification
      */
     public void sendEmailVerification(String email, String username, String verificationCode, String verificationLink) {
+        // Check if email is an Apple private relay address
+        if (isApplePrivateRelayEmail(email)) {
+            logger.info("Skipping email verification to Apple private relay address: {} for user: {}", email, username);
+            return; // Don't attempt to send verification to Apple relay addresses
+        }
+        
         Map<String, Object> variables = new HashMap<>();
         variables.put("username", username);
         variables.put("verificationCode", verificationCode);
@@ -479,5 +511,17 @@ public class EmailService {
         }
         
         return sanitized;
+    }
+    
+    /**
+     * Check if the email address is an Apple Private Relay address
+     * Apple Private Relay addresses have the domain privaterelay.appleid.com
+     * These addresses cannot receive emails from external senders
+     */
+    private boolean isApplePrivateRelayEmail(String email) {
+        if (email == null) {
+            return false;
+        }
+        return email.toLowerCase().endsWith("@privaterelay.appleid.com");
     }
 }

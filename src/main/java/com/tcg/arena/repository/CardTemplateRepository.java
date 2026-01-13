@@ -48,6 +48,9 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
         List<CardTemplate> findByNameAndSetCodeAndCardNumber(@Param("name") String name,
                         @Param("setCode") String setCode, @Param("cardNumber") String cardNumber);
 
+        @Query("SELECT c.name, c.setCode, c.cardNumber FROM CardTemplate c WHERE c.tcgType = 'MAGIC'")
+        List<Object[]> findAllCardKeys();
+
         @Query("SELECT c FROM CardTemplate c WHERE " +
                         "c.name LIKE CONCAT('%', :name, '%') AND " +
                         "(c.cardNumber = :cardNumber OR c.cardNumber LIKE CONCAT(:cardNumber, '/%')) AND " +
