@@ -323,6 +323,7 @@ public class TCGApiClient {
                             });
                 })
                 .bodyToMono(TCGSetsResponse.class)
+                .timeout(Duration.ofMinutes(10)) // Add timeout to prevent hanging requests
                 .doOnSuccess(resp -> logger.info("Fetched sets for {}: {} sets found, hasMore: {}",
                         gameId, resp.getSets().size(), resp.hasMore))
                 .retryWhen(reactor.util.retry.Retry.backoff(3, Duration.ofSeconds(2))
@@ -378,15 +379,16 @@ public class TCGApiClient {
                 .doOnNext(resp -> logger.debug("[FLUX] First page received, cards: {}", resp.getCards().size()))
                 .expand(response -> {
                     List<TCGCard> cards = response.getCards();
-                    logger.debug("[FLUX-EXPAND] Checking if we need next page. Current cards: {}, offset: {}",
-                            cards.size(), response.currentOffset);
-                    if (!cards.isEmpty()) {
+                    logger.debug("[FLUX-EXPAND] Checking if we need next page. Current cards: {}, hasMore: {}, offset: {}",
+                            cards.size(), response.hasMore, response.currentOffset);
+                    if (response.hasMore && !cards.isEmpty()) {
                         int nextOffset = response.currentOffset + PAGE_SIZE;
                         logger.debug("[FLUX-EXPAND] Fetching next page at offset: {}", nextOffset);
                         return getCardsPageByGame(gameId, nextOffset)
                                 .delaySubscription(Duration.ofMillis(API_DELAY_MS));
                     }
-                    logger.info("[FLUX-EXPAND] No more cards, ending stream");
+                    logger.info("[FLUX-EXPAND] No more cards (hasMore: {}, cards: {}), ending stream", 
+                            response.hasMore, cards.size());
                     return Mono.empty();
                 });
     }
@@ -424,6 +426,7 @@ public class TCGApiClient {
                     response.currentOffset = offset;
                     return response;
                 })
+                .timeout(Duration.ofMinutes(10)) // Add timeout to prevent hanging requests
                 .doOnSuccess(resp -> {
                     if (resp != null && resp.getCards() != null) {
                         logger.info("Fetched cards page for game {}: {} cards (offset: {})",
@@ -479,6 +482,7 @@ public class TCGApiClient {
                             });
                 })
                 .bodyToMono(TCGCardsResponse.class)
+                .timeout(Duration.ofMinutes(10)) // Add timeout to prevent hanging requests
                 .doOnSuccess(resp -> logger.debug("Fetched cards page for set {}, count: {}, hasMore: {}",
                         setId, resp.getCards().size(), resp.hasMore))
                 .retryWhen(reactor.util.retry.Retry.backoff(3, Duration.ofSeconds(2))
@@ -1128,7 +1132,7 @@ public class TCGApiClient {
         try {
             logger.debug("Checking for new data in {} at offset {}", gameId, currentOffset);
             TCGCardsResponse response = getCardsPageByGame(gameId, currentOffset)
-                    .block(Duration.ofSeconds(30)); // Timeout for this check
+                    .block(); // Method already has timeout handling
             
             if (response == null) {
                 logger.warn("Null response when checking for new data");
