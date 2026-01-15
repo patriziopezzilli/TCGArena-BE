@@ -29,7 +29,7 @@ public interface CardVoteRepository extends JpaRepository<CardVote, Long> {
 
     @Query("SELECT ct FROM CardTemplate ct WHERE ct.tcgType = :tcgType " +
            "AND ct.id NOT IN (SELECT v.cardTemplate.id FROM CardVote v WHERE v.user = :user) " +
-           "ORDER BY FUNCTION('RAND')")
+           "ORDER BY FUNCTION('RANDOM')")
     Page<CardTemplate> findRandomUnvotedCardTemplates(@Param("tcgType") TCGType tcgType,
                                                        @Param("user") User user,
                                                        Pageable pageable);
