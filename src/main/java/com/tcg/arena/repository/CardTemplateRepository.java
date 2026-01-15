@@ -147,4 +147,13 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
                         "ORDER BY RANDOM() " +
                         "LIMIT :limit", nativeQuery = true)
         List<CardTemplate> findRandomRecentCards(@Param("years") int years, @Param("limit") int limit);
+
+        // Card Rating Arena - Rankings by likes/dislikes
+        Page<CardTemplate> findByTcgTypeOrderByLikesCountDesc(TCGType tcgType, Pageable pageable);
+
+        Page<CardTemplate> findAllByOrderByLikesCountDesc(Pageable pageable);
+
+        Page<CardTemplate> findByTcgTypeOrderByDislikesCountDesc(TCGType tcgType, Pageable pageable);
+
+        Page<CardTemplate> findAllByOrderByDislikesCountDesc(Pageable pageable);
 }

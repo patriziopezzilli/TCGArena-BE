@@ -1,0 +1,20 @@
+-- Create card_votes table for Card Rating Arena feature
+CREATE TABLE card_votes (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    card_template_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    vote_type VARCHAR(20) NOT NULL CHECK (vote_type IN ('LIKE', 'DISLIKE')),
+    voted_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_card_votes_card_template FOREIGN KEY (card_template_id)
+        REFERENCES card_templates(id) ON DELETE CASCADE,
+    CONSTRAINT fk_card_votes_user FOREIGN KEY (user_id)
+        REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT unique_card_user_vote UNIQUE (card_template_id, user_id)
+);
+
+-- Create indexes for performance
+CREATE INDEX idx_card_votes_card_template ON card_votes(card_template_id);
+CREATE INDEX idx_card_votes_user ON card_votes(user_id);
+CREATE INDEX idx_card_votes_vote_type ON card_votes(vote_type);
+CREATE INDEX idx_card_votes_voted_at ON card_votes(voted_at);

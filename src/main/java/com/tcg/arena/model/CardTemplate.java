@@ -66,6 +66,13 @@ public class CardTemplate {
 
     private Integer manaCost;
 
+    // === Card Rating Arena vote counters ===
+    @Column(name = "likes_count", nullable = false)
+    private Long likesCount = 0L;
+
+    @Column(name = "dislikes_count", nullable = false)
+    private Long dislikesCount = 0L;
+
     @Column(nullable = false)
     private LocalDateTime dateCreated;
 
@@ -262,5 +269,41 @@ public class CardTemplate {
 
     public void setDateCreated(LocalDateTime dateCreated) {
         this.dateCreated = dateCreated;
+    }
+
+    public Long getLikesCount() {
+        return likesCount;
+    }
+
+    public void setLikesCount(Long likesCount) {
+        this.likesCount = likesCount;
+    }
+
+    public Long getDislikesCount() {
+        return dislikesCount;
+    }
+
+    public void setDislikesCount(Long dislikesCount) {
+        this.dislikesCount = dislikesCount;
+    }
+
+    public void incrementLikesCount() {
+        this.likesCount++;
+    }
+
+    public void decrementLikesCount() {
+        if (this.likesCount > 0) {
+            this.likesCount--;
+        }
+    }
+
+    public void incrementDislikesCount() {
+        this.dislikesCount++;
+    }
+
+    public void decrementDislikesCount() {
+        if (this.dislikesCount > 0) {
+            this.dislikesCount--;
+        }
     }
 }
