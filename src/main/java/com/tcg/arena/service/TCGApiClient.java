@@ -807,8 +807,15 @@ public class TCGApiClient {
         // Check database for existing set by setCode
         Optional<com.tcg.arena.model.TCGSet> existingSet = tcgSetRepository.findBySetCode(setId);
         if (existingSet.isPresent()) {
-            tcgSetCache.put(setId, existingSet.get());
-            return existingSet.get();
+            com.tcg.arena.model.TCGSet existing = existingSet.get();
+            
+            // Preserve manually modified release date - don't update from API for this method
+            // since we don't have the API data here
+            logger.debug("Using existing TCGSet: {} (release date preserved: {})", 
+                existing.getName(), existing.getReleaseDate());
+            
+            tcgSetCache.put(setId, existing);
+            return existing;
         }
 
         // Get or create the parent Expansion
@@ -844,8 +851,25 @@ public class TCGApiClient {
         // Check database for existing set by setCode
         Optional<com.tcg.arena.model.TCGSet> existingSet = tcgSetRepository.findBySetCode(tcgSet.id);
         if (existingSet.isPresent()) {
-            tcgSetCache.put(cacheKey, existingSet.get());
-            return existingSet.get();
+            com.tcg.arena.model.TCGSet existing = existingSet.get();
+            
+            // Preserve manually modified release date
+            if (existing.getReleaseDateModifiedManually() != null && existing.getReleaseDateModifiedManually()) {
+                logger.debug("Preserving manually modified release date for set: {} (current: {}, API: {})", 
+                    existing.getName(), existing.getReleaseDate(), parseReleaseDate(tcgSet.releaseDate));
+            } else {
+                // Update release date from API
+                existing.setReleaseDate(parseReleaseDate(tcgSet.releaseDate));
+            }
+            
+            // Update other fields that can be safely updated
+            existing.setName(tcgSet.name);
+            existing.setCardCount(tcgSet.cardsCount != null ? tcgSet.cardsCount : existing.getCardCount());
+            
+            // Save the updated set
+            com.tcg.arena.model.TCGSet updatedSet = tcgSetRepository.save(existing);
+            tcgSetCache.put(cacheKey, updatedSet);
+            return updatedSet;
         }
 
         // Get or create the parent Expansion

@@ -23,6 +23,9 @@ public class TCGSet {
     private LocalDateTime releaseDate;
 
     @Column(nullable = false)
+    private Boolean releaseDateModifiedManually = false;
+
+    @Column(nullable = false)
     private Integer cardCount;
 
     @Column(length = 1000)
@@ -83,6 +86,14 @@ public class TCGSet {
 
     public void setReleaseDate(LocalDateTime releaseDate) {
         this.releaseDate = releaseDate;
+    }
+
+    public Boolean getReleaseDateModifiedManually() {
+        return releaseDateModifiedManually;
+    }
+
+    public void setReleaseDateModifiedManually(Boolean releaseDateModifiedManually) {
+        this.releaseDateModifiedManually = releaseDateModifiedManually;
     }
 
     public Integer getCardCount() {

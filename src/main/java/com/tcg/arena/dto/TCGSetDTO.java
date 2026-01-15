@@ -9,6 +9,7 @@ public class TCGSetDTO {
     private String setCode;
     private String imageUrl;
     private LocalDateTime releaseDate;
+    private Boolean releaseDateModifiedManually;
     private Integer cardCount;
     private String description;
 
@@ -21,6 +22,7 @@ public class TCGSetDTO {
         this.setCode = tcgSet.getSetCode();
         this.imageUrl = tcgSet.getImageUrl();
         this.releaseDate = tcgSet.getReleaseDate();
+        this.releaseDateModifiedManually = tcgSet.getReleaseDateModifiedManually();
         this.cardCount = tcgSet.getCardCount();
         this.description = tcgSet.getDescription();
     }
@@ -31,6 +33,7 @@ public class TCGSetDTO {
         this.setCode = tcgSet.getSetCode();
         this.imageUrl = tcgSet.getImageUrl();
         this.releaseDate = tcgSet.getReleaseDate();
+        this.releaseDateModifiedManually = tcgSet.getReleaseDateModifiedManually();
         this.cardCount = actualCardCount != null ? actualCardCount : tcgSet.getCardCount();
         this.description = tcgSet.getDescription();
     }
@@ -50,6 +53,9 @@ public class TCGSetDTO {
 
     public LocalDateTime getReleaseDate() { return releaseDate; }
     public void setReleaseDate(LocalDateTime releaseDate) { this.releaseDate = releaseDate; }
+
+    public Boolean getReleaseDateModifiedManually() { return releaseDateModifiedManually; }
+    public void setReleaseDateModifiedManually(Boolean releaseDateModifiedManually) { this.releaseDateModifiedManually = releaseDateModifiedManually; }
 
     public Integer getCardCount() { return cardCount; }
     public void setCardCount(Integer cardCount) { this.cardCount = cardCount; }

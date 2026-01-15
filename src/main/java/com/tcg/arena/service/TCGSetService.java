@@ -48,7 +48,14 @@ public class TCGSetService {
             set.setName(setDetails.getName());
             set.setSetCode(setDetails.getSetCode());
             set.setImageUrl(setDetails.getImageUrl());
-            set.setReleaseDate(setDetails.getReleaseDate());
+            
+            // Check if release date is being changed manually
+            if (setDetails.getReleaseDate() != null && 
+                (set.getReleaseDate() == null || !set.getReleaseDate().equals(setDetails.getReleaseDate()))) {
+                set.setReleaseDate(setDetails.getReleaseDate());
+                set.setReleaseDateModifiedManually(true);
+            }
+            
             set.setCardCount(setDetails.getCardCount());
             set.setDescription(setDetails.getDescription());
             set.setExpansion(setDetails.getExpansion());
