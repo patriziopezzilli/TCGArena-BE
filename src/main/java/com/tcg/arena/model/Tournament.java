@@ -75,6 +75,9 @@ public class Tournament {
     @Column(unique = true, length = 5)
     private String registrationCode;
 
+    // Notification tracking
+    private LocalDateTime lastReminderSentAt; // When the last start reminder was sent
+
     @OneToMany(mappedBy = "tournamentId", cascade = CascadeType.ALL)
     private List<TournamentParticipant> participants = new ArrayList<>();
 
@@ -269,5 +272,13 @@ public class Tournament {
 
     public void setShopId(Long shopId) {
         this.shopId = shopId;
+    }
+
+    public LocalDateTime getLastReminderSentAt() {
+        return lastReminderSentAt;
+    }
+
+    public void setLastReminderSentAt(LocalDateTime lastReminderSentAt) {
+        this.lastReminderSentAt = lastReminderSentAt;
     }
 }

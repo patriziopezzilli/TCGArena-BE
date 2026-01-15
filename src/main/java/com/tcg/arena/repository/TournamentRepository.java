@@ -73,6 +73,22 @@ public interface TournamentRepository extends JpaRepository<Tournament, Long> {
                         @Param("until") LocalDateTime until);
 
         /**
+         * Find tournaments starting within the next N minutes (for notifications)
+         * Excludes tournaments that have already been reminded in the last 2 hours
+         */
+        @Query("""
+                        SELECT t FROM Tournament t
+                        WHERE t.startDate BETWEEN :now AND :until
+                        AND t.status IN ('UPCOMING', 'REGISTRATION_OPEN', 'REGISTRATION_CLOSED')
+                        AND (t.lastReminderSentAt IS NULL OR t.lastReminderSentAt < :twoHoursAgo)
+                        ORDER BY t.startDate ASC
+                        """)
+        List<Tournament> findTournamentsStartingWithinMinutes(
+                        @Param("now") LocalDateTime now,
+                        @Param("until") LocalDateTime until,
+                        @Param("twoHoursAgo") LocalDateTime twoHoursAgo);
+
+        /**
          * Find tournament by public registration code
          */
         java.util.Optional<Tournament> findByRegistrationCode(String registrationCode);

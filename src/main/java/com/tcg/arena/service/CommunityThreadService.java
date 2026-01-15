@@ -23,6 +23,12 @@ public class CommunityThreadService {
     private ThreadResponseRepository responseRepository;
 
     @Autowired
+    private PollOptionRepository pollOptionRepository;
+
+    @Autowired
+    private PollVoteRepository pollVoteRepository;
+
+    @Autowired
     private UserRepository userRepository;
 
     /**
@@ -62,10 +68,22 @@ public class CommunityThreadService {
         CommunityThread thread = new CommunityThread(
                 creator,
                 request.getTcgType(),
+                request.getThreadType(),
                 request.getTitle(),
                 request.getContent());
 
         thread = threadRepository.save(thread);
+
+        // Create poll options if it's a poll
+        if (request.getThreadType() == ThreadType.POLL && request.getPollOptions() != null) {
+            for (String optionText : request.getPollOptions()) {
+                if (optionText != null && !optionText.trim().isEmpty()) {
+                    PollOption pollOption = new PollOption(thread, optionText.trim());
+                    pollOptionRepository.save(pollOption);
+                }
+            }
+        }
+
         return toDTO(thread, creatorId, false);
     }
 
@@ -130,6 +148,7 @@ public class CommunityThreadService {
                 : thread.getCreator().getUsername());
         dto.setCreatorAvatarUrl(thread.getCreator().getProfileImageUrl());
         dto.setTcgType(thread.getTcgType());
+        dto.setThreadType(thread.getThreadType());
         dto.setTitle(thread.getTitle());
         dto.setContent(thread.getContent());
         dto.setCreatedAt(thread.getCreatedAt());
@@ -147,6 +166,14 @@ public class CommunityThreadService {
             List<ThreadResponse> responses = responseRepository.findByThreadOrderByCreatedAtAsc(thread);
             dto.setResponses(responses.stream()
                     .map(this::toResponseDTO)
+                    .collect(Collectors.toList()));
+        }
+
+        // Include poll options if it's a poll
+        if (thread.getThreadType() == ThreadType.POLL) {
+            List<PollOption> pollOptions = pollOptionRepository.findByThreadOrderByCreatedAtAsc(thread);
+            dto.setPollOptions(pollOptions.stream()
+                    .map(pollOption -> toPollOptionDTO(pollOption, currentUserId))
                     .collect(Collectors.toList()));
         }
 
@@ -168,5 +195,59 @@ public class CommunityThreadService {
         dto.setContent(response.getContent());
         dto.setCreatedAt(response.getCreatedAt());
         return dto;
+    }
+
+    /**
+     * Vote on a poll option
+     */
+    @Transactional
+    public PollOptionDTO voteOnPoll(Long pollOptionId, Long voterId) {
+        User voter = userRepository.findById(voterId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        PollOption pollOption = pollOptionRepository.findById(pollOptionId)
+                .orElseThrow(() -> new RuntimeException("Poll option not found"));
+
+        // Check if user already voted on this poll
+        boolean hasVoted = pollVoteRepository.existsByUserAndPollOptionThread(voter, pollOption.getThread());
+        if (hasVoted) {
+            throw new RuntimeException("User has already voted on this poll");
+        }
+
+        // Create the vote
+        PollVote vote = new PollVote(voter, pollOption);
+        pollVoteRepository.save(vote);
+
+        return toPollOptionDTO(pollOption, voterId);
+    }
+
+    /**
+     * Check if user has voted on a poll
+     */
+    public boolean hasUserVotedOnPoll(Long threadId, Long userId) {
+        CommunityThread thread = threadRepository.findById(threadId)
+                .orElseThrow(() -> new RuntimeException("Thread not found"));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        return pollVoteRepository.existsByUserAndPollOptionThread(user, thread);
+    }
+
+    /**
+     * Convert poll option to DTO
+     */
+    private PollOptionDTO toPollOptionDTO(PollOption pollOption, Long currentUserId) {
+        int voteCount = pollVoteRepository.countByPollOption(pollOption);
+        boolean hasCurrentUserVoted = false;
+
+        if (currentUserId != null) {
+            User currentUser = userRepository.findById(currentUserId).orElse(null);
+            if (currentUser != null) {
+                hasCurrentUserVoted = pollVoteRepository.existsByUserAndPollOption(currentUser, pollOption);
+            }
+        }
+
+        return new PollOptionDTO(pollOption.getId(), pollOption.getOptionText(), voteCount, hasCurrentUserVoted);
     }
 }

@@ -38,6 +38,7 @@ public class CardVoteService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        // Use findByCardTemplateAndUser with pessimistic locking to prevent race conditions
         Optional<CardVote> existingVote = voteRepository.findByCardTemplateAndUser(cardTemplate, user);
 
         if (existingVote.isPresent()) {
@@ -65,18 +66,32 @@ public class CardVoteService {
             }
         } else {
             // Create new vote
-            CardVote vote = new CardVote();
-            vote.setCardTemplate(cardTemplate);
-            vote.setUser(user);
-            vote.setVoteType(request.getVoteType());
-            vote.setVotedAt(LocalDateTime.now());
-            voteRepository.save(vote);
+            try {
+                CardVote vote = new CardVote();
+                vote.setCardTemplate(cardTemplate);
+                vote.setUser(user);
+                vote.setVoteType(request.getVoteType());
+                vote.setVotedAt(LocalDateTime.now());
+                voteRepository.save(vote);
 
-            // Update counters
-            if (request.getVoteType() == CardVote.VoteType.LIKE) {
-                cardTemplate.incrementLikesCount();
-            } else {
-                cardTemplate.incrementDislikesCount();
+                // Update counters
+                if (request.getVoteType() == CardVote.VoteType.LIKE) {
+                    cardTemplate.incrementLikesCount();
+                } else {
+                    cardTemplate.incrementDislikesCount();
+                }
+            } catch (Exception e) {
+                // Handle duplicate key constraint violation (race condition)
+                // If vote was already created by concurrent request, fetch and return stats
+                if (e.getMessage() != null && e.getMessage().contains("unique constraint")) {
+                    // Vote already exists, just return current stats
+                    return new CardVoteStatsDTO(
+                            cardTemplate.getId(),
+                            cardTemplate.getLikesCount(),
+                            cardTemplate.getDislikesCount()
+                    );
+                }
+                throw e;
             }
         }
 

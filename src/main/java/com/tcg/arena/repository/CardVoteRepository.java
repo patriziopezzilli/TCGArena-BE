@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 public interface CardVoteRepository extends JpaRepository<CardVote, Long> {
@@ -26,6 +27,9 @@ public interface CardVoteRepository extends JpaRepository<CardVote, Long> {
 
     @Query("SELECT v.cardTemplate.id FROM CardVote v WHERE v.user = :user")
     Page<Long> findVotedCardTemplateIdsByUser(@Param("user") User user, Pageable pageable);
+
+    @Query("SELECT DISTINCT v.user FROM CardVote v")
+    List<User> findUsersWhoHaveVoted();
 
     @Query("SELECT ct FROM CardTemplate ct WHERE ct.tcgType = :tcgType " +
            "AND ct.id NOT IN (SELECT v.cardTemplate.id FROM CardVote v WHERE v.user = :user) " +

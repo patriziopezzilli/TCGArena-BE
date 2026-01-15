@@ -116,6 +116,44 @@ public class CommunityThreadController {
     }
 
     /**
+     * Vote on a poll option
+     */
+    @PostMapping("/poll-options/{pollOptionId}/vote")
+    public ResponseEntity<?> voteOnPoll(
+            @PathVariable Long pollOptionId,
+            @RequestHeader("Authorization") String authHeader) {
+
+        try {
+            Long voterId = extractUserIdFromToken(authHeader);
+            if (voterId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Autenticazione richiesta");
+            }
+
+            PollOptionDTO result = threadService.voteOnPoll(pollOptionId, voterId);
+            return ResponseEntity.ok(result);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /**
+     * Check if current user has voted on a poll
+     */
+    @GetMapping("/{threadId}/poll/has-voted")
+    public ResponseEntity<Boolean> hasUserVotedOnPoll(
+            @PathVariable Long threadId,
+            @RequestHeader("Authorization") String authHeader) {
+
+        Long userId = extractUserIdFromToken(authHeader);
+        if (userId == null) {
+            return ResponseEntity.ok(false);
+        }
+
+        boolean hasVoted = threadService.hasUserVotedOnPoll(threadId, userId);
+        return ResponseEntity.ok(hasVoted);
+    }
+
+    /**
      * Extract user ID from JWT token
      */
     private Long extractUserIdFromToken(String authHeader) {

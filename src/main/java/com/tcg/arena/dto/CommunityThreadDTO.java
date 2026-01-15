@@ -1,6 +1,7 @@
 package com.tcg.arena.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.tcg.arena.model.ThreadType;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -12,6 +13,7 @@ public class CommunityThreadDTO {
     private String creatorDisplayName;
     private String creatorAvatarUrl;
     private String tcgType;
+    private ThreadType threadType;
     private String title;
     private String content;
     private LocalDateTime createdAt;
@@ -24,6 +26,7 @@ public class CommunityThreadDTO {
     private boolean hasCurrentUserResponded;
 
     private List<ThreadResponseDTO> responses;
+    private List<PollOptionDTO> pollOptions;
 
     // Constructors
     public CommunityThreadDTO() {
@@ -76,6 +79,14 @@ public class CommunityThreadDTO {
 
     public void setTcgType(String tcgType) {
         this.tcgType = tcgType;
+    }
+
+    public ThreadType getThreadType() {
+        return threadType;
+    }
+
+    public void setThreadType(ThreadType threadType) {
+        this.threadType = threadType;
     }
 
     public String getTitle() {
@@ -132,5 +143,13 @@ public class CommunityThreadDTO {
 
     public void setResponses(List<ThreadResponseDTO> responses) {
         this.responses = responses;
+    }
+
+    public List<PollOptionDTO> getPollOptions() {
+        return pollOptions;
+    }
+
+    public void setPollOptions(List<PollOptionDTO> pollOptions) {
+        this.pollOptions = pollOptions;
     }
 }

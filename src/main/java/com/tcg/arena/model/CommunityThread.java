@@ -20,6 +20,10 @@ public class CommunityThread {
     @Column(name = "tcg_type", nullable = false)
     private String tcgType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "thread_type", nullable = false)
+    private ThreadType threadType = ThreadType.DISCUSSION;
+
     @Column(nullable = false)
     private String title;
 
@@ -31,6 +35,9 @@ public class CommunityThread {
 
     @OneToMany(mappedBy = "thread", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ThreadResponse> responses = new ArrayList<>();
+
+    @OneToMany(mappedBy = "thread", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PollOption> pollOptions = new ArrayList<>();
 
     // Transient fields for DTO conversion
     @Transient
@@ -46,6 +53,16 @@ public class CommunityThread {
     public CommunityThread(User creator, String tcgType, String title, String content) {
         this.creator = creator;
         this.tcgType = tcgType;
+        this.threadType = ThreadType.DISCUSSION;
+        this.title = title;
+        this.content = content;
+        this.createdAt = LocalDateTime.now();
+    }
+
+    public CommunityThread(User creator, String tcgType, ThreadType threadType, String title, String content) {
+        this.creator = creator;
+        this.tcgType = tcgType;
+        this.threadType = threadType;
         this.title = title;
         this.content = content;
         this.createdAt = LocalDateTime.now();
@@ -74,6 +91,14 @@ public class CommunityThread {
 
     public void setTcgType(String tcgType) {
         this.tcgType = tcgType;
+    }
+
+    public ThreadType getThreadType() {
+        return threadType;
+    }
+
+    public void setThreadType(ThreadType threadType) {
+        this.threadType = threadType;
     }
 
     public String getTitle() {
@@ -106,6 +131,14 @@ public class CommunityThread {
 
     public void setResponses(List<ThreadResponse> responses) {
         this.responses = responses;
+    }
+
+    public List<PollOption> getPollOptions() {
+        return pollOptions;
+    }
+
+    public void setPollOptions(List<PollOption> pollOptions) {
+        this.pollOptions = pollOptions;
     }
 
     public int getResponseCount() {
