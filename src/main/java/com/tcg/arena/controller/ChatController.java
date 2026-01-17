@@ -90,4 +90,13 @@ public class ChatController {
         chatService.markConversationAsRead(userId, conversationId);
         return ResponseEntity.ok().build();
     }
+
+    @DeleteMapping("/{conversationId}")
+    public ResponseEntity<Void> deleteConversation(
+            @PathVariable Long conversationId,
+            HttpServletRequest request) {
+        Long userId = getUserIdFromRequest(request);
+        chatService.deleteConversation(userId, conversationId);
+        return ResponseEntity.noContent().build();
+    }
 }

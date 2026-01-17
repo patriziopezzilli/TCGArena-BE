@@ -27,4 +27,7 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
 
     // Get the latest message for preview
     Optional<ChatMessage> findTopByConversationIdOrderByTimestampDesc(Long conversationId);
+
+    // Delete all messages in a conversation
+    void deleteByConversationId(Long conversationId);
 }

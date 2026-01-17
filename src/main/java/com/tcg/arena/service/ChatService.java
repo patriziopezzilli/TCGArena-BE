@@ -291,4 +291,29 @@ public class ChatService {
 
         return convertToDto(conversation, userId);
     }
+
+    @Transactional
+    public void deleteConversation(Long userId, Long conversationId) {
+        User user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+        ChatConversation conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> new RuntimeException("Conversation not found"));
+
+        // Validate participation
+        if (!conversation.getParticipants().contains(user)) {
+            throw new RuntimeException("User is not a participant");
+        }
+
+        // Validate it's NOT a trade conversation
+        if (conversation.getType() == ChatConversation.ChatType.TRADE) {
+            throw new RuntimeException("Cannot delete trade conversations");
+        }
+
+        // Delete all messages first (due to foreign key constraints)
+        messageRepository.deleteByConversationId(conversationId);
+
+        // Delete the conversation
+        conversationRepository.delete(conversation);
+
+        System.out.println("🗑️ ChatService: Deleted conversation " + conversationId + " by user " + userId);
+    }
 }
