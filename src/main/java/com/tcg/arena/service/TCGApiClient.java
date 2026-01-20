@@ -326,18 +326,19 @@ public class TCGApiClient {
                 .timeout(Duration.ofMinutes(10)) // Add timeout to prevent hanging requests
                 .doOnSuccess(resp -> logger.info("Fetched sets for {}: {} sets found, hasMore: {}",
                         gameId, resp.getSets().size(), resp.hasMore))
-                .retryWhen(reactor.util.retry.Retry.backoff(3, Duration.ofSeconds(2))
+                .retryWhen(reactor.util.retry.Retry.backoff(5, Duration.ofSeconds(5))
+                    .maxBackoff(Duration.ofMinutes(2))
                     .filter(throwable -> {
                         if (throwable instanceof RuntimeException) {
                             String message = throwable.getMessage();
-                            return message != null && message.contains("HTTP 500");
+                            return message != null && (message.contains("HTTP 500") || message.contains("HTTP 429"));
                         }
                         return false;
                     })
                     .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> retrySignal.failure())
-                    .doBeforeRetry(retrySignal -> 
-                        logger.warn("Retrying getSetsPage for {} - attempt {}", 
-                            gameId, retrySignal.totalRetries() + 1))
+                    .doBeforeRetry(retrySignal ->
+                        logger.warn("Retrying getSetsPage for {} - attempt {} ({})",
+                            gameId, retrySignal.totalRetries() + 1, retrySignal.failure().getMessage()))
                 )
                 .onErrorResume(e -> {
                     logger.error("Error fetching sets for {}: {}", gameId, e.getMessage(), e);
@@ -433,19 +434,21 @@ public class TCGApiClient {
                                 gameId, resp.getCards().size(), offset);
                     }
                 })
-                // Add retry mechanism for 500 errors with exponential backoff
-                .retryWhen(reactor.util.retry.Retry.backoff(3, Duration.ofSeconds(2))
+                // Add retry mechanism for 500 and 429 errors with exponential backoff
+                .retryWhen(reactor.util.retry.Retry.backoff(5, Duration.ofSeconds(5))
+                    .maxBackoff(Duration.ofMinutes(2))
                     .filter(throwable -> {
                         if (throwable instanceof RuntimeException) {
                             String message = throwable.getMessage();
-                            return message != null && message.contains("HTTP 500");
+                            // Retry on server errors (500) and rate limiting (429)
+                            return message != null && (message.contains("HTTP 500") || message.contains("HTTP 429"));
                         }
                         return false;
                     })
                     .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> retrySignal.failure())
-                    .doBeforeRetry(retrySignal -> 
-                        logger.warn("Retrying request for game {} (offset {}) - attempt {}", 
-                            gameId, offset, retrySignal.totalRetries() + 1))
+                    .doBeforeRetry(retrySignal ->
+                        logger.warn("Retrying request for game {} (offset {}) - attempt {} ({})",
+                            gameId, offset, retrySignal.totalRetries() + 1, retrySignal.failure().getMessage()))
                 )
                 .onErrorResume(e -> {
                     logger.error("Error fetching cards for game {} (offset {}): {}", gameId, offset, e.getMessage(), e);
@@ -485,18 +488,19 @@ public class TCGApiClient {
                 .timeout(Duration.ofMinutes(10)) // Add timeout to prevent hanging requests
                 .doOnSuccess(resp -> logger.debug("Fetched cards page for set {}, count: {}, hasMore: {}",
                         setId, resp.getCards().size(), resp.hasMore))
-                .retryWhen(reactor.util.retry.Retry.backoff(3, Duration.ofSeconds(2))
+                .retryWhen(reactor.util.retry.Retry.backoff(5, Duration.ofSeconds(5))
+                    .maxBackoff(Duration.ofMinutes(2))
                     .filter(throwable -> {
                         if (throwable instanceof RuntimeException) {
                             String message = throwable.getMessage();
-                            return message != null && message.contains("HTTP 500");
+                            return message != null && (message.contains("HTTP 500") || message.contains("HTTP 429"));
                         }
                         return false;
                     })
                     .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> retrySignal.failure())
-                    .doBeforeRetry(retrySignal -> 
-                        logger.warn("Retrying getCardsPage for set {} - attempt {}", 
-                            setId, retrySignal.totalRetries() + 1))
+                    .doBeforeRetry(retrySignal ->
+                        logger.warn("Retrying getCardsPage for set {} - attempt {} ({})",
+                            setId, retrySignal.totalRetries() + 1, retrySignal.failure().getMessage()))
                 )
                 .onErrorResume(e -> {
                     logger.error("Error fetching cards for set {}: {}", setId, e.getMessage(), e);
@@ -622,7 +626,9 @@ public class TCGApiClient {
                                 }
 
                                 // Update last successful offset in memory
-                                lastSuccessfulOffset[0] = response.currentOffset;
+                                // Save the NEXT offset to resume from (current + PAGE_SIZE)
+                                // This ensures we don't re-process the same page on restart
+                                lastSuccessfulOffset[0] = response.currentOffset + PAGE_SIZE;
                                 pagesProcessed[0]++;
                                 
                                 // Save progress to DB every N pages for real-time visibility
@@ -649,7 +655,9 @@ public class TCGApiClient {
                             })
                             .reduce(0, Integer::sum)
                             .doOnSuccess(total -> {
-                                logger.info("Import complete for {}: {} new cards imported", gameId, total);
+                                String status = importCompleted[0] ? "FULLY COMPLETED" : "PARTIAL (will resume next run)";
+                                logger.info("✅ Import {} for {}: {} new cards imported, final offset: {}, pages processed: {}",
+                                        status, gameId, total, lastSuccessfulOffset[0], pagesProcessed[0]);
                                 // Update progress in DB only at the end
                                 try {
                                     updateProgress(tcgType, lastSuccessfulOffset[0], importCompleted[0]);
@@ -989,8 +997,9 @@ public class TCGApiClient {
                     return false;
                 }
             }
+            // Log error but don't throw - allow batch to continue with next card
             logger.error("Error saving card {}: {}", card.name, e.getMessage());
-            throw e;
+            return false;
         }
     }
 
