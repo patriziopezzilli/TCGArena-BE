@@ -8,6 +8,7 @@ public class UpdateProfileRequest {
     private String username;
     private String bio;
     private String favoriteGame;
+    private String locale;
 
     public UpdateProfileRequest() {
     }
@@ -42,5 +43,13 @@ public class UpdateProfileRequest {
 
     public void setFavoriteGame(String favoriteGame) {
         this.favoriteGame = favoriteGame;
+    }
+
+    public String getLocale() {
+        return locale;
+    }
+
+    public void setLocale(String locale) {
+        this.locale = locale;
     }
 }

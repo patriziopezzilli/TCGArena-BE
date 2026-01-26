@@ -198,6 +198,21 @@ public class UserController {
                         }
                         // Note: bio field is not currently in User model, skipped
 
+                        // Locale Update
+                        if (request.getLocale() != null && !request.getLocale().isBlank()) {
+                                try {
+                                        String loc = request.getLocale().toLowerCase();
+                                        if (loc.length() >= 2) {
+                                                loc = loc.substring(0, 2);
+                                                if (loc.equals("en") || loc.equals("it")) {
+                                                        user.setLocale(loc);
+                                                }
+                                        }
+                                } catch (Exception e) {
+                                        // Ignore invalid locale
+                                }
+                        }
+
                         User updatedUser = userRepository.save(user);
 
                         // Log profile update activity

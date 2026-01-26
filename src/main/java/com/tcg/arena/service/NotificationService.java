@@ -30,6 +30,36 @@ public class NotificationService {
     @Autowired
     private ShopSubscriptionService shopSubscriptionService;
 
+    @Autowired
+    private com.tcg.arena.repository.UserRepository userRepository; // Need to fetch user locale
+
+    @Autowired
+    private org.springframework.context.MessageSource messageSource;
+
+    /**
+     * Helper to get localized message
+     */
+    private String getMessage(String key, Object[] args, Long userId) {
+        String localeStr = "it";
+        try {
+            localeStr = userRepository.findById(userId)
+                    .map(com.tcg.arena.model.User::getLocale)
+                    .orElse("it");
+        } catch (Exception e) {
+            logger.warn("Failed to fetch locale for user {}, defaulting to it", userId);
+        }
+
+        java.util.Locale locale = java.util.Locale.ITALIAN;
+        if (localeStr != null) {
+            try {
+                locale = new java.util.Locale(localeStr);
+            } catch (Exception e) {
+                // ignore
+            }
+        }
+        return messageSource.getMessage(key, args, locale);
+    }
+
     public Notification createNotification(Long userId, String title, String message, String type) {
         Notification notification = new Notification();
         notification.setUserId(userId);
@@ -145,8 +175,9 @@ public class NotificationService {
      * Notifica quando una prenotazione viene validata dal negozio
      */
     public void sendReservationValidatedNotification(Long userId, String cardName, String shopName) {
-        String title = "Prenotazione Confermata ✓";
-        String message = "La tua prenotazione per " + cardName + " è stata validata da " + shopName;
+        String title = getMessage("notification.reservation.validated.title", null, userId);
+        String message = getMessage("notification.reservation.validated.message", new Object[] { cardName, shopName },
+                userId);
         sendPushNotification(userId, title, message);
         logger.info("Sent reservation validated notification to user {}", userId);
     }
@@ -155,8 +186,9 @@ public class NotificationService {
      * Notifica quando una prenotazione sta per scadere (30 min prima)
      */
     public void sendReservationExpiringNotification(Long userId, String cardName, String shopName) {
-        String title = "Prenotazione in Scadenza ⏰";
-        String message = "La tua prenotazione per " + cardName + " presso " + shopName + " scade tra 30 minuti!";
+        String title = getMessage("notification.reservation.expiring.title", null, userId);
+        String message = getMessage("notification.reservation.expiring.message", new Object[] { cardName, shopName },
+                userId);
         sendPushNotification(userId, title, message);
         logger.info("Sent reservation expiring notification to user {}", userId);
     }
@@ -167,8 +199,9 @@ public class NotificationService {
      * Notifica quando un negozio risponde a una richiesta
      */
     public void sendRequestReplyNotification(Long userId, String shopName, String requestTitle) {
-        String title = "Nuova Risposta 💬";
-        String message = shopName + " ha risposto alla tua richiesta: \"" + requestTitle + "\"";
+        String title = getMessage("notification.request.reply.title", null, userId);
+        String message = getMessage("notification.request.reply.message", new Object[] { shopName, requestTitle },
+                userId);
         sendPushNotification(userId, title, message);
         logger.info("Sent request reply notification to user {}", userId);
     }
@@ -177,8 +210,9 @@ public class NotificationService {
      * Notifica quando lo stato di una richiesta cambia
      */
     public void sendRequestStatusChangedNotification(Long userId, String requestTitle, String newStatus) {
-        String title = "Aggiornamento Richiesta";
-        String message = "La tua richiesta \"" + requestTitle + "\" è ora: " + newStatus;
+        String title = getMessage("notification.request.status.title", null, userId);
+        String message = getMessage("notification.request.status.message", new Object[] { requestTitle, newStatus },
+                userId);
         sendPushNotification(userId, title, message);
         logger.info("Sent request status changed notification to user {}", userId);
     }
@@ -189,8 +223,9 @@ public class NotificationService {
      * Notifica quando un torneo sta per iniziare (15 min prima)
      */
     public void sendTournamentStartingNotification(Long userId, String tournamentTitle, String shopName) {
-        String title = "Il Torneo Sta Per Iniziare! 🎮";
-        String message = tournamentTitle + " inizia tra 15 minuti presso " + shopName;
+        String title = getMessage("notification.tournament.starting.title", null, userId);
+        String message = getMessage("notification.tournament.starting.message",
+                new Object[] { tournamentTitle, shopName }, userId);
         sendPushNotification(userId, title, message);
         logger.info("Sent tournament starting notification to user {}", userId);
     }
@@ -199,8 +234,9 @@ public class NotificationService {
      * Notifica quando un torneo è iniziato
      */
     public void sendTournamentStartedNotification(Long userId, String tournamentTitle) {
-        String title = "Torneo Iniziato! 🎯";
-        String message = "Il torneo " + tournamentTitle + " è iniziato. Buona fortuna!";
+        String title = getMessage("notification.tournament.started.title", null, userId);
+        String message = getMessage("notification.tournament.started.message", new Object[] { tournamentTitle },
+                userId);
         sendPushNotification(userId, title, message);
         logger.info("Sent tournament started notification to user {}", userId);
     }
@@ -210,10 +246,10 @@ public class NotificationService {
      */
     public void sendTournamentCompletedNotification(Long userId, String tournamentTitle, int placement,
             int pointsAwarded) {
-        String title = "Torneo Concluso 🏆";
-        String placementText = getPlacementText(placement);
-        String message = "Hai ottenuto il " + placementText + " posto in " + tournamentTitle + "! +" + pointsAwarded
-                + " punti";
+        String title = getMessage("notification.tournament.completed.title", null, userId);
+        String placementText = getPlacementText(placement); // This could also be localized if needed
+        String message = getMessage("notification.tournament.completed.message",
+                new Object[] { placementText, tournamentTitle, pointsAwarded }, userId);
         sendPushNotification(userId, title, message);
         logger.info("Sent tournament completed notification to user {} with placement {}", userId, placement);
     }
@@ -222,8 +258,9 @@ public class NotificationService {
      * Notifica quando il check-in è disponibile
      */
     public void sendTournamentCheckInNotification(Long userId, String tournamentTitle) {
-        String title = "Check-in Disponibile ✅";
-        String message = "Il check-in per " + tournamentTitle + " è ora disponibile!";
+        String title = getMessage("notification.tournament.checkin.title", null, userId);
+        String message = getMessage("notification.tournament.checkin.message", new Object[] { tournamentTitle },
+                userId);
         sendPushNotification(userId, title, message);
         logger.info("Sent tournament check-in notification to user {}", userId);
     }
@@ -267,8 +304,8 @@ public class NotificationService {
      * Notifica quando un utente riscatta un reward
      */
     public void sendRewardRedeemedNotification(Long userId, String rewardName) {
-        String title = "Reward Riscattato! 🎁";
-        String message = "Hai riscattato " + rewardName + ". Mostra il codice al negozio per ritirarlo.";
+        String title = getMessage("notification.reward.redeemed.title", null, userId);
+        String message = getMessage("notification.reward.redeemed.message", new Object[] { rewardName }, userId);
         sendPushNotification(userId, title, message);
         logger.info("Sent reward redeemed notification to user {}", userId);
     }
@@ -277,12 +314,13 @@ public class NotificationService {
      * Notifica quando il merchant conferma un reward (fulfilled)
      */
     public void sendRewardFulfilledNotification(Long userId, String rewardName, String shopName) {
-        String title = "Premio Confermato! ✅";
-        String message = "Il negozio " + shopName + " ha confermato il tuo premio: " + rewardName;
-        
+        String title = getMessage("notification.reward.fulfilled.title", null, userId);
+        String message = getMessage("notification.reward.fulfilled.message", new Object[] { shopName, rewardName },
+                userId);
+
         java.util.Map<String, String> data = new java.util.HashMap<>();
         data.put("type", "reward_fulfilled");
-        
+
         sendPushNotification(userId, title, message, data);
         logger.info("Sent reward fulfilled notification to user {} for reward '{}'", userId, rewardName);
     }
@@ -291,22 +329,24 @@ public class NotificationService {
      * Notifica quando il merchant annulla un reward
      */
     public void sendRewardCancelledNotification(Long userId, String rewardName, String shopName, int pointsRefunded) {
-        String title = "Premio Annullato 🔄";
-        String message = "Il premio " + rewardName + " dal negozio " + shopName + " è stato annullato. Ti sono stati restituiti " + pointsRefunded + " punti.";
-        
+        String title = getMessage("notification.reward.cancelled.title", null, userId);
+        String message = getMessage("notification.reward.cancelled.message",
+                new Object[] { rewardName, shopName, pointsRefunded }, userId);
+
         java.util.Map<String, String> data = new java.util.HashMap<>();
         data.put("type", "reward_cancelled");
-        
+
         sendPushNotification(userId, title, message, data);
-        logger.info("Sent reward cancelled notification to user {} for reward '{}' - {} points refunded", userId, rewardName, pointsRefunded);
+        logger.info("Sent reward cancelled notification to user {} for reward '{}' - {} points refunded", userId,
+                rewardName, pointsRefunded);
     }
 
     /**
      * Notifica quando un utente sale di livello
      */
     public void sendLevelUpNotification(Long userId, int newLevel) {
-        String title = "Level Up! 🎉";
-        String message = "Congratulazioni! Sei salito al livello " + newLevel + "!";
+        String title = getMessage("notification.levelup.title", null, userId);
+        String message = getMessage("notification.levelup.message", new Object[] { newLevel }, userId);
         sendPushNotification(userId, title, message);
         logger.info("Sent level up notification to user {} - new level {}", userId, newLevel);
     }
@@ -317,8 +357,8 @@ public class NotificationService {
      * Notifica quando qualcuno mette like a un pull
      */
     public void sendPullLikeNotification(Long userId, String likerName, String tcgName) {
-        String title = "Nuovo Like! ❤️";
-        String message = likerName + " ha messo mi piace al tuo pull di " + tcgName;
+        String title = getMessage("notification.like.pull.title", null, userId);
+        String message = getMessage("notification.like.pull.message", new Object[] { likerName, tcgName }, userId);
         sendPushNotification(userId, title, message);
         logger.info("Sent pull like notification to user {}", userId);
     }

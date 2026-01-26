@@ -22,6 +22,8 @@ public class RegisterRequestDTO {
     private Double latitude;
     private Double longitude;
 
+    private String locale;
+
     // Getters and Setters
     public String getEmail() {
         return email;
@@ -93,5 +95,13 @@ public class RegisterRequestDTO {
 
     public void setLongitude(Double longitude) {
         this.longitude = longitude;
+    }
+
+    public String getLocale() {
+        return locale;
+    }
+
+    public void setLocale(String locale) {
+        this.locale = locale;
     }
 }

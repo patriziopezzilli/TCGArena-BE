@@ -76,6 +76,9 @@ public class User {
     @Column(nullable = false)
     private Integer usernameChangeCount = 0; // Number of times username was changed (max 2)
 
+    @Column(nullable = false, columnDefinition = "VARCHAR(5) DEFAULT 'it'")
+    private String locale = "it"; // User's preferred language (it, en)
+
     // Getters and Setters
     public Long getId() {
         return id;
@@ -316,5 +319,13 @@ public class User {
 
     public void setUsernameChangeCount(Integer usernameChangeCount) {
         this.usernameChangeCount = usernameChangeCount;
+    }
+
+    public String getLocale() {
+        return locale != null ? locale : "it";
+    }
+
+    public void setLocale(String locale) {
+        this.locale = locale;
     }
 }

@@ -165,6 +165,22 @@ public class JwtAuthenticationController {
                 user.setDateJoined(LocalDateTime.now());
                 user.setProfileImageUrl(picture);
 
+                // Set locale from request if provided, otherwise default 'it'
+                if (socialAuthRequest.getLocale() != null && !socialAuthRequest.getLocale().isEmpty()) {
+                    try {
+                        String locale = socialAuthRequest.getLocale().toLowerCase().substring(0, 2);
+                        if (locale.equals("en") || locale.equals("it")) {
+                            user.setLocale(locale);
+                        } else {
+                            user.setLocale("it");
+                        }
+                    } catch (Exception e) {
+                        user.setLocale("it");
+                    }
+                } else {
+                    user.setLocale("it");
+                }
+
                 user = userService.saveUser(user);
 
                 // Track signup bonus if needed
@@ -229,6 +245,23 @@ public class JwtAuthenticationController {
         // Set favorite TCGs from the list
         if (registerRequest.getFavoriteGames() != null && !registerRequest.getFavoriteGames().isEmpty()) {
             user.setFavoriteTCGTypes(registerRequest.getFavoriteGames());
+        }
+
+        // Set locale if provided, otherwise default 'it'
+        if (registerRequest.getLocale() != null && !registerRequest.getLocale().isEmpty()) {
+            try {
+                // Basic validation (2 chars)
+                String locale = registerRequest.getLocale().toLowerCase().substring(0, 2);
+                if (locale.equals("en") || locale.equals("it")) {
+                    user.setLocale(locale);
+                } else {
+                    user.setLocale("it");
+                }
+            } catch (Exception e) {
+                user.setLocale("it");
+            }
+        } else {
+            user.setLocale("it");
         }
 
         // Set location from registration (GPS data from onboarding)
@@ -438,13 +471,13 @@ public class JwtAuthenticationController {
         }
 
         User user = userOpt.get();
-        
+
         // Check if user has an Apple private relay email (cannot receive emails)
         if (isApplePrivateRelayEmail(email)) {
             logger.info("Password reset requested for Apple relay email: {}. Cannot send OTP.", email);
             return ResponseEntity.badRequest().body(Map.of(
-                "message", "Password reset via email is not available for this account. Please use 'Sign in with Apple' to access your account."
-            ));
+                    "message",
+                    "Password reset via email is not available for this account. Please use 'Sign in with Apple' to access your account."));
         }
 
         try {
