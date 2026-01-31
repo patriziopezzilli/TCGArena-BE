@@ -994,8 +994,8 @@ public class TCGApiClient {
     private boolean saveCardIfNotExists(TCGCard card, com.tcg.arena.model.TCGSet tcgSet, TCGType tcgType) {
         String cardNumber = card.number != null ? card.number : "N/A";
 
-        // Check for existing card by unique composite key
-        List<CardTemplate> existing = cardTemplateRepository.findByNameAndSetCodeAndCardNumber(
+        // Check for existing card by unique composite key (including N/A card numbers)
+        List<CardTemplate> existing = cardTemplateRepository.findByNameAndSetCodeAndCardNumberIncludingNA(
                 card.name, card.set, cardNumber);
 
         if (!existing.isEmpty()) {
@@ -1029,7 +1029,7 @@ public class TCGApiClient {
         } catch (Exception e) {
             // Handle duplicate key violation - card was created by concurrent import
             if (e.getMessage() != null && e.getMessage().contains("constraint")) {
-                List<CardTemplate> retryExisting = cardTemplateRepository.findByNameAndSetCodeAndCardNumber(
+                List<CardTemplate> retryExisting = cardTemplateRepository.findByNameAndSetCodeAndCardNumberIncludingNA(
                         card.name, card.set, cardNumber);
                 if (!retryExisting.isEmpty()) {
                     CardTemplate existingCard = retryExisting.get(0);
