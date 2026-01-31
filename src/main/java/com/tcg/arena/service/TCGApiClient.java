@@ -394,15 +394,20 @@ public class TCGApiClient {
     }
 
     /**
-     * Get all cards for a set with pagination
+     * Get all cards for a set with offset-based pagination.
+     * Continues fetching until zero results are returned.
      */
     public Flux<TCGCard> getAllCardsForSet(String setId) {
-        return getCardsPage(setId, null)
+        return getCardsPageBySet(setId, 0)
                 .expand(response -> {
-                    if (response.hasMore && response.nextCursor != null) {
-                        return getCardsPage(setId, response.nextCursor)
+                    List<TCGCard> cards = response.getCards();
+                    // Continue until we get zero results
+                    if (!cards.isEmpty()) {
+                        int nextOffset = response.currentOffset + PAGE_SIZE;
+                        return getCardsPageBySet(setId, nextOffset)
                                 .delaySubscription(Duration.ofMillis(API_DELAY_MS));
                     }
+                    logger.debug("[API] Set {} pagination complete at offset {}", setId, response.currentOffset);
                     return Mono.empty();
                 })
                 .flatMapIterable(response -> response.getCards());
@@ -492,33 +497,35 @@ public class TCGApiClient {
                 });
     }
 
-    private Mono<TCGCardsResponse> getCardsPage(String setId, String cursor) {
+    /**
+     * Fetch a page of cards for a set using offset-based pagination
+     */
+    private Mono<TCGCardsResponse> getCardsPageBySet(String setId, int offset) {
         return webClient.get()
-                .uri(uriBuilder -> {
-                    var builder = uriBuilder
-                            .path("/cards")
-                            .queryParam("set", setId)
-                            .queryParam("limit", PAGE_SIZE);
-                    if (cursor != null) {
-                        builder.queryParam("cursor", cursor);
-                    }
-                    return builder.build();
-                })
+                .uri(uriBuilder -> uriBuilder
+                        .path("/cards")
+                        .queryParam("set", setId)
+                        .queryParam("limit", PAGE_SIZE)
+                        .queryParam("offset", offset)
+                        .build())
                 .header("x-api-key", apiKey)
                 .retrieve()
                 .onStatus(status -> status.isError(), response -> {
                     return response.bodyToMono(String.class)
                             .flatMap(body -> {
-                                logger.error("[TCG API ERROR] getCardsPage for set {}: HTTP {} - Response body: {}",
+                                logger.error("[TCG API ERROR] getCardsPageBySet for set {}: HTTP {} - Response body: {}",
                                         setId, response.statusCode().value(), body);
                                 return Mono.error(new RuntimeException(
                                         "TCG API error: HTTP " + response.statusCode().value() + " - " + body));
                             });
                 })
                 .bodyToMono(TCGCardsResponse.class)
-                .timeout(Duration.ofMinutes(10)) // Add timeout to prevent hanging requests
-                .doOnSuccess(resp -> logger.debug("Fetched cards page for set {}, count: {}, hasMore: {}",
-                        setId, resp.getCards().size(), resp.hasMore))
+                .timeout(Duration.ofMinutes(10))
+                .doOnSuccess(resp -> {
+                    resp.currentOffset = offset;
+                    logger.debug("Fetched cards page for set {}, offset: {}, count: {}, hasMore: {}",
+                            setId, offset, resp.getCards().size(), resp.hasMore);
+                })
                 .retryWhen(reactor.util.retry.Retry.backoff(5, Duration.ofSeconds(5))
                     .maxBackoff(Duration.ofMinutes(2))
                     .filter(throwable -> {
@@ -530,12 +537,14 @@ public class TCGApiClient {
                     })
                     .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> retrySignal.failure())
                     .doBeforeRetry(retrySignal ->
-                        logger.warn("Retrying getCardsPage for set {} - attempt {} ({})",
+                        logger.warn("Retrying getCardsPageBySet for set {} - attempt {} ({})",
                             setId, retrySignal.totalRetries() + 1, retrySignal.failure().getMessage()))
                 )
                 .onErrorResume(e -> {
                     logger.error("Error fetching cards for set {}: {}", setId, e.getMessage(), e);
-                    return Mono.just(new TCGCardsResponse());
+                    TCGCardsResponse errorResponse = new TCGCardsResponse();
+                    errorResponse.currentOffset = offset;
+                    return Mono.just(errorResponse);
                 });
     }
 
