@@ -27,6 +27,10 @@ public class Expansion {
     @Column(nullable = true)
     private ProductType productType;
 
+    // Flag to indicate if the expansion was manually modified (preserve during import)
+    @Column(nullable = false)
+    private Boolean modifiedManually = false;
+
     @OneToMany(mappedBy = "expansion", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<TCGSet> sets = new ArrayList<>();
 
@@ -85,6 +89,14 @@ public class Expansion {
 
     public void setProductType(ProductType productType) {
         this.productType = productType;
+    }
+
+    public Boolean getModifiedManually() {
+        return modifiedManually;
+    }
+
+    public void setModifiedManually(Boolean modifiedManually) {
+        this.modifiedManually = modifiedManually;
     }
 
     public List<TCGSet> getSets() {

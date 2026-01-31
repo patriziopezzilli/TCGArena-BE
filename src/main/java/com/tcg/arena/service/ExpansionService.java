@@ -109,6 +109,8 @@ public class ExpansionService {
             expansion.setTitle(expansionDetails.getTitle());
             expansion.setTcgType(expansionDetails.getTcgType());
             expansion.setImageUrl(expansionDetails.getImageUrl());
+            // Mark as manually modified to preserve during import
+            expansion.setModifiedManually(true);
             return expansionRepository.save(expansion);
         });
     }
