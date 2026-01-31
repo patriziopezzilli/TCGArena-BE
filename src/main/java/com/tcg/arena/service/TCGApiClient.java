@@ -23,6 +23,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * Client for TCG API - provides real-time pricing data for TCGs
@@ -541,8 +542,12 @@ public class TCGApiClient {
     // ===================== Import Logic =====================
 
     /**
-     * Import all cards for a specific TCG type.
-     * Uses offset-based pagination with resumable progress.
+     * Import cards for NEW sets only for a specific TCG type.
+     * Instead of offset-based pagination, this method:
+     * 1. Fetches all sets from the API
+     * 2. Identifies which sets are NEW (not in database)
+     * 3. For each new set, fetches all cards using the set parameter
+     * 4. If a card fails to save, continues with the next card (no interruption)
      */
     public Mono<Integer> importCardsForTCG(TCGType tcgType) {
         // Special handling for Magic using Scryfall
@@ -560,145 +565,128 @@ public class TCGApiClient {
         expansionCache.clear();
         tcgSetCache.clear();
 
-        // Get current progress
-        ImportProgress progress = getOrCreateImportProgress(tcgType);
-        int startOffset = (progress != null && progress.getLastOffset() != 0) ? progress.getLastOffset() : 0;
+        logger.info("╔══════════════════════════════════════════════════════════════");
+        logger.info("║ IMPORT START (NEW SETS MODE): {}", tcgType.getDisplayName().toUpperCase());
+        logger.info("╠══════════════════════════════════════════════════════════════");
+        logger.info("║ Game ID: {}", gameId);
+        logger.info("╚══════════════════════════════════════════════════════════════");
 
-        // Log import start with banner
-        logImportStart(tcgType, gameId, startOffset, progress);
+        // Track statistics
+        final ImportStats stats = new ImportStats(tcgType.getDisplayName(), gameId, 0);
 
-        // Check if import is already complete - but verify if there are actually more data
-        if (progress != null && progress.isComplete()) {
-            logger.info("[IMPORT] [{}] Previous import was complete. Checking for new data...", tcgType);
-            boolean hasMoreData = checkForNewData(gameId, startOffset);
-            if (!hasMoreData) {
-                logger.info("[IMPORT] [{}] No new data found. Skipping import.", tcgType);
-                return Mono.just(0);
-            }
-            logger.info("[IMPORT] [{}] New data detected! Resuming import.", tcgType);
-            progress.setComplete(false);
-            importProgressRepository.saveAndFlush(progress);
-        }
+        // Load existing setCode from database for this TCG type
+        Set<String> existingSetCodes = tcgSetRepository.findAllSetCodesByTcgType(tcgType);
+        logger.info("[IMPORT] [{}] Found {} existing sets in database", tcgType, existingSetCodes.size());
 
-        // Track progress in memory during import
-        final ImportStats stats = new ImportStats(tcgType.getDisplayName(), gameId, startOffset);
-        final int[] lastSuccessfulOffset = { startOffset };
-        final boolean[] importCompleted = { false };
-
-        // Step 1: Fetch all sets first to get full metadata
+        // Step 1: Fetch all sets from API
         return getAllSets(gameId)
                 .collectList()
-                .flatMap(sets -> {
-                    logger.info("[IMPORT] [{}] PHASE 1: Loaded {} sets from API", tcgType, sets.size());
+                .flatMap(apiSets -> {
+                    logger.info("[IMPORT] [{}] PHASE 1: Fetched {} sets from API", tcgType, apiSets.size());
 
-                    // Create all sets in DB first with proper metadata
-                    Map<String, com.tcg.arena.model.TCGSet> setMap = new HashMap<>();
-                    int newSets = 0;
-                    for (TCGSet set : sets) {
-                        try {
-                            com.tcg.arena.model.TCGSet tcgSet = getOrCreateTCGSet(set, tcgType);
-                            setMap.put(set.id, tcgSet);
-                            if (tcgSet.getId() == null) newSets++;
-                        } catch (Exception e) {
-                            logger.warn("[IMPORT] [{}] Failed to create set '{}': {}", tcgType, set.name, e.getMessage());
-                        }
+                    // Identify NEW sets (not in database)
+                    List<TCGSet> newSets = apiSets.stream()
+                            .filter(set -> !existingSetCodes.contains(set.id))
+                            .toList();
+
+                    if (newSets.isEmpty()) {
+                        logger.info("[IMPORT] [{}] No new sets found. Import complete.", tcgType);
+                        return Mono.just(0);
                     }
-                    logger.info("[IMPORT] [{}] PHASE 1 COMPLETE: {} sets in DB ({} new)", tcgType, setMap.size(), newSets);
 
-                    // Step 2: Fetch cards page by page starting from offset
-                    logger.info("[IMPORT] [{}] PHASE 2: Starting card import from offset {}", tcgType, startOffset);
+                    logger.info("[IMPORT] [{}] PHASE 2: Found {} NEW sets to import", tcgType, newSets.size());
+                    for (TCGSet set : newSets) {
+                        logger.info("[IMPORT] [{}]   - {} ({})", tcgType, set.name, set.id);
+                    }
 
-                    return getCardPagesForGame(gameId, startOffset)
-                            .concatMap(response -> {
-                                List<TCGCard> cards = response.getCards();
-
-                                if (cards.isEmpty()) {
-                                    importCompleted[0] = true;
-                                    stats.completed = true;
-                                    return Mono.empty();
-                                }
-
-                                // Process cards in this page
-                                int savedInPage = 0;
-                                int updatedInPage = 0;
-                                int errorsInPage = 0;
-
-                                for (TCGCard card : cards) {
-                                    if (card == null || card.name == null) {
-                                        errorsInPage++;
-                                        continue;
-                                    }
-
-                                    try {
-                                        String setId = card.set != null ? card.set : "unknown";
-                                        com.tcg.arena.model.TCGSet tcgSet = setMap.get(setId);
-                                        if (tcgSet == null) {
-                                            String setName = card.setName != null ? card.setName : setId;
-                                            tcgSet = getOrCreateTCGSetForCard(setId, setName, tcgType);
-                                            setMap.put(setId, tcgSet);
-                                        }
-
-                                        if (saveCardIfNotExists(card, tcgSet, tcgType)) {
-                                            savedInPage++;
-                                        } else {
-                                            updatedInPage++;
-                                        }
-                                    } catch (Exception e) {
-                                        errorsInPage++;
-                                        logger.debug("[IMPORT] [{}] Card error '{}': {}", tcgType, card.name, e.getMessage());
-                                    }
-                                }
-
-                                // Update stats
-                                stats.pagesProcessed++;
-                                stats.totalCardsProcessed += cards.size();
-                                stats.newCardsSaved += savedInPage;
-                                stats.pricesUpdated += updatedInPage;
-                                stats.errors += errorsInPage;
-                                stats.currentOffset = response.currentOffset + PAGE_SIZE;
-                                lastSuccessfulOffset[0] = stats.currentOffset;
-
-                                // Log progress every N pages
-                                if (stats.pagesProcessed % LOG_PROGRESS_EVERY_N_PAGES == 0) {
-                                    logProgress(tcgType, stats);
-                                    // Save checkpoint
-                                    try {
-                                        updateProgress(tcgType, lastSuccessfulOffset[0], false);
-                                    } catch (Exception e) {
-                                        logger.warn("[IMPORT] [{}] Checkpoint save failed: {}", tcgType, e.getMessage());
-                                    }
-                                }
-
-                                return Mono.just(savedInPage);
-                            })
-                            .onErrorResume(e -> {
-                                stats.errors++;
-                                logger.error("[IMPORT] [{}] ERROR: {} | Offset: {}", tcgType, e.getMessage(), lastSuccessfulOffset[0]);
-                                return Mono.empty();
-                            })
+                    // Process each new set
+                    return Flux.fromIterable(newSets)
+                            .concatMap(apiSet -> importCardsForSet(apiSet, tcgType, stats))
                             .reduce(0, Integer::sum)
                             .doOnSuccess(total -> {
                                 stats.newCardsSaved = total;
-                                logImportComplete(tcgType, stats, importCompleted[0]);
-                                try {
-                                    updateProgress(tcgType, lastSuccessfulOffset[0], importCompleted[0]);
-                                } catch (Exception e) {
-                                    logger.error("[IMPORT] [{}] Failed to save final progress: {}", tcgType, e.getMessage());
-                                }
+                                logImportCompleteNewSets(tcgType, stats, newSets.size());
                             });
                 })
                 .doOnError(e -> {
                     logger.error("[IMPORT] [{}] FATAL ERROR: {}", tcgType, e.getMessage(), e);
-                    try {
-                        updateProgress(tcgType, lastSuccessfulOffset[0], false);
-                    } catch (Exception ex) {
-                        logger.error("[IMPORT] [{}] Failed to save progress after error: {}", tcgType, ex.getMessage());
-                    }
                 })
                 .doFinally(signal -> {
                     expansionCache.clear();
                     tcgSetCache.clear();
                 });
+    }
+
+    /**
+     * Import all cards for a specific set.
+     * Uses the /cards?set={setId} API endpoint with pagination.
+     * If a card fails to save, logs the error and continues with the next card.
+     */
+    private Mono<Integer> importCardsForSet(TCGSet apiSet, TCGType tcgType, ImportStats stats) {
+        logger.info("[IMPORT] [{}] Starting import for set: {} ({})", tcgType, apiSet.name, apiSet.id);
+
+        // First, create the set in the database
+        com.tcg.arena.model.TCGSet tcgSet;
+        try {
+            tcgSet = getOrCreateTCGSet(apiSet, tcgType);
+        } catch (Exception e) {
+            logger.error("[IMPORT] [{}] Failed to create set '{}': {}", tcgType, apiSet.name, e.getMessage());
+            return Mono.just(0);
+        }
+
+        final com.tcg.arena.model.TCGSet finalTcgSet = tcgSet;
+        final int[] savedInSet = {0};
+        final int[] errorsInSet = {0};
+
+        // Fetch all cards for this set using pagination
+        return getAllCardsForSet(apiSet.id)
+                .concatMap(card -> {
+                    if (card == null || card.name == null) {
+                        errorsInSet[0]++;
+                        return Mono.just(0);
+                    }
+
+                    try {
+                        if (saveCardIfNotExists(card, finalTcgSet, tcgType)) {
+                            savedInSet[0]++;
+                            return Mono.just(1);
+                        } else {
+                            // Card already exists (updated prices)
+                            stats.pricesUpdated++;
+                            return Mono.just(0);
+                        }
+                    } catch (Exception e) {
+                        errorsInSet[0]++;
+                        logger.warn("[IMPORT] [{}] Card save error '{}' in set '{}': {}",
+                                tcgType, card.name, apiSet.name, e.getMessage());
+                        // Continue with next card - do not interrupt
+                        return Mono.just(0);
+                    }
+                })
+                .reduce(0, Integer::sum)
+                .doOnSuccess(count -> {
+                    stats.totalCardsProcessed += savedInSet[0] + errorsInSet[0];
+                    stats.errors += errorsInSet[0];
+                    logger.info("[IMPORT] [{}] Set '{}' completed: {} new cards, {} errors",
+                            tcgType, apiSet.name, savedInSet[0], errorsInSet[0]);
+                })
+                .delaySubscription(Duration.ofMillis(API_DELAY_MS)); // Rate limiting between sets
+    }
+
+    /**
+     * Log completion for new sets import mode
+     */
+    private void logImportCompleteNewSets(TCGType tcgType, ImportStats stats, int setsProcessed) {
+        logger.info("╔══════════════════════════════════════════════════════════════");
+        logger.info("║ IMPORT COMPLETED (NEW SETS MODE): {}", tcgType.getDisplayName().toUpperCase());
+        logger.info("╠══════════════════════════════════════════════════════════════");
+        logger.info("║ Duration      : {}", stats.formatElapsedTime());
+        logger.info("║ Sets Processed: {}", setsProcessed);
+        logger.info("║ New Cards     : {}", stats.newCardsSaved);
+        logger.info("║ Prices Updated: {}", stats.pricesUpdated);
+        logger.info("║ Errors        : {}", stats.errors);
+        logger.info("║ Avg Speed     : {} cards/sec", String.format("%.1f", stats.getCardsPerSecond()));
+        logger.info("╚══════════════════════════════════════════════════════════════");
     }
 
     // ===================== Logging Helpers =====================
