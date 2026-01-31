@@ -956,6 +956,7 @@ public class TCGApiClient {
     /**
      * Get or create Expansion
      * Synchronized to prevent race conditions and duplicate creations
+     * If expansion was manually modified, preserves all fields
      */
     @Transactional
     private synchronized Expansion getOrCreateExpansion(String name, TCGType tcgType) {
@@ -968,6 +969,10 @@ public class TCGApiClient {
         // Check database - look for existing expansion by title and tcgType
         Expansion existing = expansionRepository.findByTitle(name);
         if (existing != null && existing.getTcgType() == tcgType) {
+            // If manually modified, preserve all fields - don't update anything
+            if (existing.getModifiedManually() != null && existing.getModifiedManually()) {
+                logger.debug("Expansion '{}' was manually modified - preserving all fields", existing.getTitle());
+            }
             expansionCache.put(cacheKey, existing);
             return existing;
         }
