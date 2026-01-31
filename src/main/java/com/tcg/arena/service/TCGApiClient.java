@@ -915,20 +915,20 @@ public class TCGApiClient {
         Optional<com.tcg.arena.model.TCGSet> existingSet = tcgSetRepository.findBySetCode(tcgSet.id);
         if (existingSet.isPresent()) {
             com.tcg.arena.model.TCGSet existing = existingSet.get();
-            
-            // Preserve manually modified release date
+
+            // If manually modified, preserve ALL fields - don't update anything from API
             if (existing.getReleaseDateModifiedManually() != null && existing.getReleaseDateModifiedManually()) {
-                logger.debug("Preserving manually modified release date for set: {} (current: {}, API: {})", 
-                    existing.getName(), existing.getReleaseDate(), parseReleaseDate(tcgSet.releaseDate));
-            } else {
-                // Update release date from API
-                existing.setReleaseDate(parseReleaseDate(tcgSet.releaseDate));
+                logger.debug("Set '{}' was manually modified - preserving all fields (date: {})",
+                    existing.getName(), existing.getReleaseDate());
+                tcgSetCache.put(cacheKey, existing);
+                return existing;
             }
-            
-            // Update other fields that can be safely updated
+
+            // Update fields from API only if not manually modified
             existing.setName(tcgSet.name);
+            existing.setReleaseDate(parseReleaseDate(tcgSet.releaseDate));
             existing.setCardCount(tcgSet.cardsCount != null ? tcgSet.cardsCount : existing.getCardCount());
-            
+
             // Save the updated set
             com.tcg.arena.model.TCGSet updatedSet = tcgSetRepository.save(existing);
             tcgSetCache.put(cacheKey, updatedSet);
