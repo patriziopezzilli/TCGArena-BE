@@ -3,356 +3,378 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Riepilogo Giornaliero TCG Arena</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            line-height: 1.6;
-            color: #111827;
-            background-color: #f9fafb;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background: white;
-        }
-        .header {
-            background: linear-gradient(135deg, #111827 0%, #374151 100%);
-            padding: 32px 24px;
-            text-align: center;
-        }
-        .header h1 {
-            color: white;
-            font-size: 24px;
-            font-weight: 700;
-            margin-bottom: 4px;
-        }
-        .header-date {
-            color: rgba(255,255,255,0.8);
-            font-size: 14px;
-        }
-        .content {
-            padding: 32px 24px;
-        }
-        .greeting {
-            font-size: 18px;
-            font-weight: 600;
-            color: #111827;
-            margin-bottom: 8px;
-        }
-        .subtitle {
-            font-size: 14px;
-            color: #6b7280;
-            margin-bottom: 32px;
-        }
-        .section-title {
-            font-size: 16px;
-            font-weight: 700;
-            color: #111827;
-            margin: 32px 0 16px 0;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .stat-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            margin-bottom: 24px;
-        }
-        .stat-card {
-            background: #f9fafb;
-            border-radius: 12px;
-            padding: 16px;
-            text-align: center;
-            border: 1px solid #e5e7eb;
-        }
-        .stat-value {
-            font-size: 24px;
-            font-weight: 700;
-            color: #111827;
-            margin-bottom: 4px;
-        }
-        .stat-value.positive {
-            color: #10b981;
-        }
-        .stat-label {
-            font-size: 13px;
-            color: #6b7280;
-        }
-        .highlight-card {
-            background: linear-gradient(135deg, #f9fafb 0%, white 100%);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 12px;
-            border: 1px solid #e5e7eb;
-        }
-        .highlight-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 8px;
-        }
-        .highlight-icon {
-            font-size: 24px;
-        }
-        .highlight-title {
-            font-size: 15px;
-            font-weight: 600;
-            color: #111827;
-        }
-        .highlight-desc {
-            font-size: 14px;
-            color: #6b7280;
-            margin-bottom: 12px;
-        }
-        .highlight-action {
-            display: inline-block;
-            background: #111827;
-            color: white;
-            padding: 8px 16px;
-            border-radius: 8px;
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 500;
-        }
-        .recommendation-card {
-            background: white;
-            border-radius: 12px;
-            overflow: hidden;
-            margin-bottom: 12px;
-            border: 1px solid #e5e7eb;
-        }
-        .recommendation-img {
-            width: 100%;
-            height: 160px;
-            object-fit: cover;
-            background: #f9fafb;
-        }
-        .recommendation-content {
-            padding: 16px;
-        }
-        .recommendation-title {
-            font-size: 15px;
-            font-weight: 600;
-            color: #111827;
-            margin-bottom: 4px;
-        }
-        .recommendation-desc {
-            font-size: 13px;
-            color: #6b7280;
-            margin-bottom: 12px;
-        }
-        .platform-stats {
-            background: #f9fafb;
-            border-radius: 12px;
-            padding: 20px;
-            border: 1px solid #e5e7eb;
-        }
-        .platform-stat-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 12px 0;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        .platform-stat-row:last-child {
-            border-bottom: none;
-        }
-        .platform-stat-label {
-            font-size: 14px;
-            color: #6b7280;
-        }
-        .platform-stat-value {
-            font-size: 16px;
-            font-weight: 600;
-            color: #111827;
-        }
-        .footer {
-            background: #f9fafb;
-            padding: 24px;
-            text-align: center;
-            border-top: 1px solid #e5e7eb;
-        }
-        .footer-text {
-            font-size: 13px;
-            color: #6b7280;
-            margin-bottom: 8px;
-        }
-        .footer-link {
-            color: #111827;
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 500;
-        }
-        @media only screen and (max-width: 600px) {
-            .stat-grid {
-                grid-template-columns: 1fr;
-            }
-        }
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Riepilogo Giornaliero - TCG Arena</title>
+    <!--[if mso]>
+    <style type="text/css">
+        table { border-collapse: collapse; }
+        .button { padding: 12px 24px !important; }
     </style>
+    <![endif]-->
 </head>
-<body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1>Riepilogo Giornaliero</h1>
-            <div class="header-date" th:text="${digestDate}">4 Gennaio 2026</div>
-        </div>
-        
-        <!-- Content -->
-        <div class="content">
-            <p class="greeting">Ciao <span th:text="${username}">User</span>!</p>
-            <p class="subtitle">Ecco cosa è successo ieri su TCG Arena</p>
-            
-            <!-- User Stats -->
-            <h2 class="section-title">
-                <span>📈</span>
-                <span>La tua attività</span>
-            </h2>
-            
-            <div class="stat-grid" th:if="${userStats != null}">
-                <div class="stat-card">
-                    <div class="stat-value positive" th:text="${userStats.newCards}">12</div>
-                    <div class="stat-label">Nuove carte</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" th:text="${userStats.newTrades}">3</div>
-                    <div class="stat-label">Nuovi scambi</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value positive" th:text="${userStats.completedTrades}">2</div>
-                    <div class="stat-label">Scambi completati</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value" th:text="${userStats.messagesReceived}">8</div>
-                    <div class="stat-label">Messaggi ricevuti</div>
-                </div>
-            </div>
-            
-            <!-- Collection Value Change -->
-            <div th:if="${userStats != null and userStats.collectionValueChange != 0}" 
-                 style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); 
-                        border-radius: 12px; padding: 16px; margin-bottom: 24px; text-align: center;">
-                <div style="font-size: 14px; color: #92400e; margin-bottom: 4px;">Valore Collezione</div>
-                <div style="font-size: 24px; font-weight: 700; color: #78350f;">
-                    <span th:text="${userStats.collectionValueChange > 0 ? '+' : ''}">+</span>
-                    <span th:text="${#numbers.formatDecimal(userStats.collectionValueChange, 1, 2)}">125.50</span>€
-                </div>
-            </div>
-            
-            <!-- Highlights -->
-            <div th:if="${highlights != null and !highlights.isEmpty()}">
-                <h2 class="section-title">
-                    <span>⭐</span>
-                    <span>In evidenza</span>
-                </h2>
-                
-                <div th:each="highlight : ${highlights}" class="highlight-card">
-                    <div class="highlight-header">
-                        <span class="highlight-icon" th:text="${highlight.icon}">🔄</span>
-                        <span class="highlight-title" th:text="${highlight.title}">Nuovo match trovato!</span>
-                    </div>
-                    <p class="highlight-desc" th:text="${highlight.description}">
-                        Abbiamo trovato un utente con le carte che cerchi
-                    </p>
-                    <a th:if="${highlight.actionUrl}" 
-                       th:href="${highlight.actionUrl}" 
-                       class="highlight-action">
-                        Vedi dettagli
-                    </a>
-                </div>
-            </div>
-            
-            <!-- Recommendations -->
-            <div th:if="${recommendations != null and !recommendations.isEmpty()}">
-                <h2 class="section-title">
-                    <span>💡</span>
-                    <span>Consigliati per te</span>
-                </h2>
-                
-                <div th:each="rec : ${recommendations}" class="recommendation-card">
-                    <img th:if="${rec.imageUrl}" 
-                         th:src="${rec.imageUrl}" 
-                         th:alt="${rec.title}"
-                         class="recommendation-img" />
-                    <div class="recommendation-content">
-                        <div class="recommendation-title" th:text="${rec.title}">Torneo Pokémon</div>
-                        <p class="recommendation-desc" th:text="${rec.description}">
-                            Torneo competitivo a 5km da te
-                        </p>
-                        <a th:if="${rec.actionUrl}" 
-                           th:href="${rec.actionUrl}" 
-                           class="highlight-action">
-                            Scopri di più
-                        </a>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Platform Stats -->
-            <h2 class="section-title">
-                <span>🌍</span>
-                <span>TCG Arena oggi</span>
-            </h2>
-            
-            <div class="platform-stats" th:if="${platformStats != null}">
-                <div class="platform-stat-row">
-                    <span class="platform-stat-label">Nuovi utenti</span>
-                    <span class="platform-stat-value" th:text="${platformStats.newUsers}">156</span>
-                </div>
-                <div class="platform-stat-row">
-                    <span class="platform-stat-label">Scambi attivi</span>
-                    <span class="platform-stat-value" th:text="${platformStats.activeTrades}">89</span>
-                </div>
-                <div class="platform-stat-row">
-                    <span class="platform-stat-label">Eventi in programma</span>
-                    <span class="platform-stat-value" th:text="${platformStats.upcomingEvents}">12</span>
-                </div>
-                <div class="platform-stat-row">
-                    <span class="platform-stat-label">Nuovi negozi</span>
-                    <span class="platform-stat-value" th:text="${platformStats.newShops}">3</span>
-                </div>
-            </div>
-            
-            <!-- CTA Section -->
-            <div style="text-align: center; margin: 40px 0; padding: 24px; background: #f9fafb; border-radius: 12px;">
-                <h3 style="font-size: 18px; font-weight: 600; color: #111827; margin-bottom: 16px;">
-                    Continua la tua giornata su TCG Arena
-                </h3>
-                <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 16px;">
-                    <a th:href="${frontendUrl + '/trades'}" 
-                       style="background: #10b981; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
-                        Scambia carte
-                    </a>
-                    <a th:href="${frontendUrl + '/events'}" 
-                       style="background: #f59e0b; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
-                        Eventi
-                    </a>
-                    <a th:href="${frontendUrl + '/collection'}" 
-                       style="background: #8b5cf6; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
-                        Collezione
-                    </a>
-                </div>
-                <p style="font-size: 14px; color: #6b7280; margin-top: 16px;">
-                    <a th:href="${frontendUrl}" style="color: #111827; text-decoration: none; font-weight: 500;">
-                        Apri TCG Arena →
-                    </a>
-                </p>
-            </div>
-        </div>
-        
-        <!-- Footer -->
-        <div class="footer">
-            <p class="footer-text">
-                © 2026 TCG Arena • Riepilogo giornaliero
-            </p>
-            <p>
-                <a th:href="${frontendUrl}" class="footer-link" href="https://tcgarena.it">Apri l'app</a> • 
-                <a href="mailto:support@tcgarena.it" class="footer-link">Supporto</a>
-            </p>
-        </div>
-    </div>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6; -webkit-font-smoothing: antialiased;">
+
+    <!-- Wrapper Table -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f3f4f6;">
+        <tr>
+            <td align="center" style="padding: 24px 16px;">
+
+                <!-- Main Container -->
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width: 480px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 32px 24px; background: linear-gradient(135deg, #111827 0%, #374151 100%); text-align: center;">
+                            <h1 style="margin: 0; color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">
+                                Buongiorno &#9728;
+                            </h1>
+                            <p style="margin: 8px 0 0 0; color: rgba(255,255,255,0.8); font-size: 15px;" th:text="${digestDate}">
+                                4 Gennaio 2026
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Greeting -->
+                    <tr>
+                        <td style="padding: 28px 24px 0 24px;">
+                            <p style="margin: 0; font-size: 18px; font-weight: 600; color: #111827;">
+                                Ciao <span th:text="${username}">User</span>!
+                            </p>
+                            <p style="margin: 6px 0 0 0; font-size: 15px; color: #6b7280; line-height: 1.5;">
+                                Ecco il riepilogo di ieri su TCG Arena
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- User Activity Section -->
+                    <tr th:if="${userStats != null}">
+                        <td style="padding: 24px 24px 0 24px;">
+                            <!-- Section Header -->
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                                <tr>
+                                    <td style="padding-bottom: 16px; border-bottom: 2px solid #e5e7eb;">
+                                        <h2 style="margin: 0; font-size: 17px; font-weight: 700; color: #111827;">
+                                            &#128200; La tua attività
+                                        </h2>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Stats Grid -->
+                    <tr th:if="${userStats != null}">
+                        <td style="padding: 16px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                                <!-- Row 1 -->
+                                <tr>
+                                    <td width="50%" style="padding: 6px;">
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #ecfdf5; border-radius: 12px;">
+                                            <tr>
+                                                <td align="center" style="padding: 18px 12px;">
+                                                    <p style="margin: 0; font-size: 28px; font-weight: 700; color: #059669; line-height: 1;" th:text="${userStats.newCards}">12</p>
+                                                    <p style="margin: 4px 0 0 0; font-size: 12px; color: #047857; text-transform: uppercase; letter-spacing: 0.5px;">Nuove carte</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                    <td width="50%" style="padding: 6px;">
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb;">
+                                            <tr>
+                                                <td align="center" style="padding: 18px 12px;">
+                                                    <p style="margin: 0; font-size: 28px; font-weight: 700; color: #111827; line-height: 1;" th:text="${userStats.newTrades}">3</p>
+                                                    <p style="margin: 4px 0 0 0; font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Nuovi scambi</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <!-- Row 2 -->
+                                <tr>
+                                    <td width="50%" style="padding: 6px;">
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #eff6ff; border-radius: 12px;">
+                                            <tr>
+                                                <td align="center" style="padding: 18px 12px;">
+                                                    <p style="margin: 0; font-size: 28px; font-weight: 700; color: #2563eb; line-height: 1;" th:text="${userStats.completedTrades}">2</p>
+                                                    <p style="margin: 4px 0 0 0; font-size: 12px; color: #1d4ed8; text-transform: uppercase; letter-spacing: 0.5px;">Completati</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                    <td width="50%" style="padding: 6px;">
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb;">
+                                            <tr>
+                                                <td align="center" style="padding: 18px 12px;">
+                                                    <p style="margin: 0; font-size: 28px; font-weight: 700; color: #111827; line-height: 1;" th:text="${userStats.messagesReceived}">8</p>
+                                                    <p style="margin: 4px 0 0 0; font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px;">Messaggi</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Collection Value Change Banner -->
+                    <tr th:if="${userStats != null and userStats.collectionValueChange != 0}">
+                        <td style="padding: 8px 24px 24px 24px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-radius: 12px;">
+                                <tr>
+                                    <td align="center" style="padding: 20px;">
+                                        <p style="margin: 0; font-size: 13px; color: #92400e; text-transform: uppercase; letter-spacing: 0.5px;">
+                                            Valore Collezione
+                                        </p>
+                                        <p style="margin: 8px 0 0 0; font-size: 32px; font-weight: 700; color: #78350f; line-height: 1;">
+                                            <span th:text="${userStats.collectionValueChange > 0 ? '+' : ''}">+</span><span th:text="${#numbers.formatDecimal(userStats.collectionValueChange, 1, 2)}">125.50</span>&#8364;
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Highlights Section -->
+                    <tr th:if="${highlights != null and !highlights.isEmpty()}">
+                        <td style="padding: 0 24px 24px 24px;">
+                            <!-- Section Header -->
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                                <tr>
+                                    <td style="padding-bottom: 16px; border-bottom: 2px solid #e5e7eb;">
+                                        <h2 style="margin: 0; font-size: 17px; font-weight: 700; color: #111827;">
+                                            &#11088; In evidenza
+                                        </h2>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Highlight Cards -->
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" th:each="highlight : ${highlights}">
+                                <tr>
+                                    <td style="padding-top: 16px;">
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f9fafb; border-radius: 12px; border: 1px solid #e5e7eb;">
+                                            <tr>
+                                                <td style="padding: 16px;">
+                                                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                                                        <tr>
+                                                            <td width="40" valign="top">
+                                                                <span style="font-size: 28px;" th:text="${highlight.icon}">&#128260;</span>
+                                                            </td>
+                                                            <td style="padding-left: 12px;">
+                                                                <p style="margin: 0; font-size: 16px; font-weight: 600; color: #111827;" th:text="${highlight.title}">
+                                                                    Nuovo match trovato!
+                                                                </p>
+                                                                <p style="margin: 6px 0 0 0; font-size: 14px; color: #6b7280; line-height: 1.4;" th:text="${highlight.description}">
+                                                                    Abbiamo trovato un utente con le carte che cerchi
+                                                                </p>
+                                                            </td>
+                                                        </tr>
+                                                        <tr th:if="${highlight.actionUrl}">
+                                                            <td colspan="2" style="padding-top: 12px;">
+                                                                <a th:href="${highlight.actionUrl}" style="display: inline-block; background-color: #111827; color: #ffffff; font-size: 14px; font-weight: 600; padding: 10px 20px; border-radius: 8px; text-decoration: none;">
+                                                                    Vedi dettagli &#8594;
+                                                                </a>
+                                                            </td>
+                                                        </tr>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Recommendations Section -->
+                    <tr th:if="${recommendations != null and !recommendations.isEmpty()}">
+                        <td style="padding: 0 24px 24px 24px;">
+                            <!-- Section Header -->
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                                <tr>
+                                    <td style="padding-bottom: 16px; border-bottom: 2px solid #e5e7eb;">
+                                        <h2 style="margin: 0; font-size: 17px; font-weight: 700; color: #111827;">
+                                            &#128161; Consigliati per te
+                                        </h2>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Recommendation Cards -->
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" th:each="rec : ${recommendations}">
+                                <tr>
+                                    <td style="padding-top: 16px;">
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden;">
+                                            <tr th:if="${rec.imageUrl}">
+                                                <td>
+                                                    <img th:src="${rec.imageUrl}" th:alt="${rec.title}" width="100%" style="display: block; height: 140px; object-fit: cover; background-color: #f3f4f6;" />
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td style="padding: 16px;">
+                                                    <p style="margin: 0; font-size: 16px; font-weight: 600; color: #111827;" th:text="${rec.title}">
+                                                        Torneo Pokemon
+                                                    </p>
+                                                    <p style="margin: 6px 0 0 0; font-size: 14px; color: #6b7280; line-height: 1.4;" th:text="${rec.description}">
+                                                        Torneo competitivo a 5km da te
+                                                    </p>
+                                                    <a th:if="${rec.actionUrl}" th:href="${rec.actionUrl}" style="display: inline-block; margin-top: 12px; background-color: #8b5cf6; color: #ffffff; font-size: 14px; font-weight: 600; padding: 10px 20px; border-radius: 8px; text-decoration: none;">
+                                                        Scopri di pi&ugrave; &#8594;
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Platform Stats Section -->
+                    <tr th:if="${platformStats != null}">
+                        <td style="padding: 0 24px 24px 24px;">
+                            <!-- Section Header -->
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                                <tr>
+                                    <td style="padding-bottom: 16px; border-bottom: 2px solid #e5e7eb;">
+                                        <h2 style="margin: 0; font-size: 17px; font-weight: 700; color: #111827;">
+                                            &#127758; TCG Arena oggi
+                                        </h2>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <!-- Platform Stats List -->
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 8px;">
+                                <tr>
+                                    <td style="padding: 14px 0; border-bottom: 1px solid #f3f4f6;">
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                                            <tr>
+                                                <td style="font-size: 15px; color: #6b7280;">Nuovi utenti</td>
+                                                <td align="right" style="font-size: 17px; font-weight: 600; color: #111827;" th:text="${platformStats.newUsers}">156</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 14px 0; border-bottom: 1px solid #f3f4f6;">
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                                            <tr>
+                                                <td style="font-size: 15px; color: #6b7280;">Scambi attivi</td>
+                                                <td align="right" style="font-size: 17px; font-weight: 600; color: #111827;" th:text="${platformStats.activeTrades}">89</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 14px 0; border-bottom: 1px solid #f3f4f6;">
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                                            <tr>
+                                                <td style="font-size: 15px; color: #6b7280;">Eventi in programma</td>
+                                                <td align="right" style="font-size: 17px; font-weight: 600; color: #111827;" th:text="${platformStats.upcomingEvents}">12</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 14px 0;">
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                                            <tr>
+                                                <td style="font-size: 15px; color: #6b7280;">Nuovi negozi</td>
+                                                <td align="right" style="font-size: 17px; font-weight: 600; color: #111827;" th:text="${platformStats.newShops}">3</td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- CTA Section -->
+                    <tr>
+                        <td style="padding: 8px 24px 32px 24px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #f9fafb; border-radius: 16px;">
+                                <tr>
+                                    <td style="padding: 24px; text-align: center;">
+                                        <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #111827;">
+                                            Cosa vuoi fare oggi?
+                                        </h3>
+
+                                        <!-- Button Stack for Mobile -->
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 20px;">
+                                            <tr>
+                                                <td align="center" style="padding: 6px 0;">
+                                                    <a th:href="${frontendUrl + '/trades'}" style="display: block; width: 100%; max-width: 260px; background-color: #10b981; color: #ffffff; font-size: 15px; font-weight: 600; padding: 14px 24px; border-radius: 10px; text-decoration: none; text-align: center;">
+                                                        &#128260; Scambia carte
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td align="center" style="padding: 6px 0;">
+                                                    <a th:href="${frontendUrl + '/events'}" style="display: block; width: 100%; max-width: 260px; background-color: #f59e0b; color: #ffffff; font-size: 15px; font-weight: 600; padding: 14px 24px; border-radius: 10px; text-decoration: none; text-align: center;">
+                                                        &#127942; Esplora eventi
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td align="center" style="padding: 6px 0;">
+                                                    <a th:href="${frontendUrl + '/collection'}" style="display: block; width: 100%; max-width: 260px; background-color: #8b5cf6; color: #ffffff; font-size: 15px; font-weight: 600; padding: 14px 24px; border-radius: 10px; text-decoration: none; text-align: center;">
+                                                        &#127183; La tua collezione
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        </table>
+
+                                        <!-- Open App Link -->
+                                        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top: 20px;">
+                                            <tr>
+                                                <td align="center">
+                                                    <a th:href="${frontendUrl}" style="font-size: 15px; color: #111827; text-decoration: none; font-weight: 500;">
+                                                        Apri TCG Arena &#8594;
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 24px; background-color: #111827; text-align: center;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                                <tr>
+                                    <td align="center">
+                                        <p style="margin: 0; font-size: 13px; color: #9ca3af;">
+                                            TCG Arena &bull; Riepilogo giornaliero
+                                        </p>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td align="center" style="padding-top: 12px;">
+                                        <a th:href="${frontendUrl}" style="color: #9ca3af; text-decoration: none; font-size: 13px; padding: 0 8px;">Apri l'app</a>
+                                        <span style="color: #4b5563;">&bull;</span>
+                                        <a href="mailto:support@tcgarena.it" style="color: #9ca3af; text-decoration: none; font-size: 13px; padding: 0 8px;">Supporto</a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td align="center" style="padding-top: 12px;">
+                                        <p style="margin: 0; font-size: 12px; color: #6b7280;">
+                                            &copy; 2026 TCG Arena
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                </table>
+
+            </td>
+        </tr>
+    </table>
+
 </body>
 </html>
