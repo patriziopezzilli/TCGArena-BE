@@ -40,8 +40,8 @@ public class TCGApiClient {
 
     private static final Logger logger = LoggerFactory.getLogger(TCGApiClient.class);
 
-    // Rate limiting: delay between API calls (ms) -> 3.5s to avoid 429 rate limit
-    private static final long API_DELAY_MS = 3500;
+    // Rate limiting: delay between API calls (ms) -> 5s to avoid 429 rate limit
+    private static final long API_DELAY_MS = 5000;
     // Page size for card fetching
     private static final int PAGE_SIZE = 20;
     // Progress logging interval
