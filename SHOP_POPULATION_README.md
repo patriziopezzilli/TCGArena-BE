@@ -1,6 +1,6 @@
 # TCG Arena - Shop Population Guide
 
-Questo documento spiega come popolare il database dei negozi TCG usando Google Places API.
+Questo documento spiega come popolare il database dei negozi TCG usando HERE Places API.
 
 ## 🎯 Metodi Disponibili
 
@@ -13,28 +13,24 @@ Ci sono **2 modi** per popolare il database:
 
 ## 🔧 Prerequisiti
 
-### Google Places API Key
+### HERE Places API Key
 
-1. Vai su [Google Cloud Console](https://console.cloud.google.com/)
-2. Crea un nuovo progetto o seleziona uno esistente
-3. Abilita le seguenti API:
-   - **Places API**
-   - **Places API (New)** (opzionale, per features avanzate)
-4. Vai su "Credentials" e crea una API Key
-5. **IMPORTANTE**: Restrizioni consigliate per sicurezza:
-   - Application restrictions: HTTP referrers o IP addresses
-   - API restrictions: Solo Places API
+1. Vai su [HERE Developer Console](https://developer.here.com/)
+2. Crea un account gratuito
+3. Crea un nuovo progetto
+4. Abilita **Places API** (gratuita fino a 250k richieste/mese)
+5. Crea una API Key
+6. **IMPORTANTE**: Non sono necessarie restrizioni particolari per test
 
-### Costi Google Places API
+### Costi HERE Places API
 
-- **Nearby Search**: $32 per 1000 richieste
-- **Place Details**: $17 per 1000 richieste
-- **Free tier**: $200 di crediti mensili
+- **Places API**: GRATUITA fino a 250.000 richieste al mese
+- **Limite gratuito**: 250k richieste/mese
+- **Costo oltre il limite**: $0.75 per 1000 richieste aggiuntive
 
 **Stima per questo script**:
-- ~70 città × 9 keywords = ~630 Nearby Search
-- ~100-500 Place Details (dipende dai risultati)
-- **Costo totale stimato**: $30-50 (coperto dal free tier)
+- ~140 città × 40 keywords = ~5600 richieste
+- **Costo totale stimato**: $0 (entro il limite gratuito)
 
 ---
 
@@ -45,8 +41,8 @@ Ci sono **2 modi** per popolare il database:
 1. **Aggiungi la chiave API in `application.properties`:**
 
 ```properties
-# Google Places API
-google.places.api.key=YOUR_GOOGLE_PLACES_API_KEY_HERE
+# HERE Places API
+here.api.key=YOUR_HERE_PLACES_API_KEY_HERE
 ```
 
 2. **Avvia il backend:**
@@ -61,7 +57,7 @@ cd TCGArena-BE
 #### Test in Dry-Run Mode (consigliato prima)
 
 ```bash
-curl -X POST "http://localhost:8080/api/admin/shops/populate-from-google?dryRun=true" \
+curl -X POST "http://localhost:8080/api/admin/shops/populate-from-here?dryRun=true" \
   -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN"
 ```
 
@@ -70,7 +66,7 @@ Questo mostrerà cosa verrebbe inserito senza modificare il database.
 #### Esecuzione Reale
 
 ```bash
-curl -X POST "http://localhost:8080/api/admin/shops/populate-from-google?dryRun=false" \
+curl -X POST "http://localhost:8080/api/admin/shops/populate-from-here?dryRun=false" \
   -H "Authorization: Bearer YOUR_ADMIN_JWT_TOKEN"
 ```
 
@@ -86,11 +82,16 @@ curl -X POST "http://localhost:8080/api/admin/shops/populate-from-google?dryRun=
 }
 ```
 
+**Nota**: Questo endpoint copre le principali città di 14 paesi europei (Francia, Germania, Spagna, Regno Unito, Paesi Bassi, Belgio, Austria, Svizzera, Portogallo, Svezia, Norvegia, Danimarca, Finlandia, Polonia, Repubblica Ceca) escludendo l'Italia.
+
 ---
 
-## 🐍 Metodo 2: Script Python Standalone
+## 🐍 Metodo 2: Script Python Standalone (OBSOLETO)
 
-### Setup
+**⚠️ ATTENZIONE**: Questo script è obsoleto e usa Google Places API (a pagamento). 
+Si consiglia di utilizzare esclusivamente l'**Endpoint Java Backend** che usa HERE Places API (gratuita fino a 250k richieste/mese) e copre l'Europa intera.
+
+### Setup (solo per riferimento)
 
 1. **Installa dipendenze:**
 
@@ -104,7 +105,7 @@ pip install requests mysql-connector-python
 chmod +x populate_shops_script.py
 ```
 
-### Utilizzo
+### Utilizzo (OBSOLETO - usa Google Places)
 
 #### Opzione A: Con parametri da linea di comando
 
@@ -116,6 +117,8 @@ python populate_shops_script.py \
   --db-password your_password \
   --dry-run
 ```
+
+**Nota**: Questo script copre solo l'Italia e richiede una chiave Google Places API a pagamento.
 
 #### Opzione B: Con variabili d'ambiente
 

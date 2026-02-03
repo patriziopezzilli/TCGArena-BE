@@ -2,6 +2,7 @@ package com.tcg.arena.controller;
 
 import com.tcg.arena.model.Expansion;
 import com.tcg.arena.model.CardTemplate;
+import com.tcg.arena.model.TCGType;
 import com.tcg.arena.service.ExpansionService;
 import com.tcg.arena.service.CardTemplateService;
 import com.tcg.arena.dto.ExpansionDTO;
@@ -26,14 +27,21 @@ public class ExpansionController {
 
     @GetMapping
     public List<ExpansionDTO> getAllExpansions(
-            @RequestParam(required = false) List<Integer> years) {
+            @RequestParam(required = false) List<Integer> years,
+            @RequestParam(required = false) String tcgType) {
         // OPTIMIZED: Load all counts in 2 batch queries instead of N queries per
         // expansion
         Map<String, Long> setCodeCounts = cardTemplateService.getAllCardCountsBySetCode();
         Map<Long, Long> expansionIdCounts = cardTemplateService.getAllCardCountsByExpansionId();
 
-        // Use year-filtered query (defaults to current year if no years specified)
-        List<Expansion> expansions = expansionService.getExpansionsByYears(years);
+        List<Expansion> expansions;
+        if (tcgType != null && !tcgType.isEmpty()) {
+            // Filter by TCG type
+            expansions = expansionService.getExpansionsByTcgType(com.tcg.arena.model.TCGType.valueOf(tcgType.toUpperCase()));
+        } else {
+            // Use year-filtered query (defaults to current year if no years specified)
+            expansions = expansionService.getExpansionsByYears(years);
+        }
 
         return expansions.stream()
                 .map(expansion -> new ExpansionDTO(expansion, setCodeCounts, expansionIdCounts))

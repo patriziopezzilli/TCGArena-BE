@@ -54,140 +54,235 @@ public class HerePlacesService {
             "600-6800-0000" // Hobby Store
     };
 
-    // Italian cities to search (All 107 province capitals)
-    private static final Map<String, double[]> ITALIAN_CITIES = Map.ofEntries(
-            // Abruzzo
-            Map.entry("L'Aquila", new double[] { 42.3498, 13.3995 }),
-            Map.entry("Chieti", new double[] { 42.3510, 14.1675 }),
-            Map.entry("Pescara", new double[] { 42.4618, 14.2158 }),
-            Map.entry("Teramo", new double[] { 42.6589, 13.7039 }),
-            // Basilicata
-            Map.entry("Potenza", new double[] { 40.6404, 15.8056 }),
-            Map.entry("Matera", new double[] { 40.6664, 16.6043 }),
-            // Calabria
-            Map.entry("Catanzaro", new double[] { 38.9098, 16.5877 }),
-            Map.entry("Cosenza", new double[] { 39.3037, 16.2541 }),
-            Map.entry("Crotone", new double[] { 39.0804, 17.1263 }),
-            Map.entry("Reggio Calabria", new double[] { 38.1113, 15.6473 }),
-            Map.entry("Vibo Valentia", new double[] { 38.6757, 16.0967 }),
-            // Campania
-            Map.entry("Napoli", new double[] { 40.8518, 14.2681 }),
-            Map.entry("Avellino", new double[] { 40.9140, 14.7933 }),
-            Map.entry("Benevento", new double[] { 41.1298, 14.7818 }),
-            Map.entry("Caserta", new double[] { 41.0743, 14.3312 }),
-            Map.entry("Salerno", new double[] { 40.6824, 14.7681 }),
-            // Emilia-Romagna
-            Map.entry("Bologna", new double[] { 44.4949, 11.3426 }),
-            Map.entry("Ferrara", new double[] { 44.8381, 11.6198 }),
-            Map.entry("Forlì", new double[] { 44.2227, 12.0407 }),
-            Map.entry("Cesena", new double[] { 44.1391, 12.2432 }),
-            Map.entry("Modena", new double[] { 44.6471, 10.9252 }),
-            Map.entry("Parma", new double[] { 44.8015, 10.3279 }),
-            Map.entry("Piacenza", new double[] { 45.0526, 9.6930 }),
-            Map.entry("Ravenna", new double[] { 44.4184, 12.2035 }),
-            Map.entry("Reggio Emilia", new double[] { 44.6990, 10.6300 }),
-            Map.entry("Rimini", new double[] { 44.0678, 12.5695 }),
-            // Friuli-Venezia Giulia
-            Map.entry("Trieste", new double[] { 45.6495, 13.7768 }),
-            Map.entry("Gorizia", new double[] { 45.9402, 13.6202 }),
-            Map.entry("Pordenone", new double[] { 45.9626, 12.6563 }),
-            Map.entry("Udine", new double[] { 46.0637, 13.2446 }),
-            // Lazio
-            Map.entry("Roma", new double[] { 41.9028, 12.4964 }),
-            Map.entry("Frosinone", new double[] { 41.6397, 13.3411 }),
-            Map.entry("Latina", new double[] { 41.4676, 12.9038 }),
-            Map.entry("Rieti", new double[] { 42.4042, 12.8624 }),
-            Map.entry("Viterbo", new double[] { 42.4174, 12.1047 }),
-            // Liguria
-            Map.entry("Genova", new double[] { 44.4056, 8.9463 }),
-            Map.entry("Imperia", new double[] { 43.8876, 8.0294 }),
-            Map.entry("La Spezia", new double[] { 44.1025, 9.8241 }),
-            Map.entry("Savona", new double[] { 44.3079, 8.4812 }),
-            // Lombardia
-            Map.entry("Milano", new double[] { 45.4642, 9.1900 }),
-            Map.entry("Bergamo", new double[] { 45.6983, 9.6773 }),
-            Map.entry("Brescia", new double[] { 45.5416, 10.2118 }),
-            Map.entry("Como", new double[] { 45.8081, 9.0852 }),
-            Map.entry("Cremona", new double[] { 45.1332, 10.0213 }),
-            Map.entry("Lecco", new double[] { 45.8566, 9.3977 }),
-            Map.entry("Lodi", new double[] { 45.3097, 9.5037 }),
-            Map.entry("Mantova", new double[] { 45.1564, 10.7914 }),
-            Map.entry("Monza", new double[] { 45.5845, 9.2744 }),
-            Map.entry("Pavia", new double[] { 45.1847, 9.1582 }),
-            Map.entry("Sondrio", new double[] { 46.1711, 9.8715 }),
-            Map.entry("Varese", new double[] { 45.8206, 8.8251 }),
-            // Marche
-            Map.entry("Ancona", new double[] { 43.6158, 13.5189 }),
-            Map.entry("Ascoli Piceno", new double[] { 42.8550, 13.5749 }),
-            Map.entry("Fermo", new double[] { 43.1605, 13.7183 }),
-            Map.entry("Macerata", new double[] { 43.3002, 13.4531 }),
-            Map.entry("Pesaro", new double[] { 43.9125, 12.9155 }),
-            Map.entry("Urbino", new double[] { 43.7262, 12.6366 }),
-            // Molise
-            Map.entry("Campobasso", new double[] { 41.5603, 14.6627 }),
-            Map.entry("Isernia", new double[] { 41.5880, 14.2259 }),
-            // Piemonte
-            Map.entry("Torino", new double[] { 45.0703, 7.6869 }),
-            Map.entry("Alessandria", new double[] { 44.9133, 8.6148 }),
-            Map.entry("Asti", new double[] { 44.8996, 8.2045 }),
-            Map.entry("Biella", new double[] { 45.5629, 8.0583 }),
-            Map.entry("Cuneo", new double[] { 44.3845, 7.5427 }),
-            Map.entry("Novara", new double[] { 45.4469, 8.6212 }),
-            Map.entry("Verbania", new double[] { 45.9220, 8.5518 }),
-            Map.entry("Vercelli", new double[] { 45.3208, 8.4197 }),
-            // Puglia
-            Map.entry("Bari", new double[] { 41.1171, 16.8719 }),
-            Map.entry("Andria", new double[] { 41.2263, 16.2952 }),
-            Map.entry("Barletta", new double[] { 41.3174, 16.2829 }),
-            Map.entry("Trani", new double[] { 41.2721, 16.4173 }),
-            Map.entry("Brindisi", new double[] { 40.6384, 17.9455 }),
-            Map.entry("Foggia", new double[] { 41.4622, 15.5446 }),
-            Map.entry("Lecce", new double[] { 40.3515, 18.1750 }),
-            Map.entry("Taranto", new double[] { 40.4638, 17.2471 }),
-            // Sardegna
-            Map.entry("Cagliari", new double[] { 39.2238, 9.1217 }),
-            Map.entry("Nuoro", new double[] { 40.3195, 9.3308 }),
-            Map.entry("Oristano", new double[] { 39.9056, 8.5910 }),
-            Map.entry("Sassari", new double[] { 40.7259, 8.5557 }),
-            Map.entry("Sud Sardegna", new double[] { 39.1664, 8.5262 }),
-            // Sicilia
-            Map.entry("Palermo", new double[] { 38.1157, 13.3615 }),
-            Map.entry("Agrigento", new double[] { 37.3111, 13.5765 }),
-            Map.entry("Caltanissetta", new double[] { 37.4902, 14.0622 }),
-            Map.entry("Catania", new double[] { 37.5079, 15.0830 }),
-            Map.entry("Enna", new double[] { 37.5670, 14.2811 }),
-            Map.entry("Messina", new double[] { 38.1938, 15.5540 }),
-            Map.entry("Ragusa", new double[] { 36.9269, 14.7255 }),
-            Map.entry("Siracusa", new double[] { 37.0755, 15.2866 }),
-            Map.entry("Trapani", new double[] { 38.0176, 12.5370 }),
-            // Toscana
-            Map.entry("Firenze", new double[] { 43.7696, 11.2558 }),
-            Map.entry("Arezzo", new double[] { 43.4685, 11.8815 }),
-            Map.entry("Grosseto", new double[] { 42.7607, 11.1099 }),
-            Map.entry("Livorno", new double[] { 43.5485, 10.3106 }),
-            Map.entry("Lucca", new double[] { 43.8429, 10.5027 }),
-            Map.entry("Massa", new double[] { 44.0205, 10.1197 }),
-            Map.entry("Carrara", new double[] { 44.0792, 10.1009 }),
-            Map.entry("Pisa", new double[] { 43.7228, 10.4017 }),
-            Map.entry("Pistoia", new double[] { 43.9311, 10.9176 }),
-            Map.entry("Prato", new double[] { 43.8777, 11.1022 }),
-            Map.entry("Siena", new double[] { 43.3188, 11.3308 }),
-            // Trentino-Alto Adige
-            Map.entry("Trento", new double[] { 46.0748, 11.1217 }),
-            Map.entry("Bolzano", new double[] { 46.4993, 11.3566 }),
-            // Umbria
-            Map.entry("Perugia", new double[] { 43.1107, 12.3908 }),
-            Map.entry("Terni", new double[] { 42.5638, 12.6455 }),
-            // Valle d'Aosta
-            Map.entry("Aosta", new double[] { 45.7373, 7.3204 }),
-            // Veneto
-            Map.entry("Venezia", new double[] { 45.4408, 12.3155 }),
-            Map.entry("Belluno", new double[] { 46.1364, 12.2163 }),
-            Map.entry("Padova", new double[] { 45.4064, 11.8768 }),
-            Map.entry("Rovigo", new double[] { 45.0705, 11.7906 }),
-            Map.entry("Treviso", new double[] { 45.6669, 12.2424 }),
-            Map.entry("Verona", new double[] { 45.4384, 10.9916 }),
-            Map.entry("Vicenza", new double[] { 45.5455, 11.5354 }));
+    // ISO-2 to ISO-3 country code mapping for HERE API (Worldwide)
+    private static final Map<String, String> ISO2_TO_ISO3 = Map.ofEntries(
+            // Europe
+            Map.entry("FR", "FRA"), // France
+            Map.entry("DE", "DEU"), // Germany
+            Map.entry("ES", "ESP"), // Spain
+            Map.entry("GB", "GBR"), // United Kingdom
+            Map.entry("NL", "NLD"), // Netherlands
+            Map.entry("BE", "BEL"), // Belgium
+            Map.entry("AT", "AUT"), // Austria
+            Map.entry("CH", "CHE"), // Switzerland
+            Map.entry("PT", "PRT"), // Portugal
+            Map.entry("SE", "SWE"), // Sweden
+            Map.entry("NO", "NOR"), // Norway
+            Map.entry("DK", "DNK"), // Denmark
+            Map.entry("FI", "FIN"), // Finland
+            Map.entry("PL", "POL"), // Poland
+            Map.entry("CZ", "CZE"), // Czech Republic
+            // North America
+            Map.entry("US", "USA"), // United States
+            Map.entry("CA", "CAN"), // Canada
+            Map.entry("MX", "MEX"), // Mexico
+            // South America
+            Map.entry("BR", "BRA"), // Brazil
+            Map.entry("AR", "ARG"), // Argentina
+            Map.entry("CO", "COL"), // Colombia
+            Map.entry("PE", "PER"), // Peru
+            Map.entry("CL", "CHL"), // Chile
+            Map.entry("VE", "VEN"), // Venezuela
+            // Asia
+            Map.entry("JP", "JPN"), // Japan
+            Map.entry("KR", "KOR"), // South Korea
+            Map.entry("CN", "CHN"), // China
+            Map.entry("IN", "IND"), // India
+            Map.entry("TH", "THA"), // Thailand
+            Map.entry("SG", "SGP"), // Singapore
+            Map.entry("MY", "MYS"), // Malaysia
+            Map.entry("PH", "PHL"), // Philippines
+            Map.entry("ID", "IDN"), // Indonesia
+            Map.entry("TW", "TWN"), // Taiwan
+            // Oceania
+            Map.entry("AU", "AUS"), // Australia
+            Map.entry("NZ", "NZL"), // New Zealand
+            // Middle East
+            Map.entry("AE", "ARE"), // United Arab Emirates
+            Map.entry("SA", "SAU"), // Saudi Arabia
+            Map.entry("IL", "ISR"), // Israel
+            Map.entry("TR", "TUR"), // Turkey
+            // Africa
+            Map.entry("ZA", "ZAF"), // South Africa
+            Map.entry("EG", "EGY"), // Egypt
+            Map.entry("MA", "MAR"), // Morocco
+            Map.entry("NG", "NGA"), // Nigeria
+            Map.entry("KE", "KEN"), // Kenya
+            Map.entry("GH", "GHA")  // Ghana
+    );
+
+    // Worldwide countries and their major cities (excluding Europe)
+    private static final Map<String, Map<String, double[]>> WORLDWIDE_COUNTRIES = Map.ofEntries(
+            // North America
+            Map.entry("US", Map.ofEntries( // United States
+                    Map.entry("New York", new double[] { 40.7128, -74.0060 }),
+                    Map.entry("Los Angeles", new double[] { 34.0522, -118.2437 }),
+                    Map.entry("Chicago", new double[] { 41.8781, -87.6298 }),
+                    Map.entry("Houston", new double[] { 29.7604, -95.3698 }),
+                    Map.entry("Phoenix", new double[] { 33.4484, -112.0740 }),
+                    Map.entry("Philadelphia", new double[] { 39.9526, -75.1652 }),
+                    Map.entry("San Antonio", new double[] { 29.4241, -98.4936 }),
+                    Map.entry("San Diego", new double[] { 32.7157, -117.1611 }),
+                    Map.entry("Dallas", new double[] { 32.7767, -96.7970 }),
+                    Map.entry("San Jose", new double[] { 37.3382, -121.8863 })
+            )),
+            Map.entry("CA", Map.ofEntries( // Canada
+                    Map.entry("Toronto", new double[] { 43.6532, -79.3832 }),
+                    Map.entry("Montreal", new double[] { 45.5017, -73.5673 }),
+                    Map.entry("Vancouver", new double[] { 49.2827, -123.1207 }),
+                    Map.entry("Calgary", new double[] { 51.0447, -114.0719 }),
+                    Map.entry("Edmonton", new double[] { 53.5444, -113.4909 }),
+                    Map.entry("Ottawa", new double[] { 45.4215, -75.6972 }),
+                    Map.entry("Winnipeg", new double[] { 49.8951, -97.1384 }),
+                    Map.entry("Quebec City", new double[] { 46.8139, -71.2080 }),
+                    Map.entry("Hamilton", new double[] { 43.2557, -79.8711 }),
+                    Map.entry("Kitchener", new double[] { 43.4516, -80.4925 })
+            )),
+            Map.entry("MX", Map.ofEntries( // Mexico
+                    Map.entry("Mexico City", new double[] { 19.4326, -99.1332 }),
+                    Map.entry("Guadalajara", new double[] { 20.6597, -103.3496 }),
+                    Map.entry("Monterrey", new double[] { 25.6866, -100.3161 }),
+                    Map.entry("Puebla", new double[] { 19.0414, -98.2063 }),
+                    Map.entry("Tijuana", new double[] { 32.5149, -117.0382 }),
+                    Map.entry("León", new double[] { 21.1236, -101.6809 }),
+                    Map.entry("Juárez", new double[] { 31.6904, -106.4245 }),
+                    Map.entry("Torreón", new double[] { 25.5428, -103.4068 }),
+                    Map.entry("Querétaro", new double[] { 20.5888, -100.3899 }),
+                    Map.entry("Mérida", new double[] { 20.9674, -89.5926 })
+            )),
+            // South America
+            Map.entry("BR", Map.ofEntries( // Brazil
+                    Map.entry("São Paulo", new double[] { -23.5505, -46.6333 }),
+                    Map.entry("Rio de Janeiro", new double[] { -22.9068, -43.1729 }),
+                    Map.entry("Brasília", new double[] { -15.7942, -47.8822 }),
+                    Map.entry("Salvador", new double[] { -12.9714, -38.5014 }),
+                    Map.entry("Fortaleza", new double[] { -3.7319, -38.5267 }),
+                    Map.entry("Belo Horizonte", new double[] { -19.9191, -43.9386 }),
+                    Map.entry("Manaus", new double[] { -3.1190, -60.0217 }),
+                    Map.entry("Curitiba", new double[] { -25.4284, -49.2733 }),
+                    Map.entry("Recife", new double[] { -8.0476, -34.8770 }),
+                    Map.entry("Porto Alegre", new double[] { -30.0346, -51.2177 })
+            )),
+            Map.entry("AR", Map.ofEntries( // Argentina
+                    Map.entry("Buenos Aires", new double[] { -34.6118, -58.3966 }),
+                    Map.entry("Córdoba", new double[] { -31.4201, -64.1888 }),
+                    Map.entry("Rosario", new double[] { -32.9468, -60.6393 }),
+                    Map.entry("Mendoza", new double[] { -32.8895, -68.8458 }),
+                    Map.entry("San Miguel de Tucumán", new double[] { -26.8241, -65.2226 }),
+                    Map.entry("La Plata", new double[] { -34.9215, -57.9545 }),
+                    Map.entry("Mar del Plata", new double[] { -38.0055, -57.5426 }),
+                    Map.entry("Salta", new double[] { -24.7859, -65.4117 }),
+                    Map.entry("Santa Fe", new double[] { -31.6107, -60.6973 }),
+                    Map.entry("San Juan", new double[] { -31.5375, -68.5364 })
+            )),
+            // Asia
+            Map.entry("JP", Map.ofEntries( // Japan
+                    Map.entry("Tokyo", new double[] { 35.6762, 139.6503 }),
+                    Map.entry("Yokohama", new double[] { 35.4437, 139.6380 }),
+                    Map.entry("Osaka", new double[] { 34.6937, 135.5023 }),
+                    Map.entry("Nagoya", new double[] { 35.1815, 136.9066 }),
+                    Map.entry("Sapporo", new double[] { 43.0618, 141.3545 }),
+                    Map.entry("Fukuoka", new double[] { 33.5904, 130.4017 }),
+                    Map.entry("Kobe", new double[] { 34.6901, 135.1955 }),
+                    Map.entry("Kawasaki", new double[] { 35.5308, 139.7030 }),
+                    Map.entry("Kyoto", new double[] { 35.0116, 135.7681 }),
+                    Map.entry("Saitama", new double[] { 35.8617, 139.6453 })
+            )),
+            Map.entry("KR", Map.ofEntries( // South Korea
+                    Map.entry("Seoul", new double[] { 37.5665, 126.9780 }),
+                    Map.entry("Busan", new double[] { 35.1796, 129.0756 }),
+                    Map.entry("Incheon", new double[] { 37.4563, 126.7052 }),
+                    Map.entry("Daegu", new double[] { 35.8714, 128.6014 }),
+                    Map.entry("Daejeon", new double[] { 36.3504, 127.3845 }),
+                    Map.entry("Gwangju", new double[] { 35.1595, 126.8526 }),
+                    Map.entry("Suwon", new double[] { 37.2636, 127.0286 }),
+                    Map.entry("Goyang", new double[] { 37.6584, 126.8320 }),
+                    Map.entry("Seongnam", new double[] { 37.4449, 127.1389 }),
+                    Map.entry("Ulsan", new double[] { 35.5384, 129.3114 })
+            )),
+            Map.entry("CN", Map.ofEntries( // China
+                    Map.entry("Shanghai", new double[] { 31.2304, 121.4737 }),
+                    Map.entry("Beijing", new double[] { 39.9042, 116.4074 }),
+                    Map.entry("Shenzhen", new double[] { 22.3193, 114.1694 }),
+                    Map.entry("Guangzhou", new double[] { 23.1291, 113.2644 }),
+                    Map.entry("Dongguan", new double[] { 23.0207, 113.7518 }),
+                    Map.entry("Tianjin", new double[] { 39.3434, 117.3616 }),
+                    Map.entry("Wuhan", new double[] { 30.5928, 114.3055 }),
+                    Map.entry("Chengdu", new double[] { 30.5728, 104.0668 }),
+                    Map.entry("Nanjing", new double[] { 32.0603, 118.7969 }),
+                    Map.entry("Xi'an", new double[] { 34.3416, 108.9398 })
+            )),
+            Map.entry("IN", Map.ofEntries( // India
+                    Map.entry("Mumbai", new double[] { 19.0760, 72.8777 }),
+                    Map.entry("Delhi", new double[] { 28.7041, 77.1025 }),
+                    Map.entry("Bangalore", new double[] { 12.9716, 77.5946 }),
+                    Map.entry("Hyderabad", new double[] { 17.3850, 78.4867 }),
+                    Map.entry("Ahmedabad", new double[] { 23.0225, 72.5714 }),
+                    Map.entry("Chennai", new double[] { 13.0827, 80.2707 }),
+                    Map.entry("Kolkata", new double[] { 22.5726, 88.3639 }),
+                    Map.entry("Surat", new double[] { 21.1702, 72.8311 }),
+                    Map.entry("Pune", new double[] { 18.5204, 73.8567 }),
+                    Map.entry("Jaipur", new double[] { 26.9124, 75.7873 })
+            )),
+            // Oceania
+            Map.entry("AU", Map.ofEntries( // Australia
+                    Map.entry("Sydney", new double[] { -33.8688, 151.2093 }),
+                    Map.entry("Melbourne", new double[] { -37.8136, 144.9631 }),
+                    Map.entry("Brisbane", new double[] { -27.4698, 153.0251 }),
+                    Map.entry("Perth", new double[] { -31.9505, 115.8605 }),
+                    Map.entry("Adelaide", new double[] { -34.9285, 138.6007 }),
+                    Map.entry("Gold Coast", new double[] { -28.0167, 153.4000 }),
+                    Map.entry("Canberra", new double[] { -35.2809, 149.1300 }),
+                    Map.entry("Newcastle", new double[] { -32.9283, 151.7817 }),
+                    Map.entry("Wollongong", new double[] { -34.4278, 150.8931 }),
+                    Map.entry("Logan City", new double[] { -27.6392, 153.1094 })
+            )),
+            // Middle East
+            Map.entry("AE", Map.ofEntries( // United Arab Emirates
+                    Map.entry("Dubai", new double[] { 25.2048, 55.2708 }),
+                    Map.entry("Abu Dhabi", new double[] { 24.4539, 54.3773 }),
+                    Map.entry("Sharjah", new double[] { 25.3463, 55.4209 }),
+                    Map.entry("Al Ain", new double[] { 24.1302, 55.8023 }),
+                    Map.entry("Ajman", new double[] { 25.4052, 55.5136 }),
+                    Map.entry("Ras Al Khaimah", new double[] { 25.6741, 55.9804 }),
+                    Map.entry("Fujairah", new double[] { 25.1288, 56.3265 }),
+                    Map.entry("Umm Al Quwain", new double[] { 25.5647, 55.5552 }),
+                    Map.entry("Khor Fakkan", new double[] { 25.3392, 56.3018 }),
+                    Map.entry("Dibba Al-Fujairah", new double[] { 25.5858, 56.2479 })
+            )),
+            Map.entry("TR", Map.ofEntries( // Turkey
+                    Map.entry("Istanbul", new double[] { 41.0082, 28.9784 }),
+                    Map.entry("Ankara", new double[] { 39.9334, 32.8597 }),
+                    Map.entry("İzmir", new double[] { 38.4237, 27.1428 }),
+                    Map.entry("Bursa", new double[] { 40.1885, 29.0610 }),
+                    Map.entry("Antalya", new double[] { 36.8969, 30.7133 }),
+                    Map.entry("Konya", new double[] { 37.8714, 32.4846 }),
+                    Map.entry("Adana", new double[] { 36.9862, 35.3250 }),
+                    Map.entry("Gaziantep", new double[] { 37.0662, 37.3833 }),
+                    Map.entry("Kocaeli", new double[] { 40.8533, 29.8815 }),
+                    Map.entry("Mercin", new double[] { 36.7953, 34.6179 })
+            )),
+            // Africa
+            Map.entry("EG", Map.ofEntries( // Egypt
+                    Map.entry("Cairo", new double[] { 30.0444, 31.2357 }),
+                    Map.entry("Alexandria", new double[] { 31.2001, 29.9187 }),
+                    Map.entry("Giza", new double[] { 30.0131, 31.2089 }),
+                    Map.entry("Shubra El-Kheima", new double[] { 30.1286, 31.2422 }),
+                    Map.entry("Port Said", new double[] { 31.2565, 32.2841 }),
+                    Map.entry("Suez", new double[] { 29.9737, 32.5263 }),
+                    Map.entry("Luxor", new double[] { 25.6872, 32.6396 }),
+                    Map.entry("Mansoura", new double[] { 31.0364, 31.3807 }),
+                    Map.entry("Tanta", new double[] { 30.7885, 31.0019 }),
+                    Map.entry("Asyut", new double[] { 27.1801, 31.1837 })
+            )),
+            // Asia Pacific
+            Map.entry("SG", Map.ofEntries( // Singapore
+                    Map.entry("Singapore", new double[] { 1.3521, 103.8198 })
+            )),
+            Map.entry("HK", Map.ofEntries( // Hong Kong
+                    Map.entry("Hong Kong", new double[] { 22.3193, 114.1694 })
+            ))
+    );
 
     // STRONG Keywords: Specific Brands (If found, ACCEPT immediately)
     private static final List<String> STRONG_KEYWORDS = Arrays.asList(
@@ -217,60 +312,93 @@ public class HerePlacesService {
         int totalInserted = 0;
         int totalSkipped = 0;
         List<String> errors = new ArrayList<>();
-        int citiesProcessed = 0;
+        int countriesProcessed = 0;
 
-        logger.info("Starting HERE Places shop population for ITALY (dryRun: {})", dryRun);
+        logger.info("Starting HERE Places shop population for WORLDWIDE major cities (dryRun: {})", dryRun);
 
         String[] searchQueries = {
-                "fumetteria",
-                "negozio carte collezionabili",
-                "giochi da tavolo",
-                "trading card game",
-                "pokemon store",
-                "magic the gathering",
-                "warhammer"
+                // English
+                "comic book store", "trading card game", "pokemon store", "magic the gathering",
+                "board game store", "hobby shop", "game store",
+                // French
+                "magasin de bandes dessinées", "magasin de jeux", "magasin de hobby",
+                "magasin de cartes à collectionner", "pokemon boutique",
+                // German
+                "comicshop", "spielwarengeschäft", "hobbygeschäft", "kartenspiel",
+                "pokemon laden", "magic the gathering laden",
+                // Spanish
+                "tienda de cómics", "tienda de juegos", "tienda de hobby",
+                "juegos de mesa", "pokemon tienda",
+                // Dutch
+                "stripwinkel", "spelletjeswinkel", "hobbywinkel", "pokemon winkel",
+                // Swedish
+                "serietidningsaffär", "spelaffär", "hobbyaffär", "pokemon butik",
+                // Norwegian
+                "tegneseriebutikk", "spillbutikk", "hobbybutikk", "pokemon butikk",
+                // Danish
+                "tegneseriebutik", "spilbutik", "hobbybutik", "pokemon butik",
+                // Finnish
+                "sarjakuvakauppa", "pelikauppa", "harrastekauppa", "pokemon kauppa",
+                // Polish
+                "sklep z komiksami", "sklep z grami", "sklep hobbystyczny", "pokemon sklep",
+                // Czech
+                "obchod s komiksy", "hračka", "hobby obchod", "pokemon obchod"
         };
 
-        for (Map.Entry<String, double[]> city : ITALIAN_CITIES.entrySet()) {
-            String cityName = city.getKey();
-            double[] coords = city.getValue();
+        for (Map.Entry<String, Map<String, double[]>> countryEntry : WORLDWIDE_COUNTRIES.entrySet()) {
+            String countryCode = countryEntry.getKey();
+            Map<String, double[]> cities = countryEntry.getValue();
 
-            logger.info("Searching in: {} ({}/{})", cityName, ++citiesProcessed, ITALIAN_CITIES.size());
+            logger.info("Searching in country: {} ({}/{})", countryCode, ++countriesProcessed, WORLDWIDE_COUNTRIES.size());
 
-            for (String query : searchQueries) {
-                try {
-                    List<Shop> shops = discoverShops(coords[0], coords[1], query);
+            for (Map.Entry<String, double[]> cityEntry : cities.entrySet()) {
+                String cityName = cityEntry.getKey();
+                double[] coords = cityEntry.getValue();
 
-                    for (Shop shop : shops) {
-                        totalFound++;
+                logger.info("Searching in: {} ({})", cityName, countryCode);
 
-                        if (shopExists(shop)) {
-                            totalSkipped++;
-                            continue;
+                for (String query : searchQueries) {
+                    try {
+                        List<Shop> shops = discoverShops(coords[0], coords[1], query, countryCode);
+
+                        for (Shop shop : shops) {
+                            totalFound++;
+
+                            if (shopExists(shop)) {
+                                totalSkipped++;
+                                continue;
+                            }
+
+                            if (!dryRun) {
+                                shopRepository.save(shop);
+                                logger.info("Inserted: {} - {}", shop.getName(), shop.getAddress());
+                            } else {
+                                logger.info("Would insert: {} - {}", shop.getName(), shop.getAddress());
+                            }
+                            totalInserted++;
                         }
 
-                        if (!dryRun) {
-                            shopRepository.save(shop);
-                            logger.info("Inserted: {} - {}", shop.getName(), shop.getAddress());
-                        } else {
-                            logger.info("Would insert: {} - {}", shop.getName(), shop.getAddress());
-                        }
-                        totalInserted++;
+                        // Rate limiting
+                        Thread.sleep(200);
+
+                    } catch (Exception e) {
+                        String errorMsg = "Error searching " + cityName + " (" + countryCode + ") for '" + query + "': " + e.getMessage();
+                        logger.error(errorMsg);
+                        errors.add(errorMsg);
                     }
+                }
 
-                    // Rate limiting
-                    Thread.sleep(200);
-
-                } catch (Exception e) {
-                    String errorMsg = "Error searching " + cityName + " for '" + query + "': " + e.getMessage();
-                    logger.error(errorMsg);
-                    errors.add(errorMsg);
+                // Delay between cities
+                try {
+                    Thread.sleep(500);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                 }
             }
 
-            // Delay between cities
+            // Delay between countries
             try {
-                Thread.sleep(500);
+                Thread.sleep(1000);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
@@ -291,14 +419,18 @@ public class HerePlacesService {
      * Search for shops using free-text queries (much better results than category
      * browse)
      */
-    private List<Shop> discoverShops(double lat, double lng, String query) {
+    private List<Shop> discoverShops(double lat, double lng, String query, String countryCodeIso2) {
         List<Shop> shops = new ArrayList<>();
 
         try {
+            // Convert ISO-2 to ISO-3 for HERE API
+            String countryCodeIso3 = ISO2_TO_ISO3.getOrDefault(countryCodeIso2, countryCodeIso2);
+
             // q=query text, at=location
-            String url = String.format(
-                    "%s?at=%.6f,%.6f&q=%s&in=countryCode:ITA&limit=50&apiKey=%s",
-                    HERE_DISCOVER_URL, lat, lng, query, apiKey);
+            // Use Locale.US to ensure decimal point instead of comma
+            String url = String.format(Locale.US,
+                    "%s?at=%.6f,%.6f&q=%s&in=countryCode:%s&limit=50&apiKey=%s",
+                    HERE_DISCOVER_URL, lat, lng, query, countryCodeIso3, apiKey);
 
             String response = restTemplate.getForObject(url, String.class);
 

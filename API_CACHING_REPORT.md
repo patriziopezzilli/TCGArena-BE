@@ -727,6 +727,8 @@ Queste API **NON dovrebbero essere cachate** perché:
 ### 41. AdminShopPopulationController (`/api/admin/shops`)
 | Metodo | Endpoint | Auth | Cache |
 |--------|----------|------|-------|
+| GET | `/api/admin/shops/here-status` | ❌ | 🟡 5m |
+| POST | `/api/admin/shops/populate-from-here` | API Key | 🔴 No |
 | GET | `/api/admin/shops/google-status` | ❌ | 🟡 5m |
 | POST | `/api/admin/shops/populate-from-google` | API Key | 🔴 No |
 

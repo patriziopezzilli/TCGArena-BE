@@ -133,6 +133,7 @@ public class AdminShopPopulationController {
 
     /**
      * Populate shops from HERE Places API (STABLE - 250k FREE/MONTH)
+     * Covers major worldwide cities across all continents
      * 
      * @param dryRun if true, only simulates the operation without inserting data
      * @param apiKey secret key for authentication
