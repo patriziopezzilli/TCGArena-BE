@@ -24,6 +24,6 @@ public interface TCGSetRepository extends JpaRepository<TCGSet, Long> {
      * This is useful to identify sets that need card data import.
      */
     @Query("SELECT s FROM TCGSet s WHERE s.expansion.tcgType = :tcgType " +
-           "AND NOT EXISTS (SELECT 1 FROM CardTemplate c WHERE c.tcgSet = s)")
+           "AND NOT EXISTS (SELECT 1 FROM CardTemplate c WHERE c.setCode = s.setCode)")
     List<TCGSet> findEmptySetsByTcgType(@Param("tcgType") TCGType tcgType);
 }
