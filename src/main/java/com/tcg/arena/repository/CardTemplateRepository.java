@@ -48,6 +48,14 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
         List<CardTemplate> findByNameAndSetCodeAndCardNumber(@Param("name") String name,
                         @Param("setCode") String setCode, @Param("cardNumber") String cardNumber);
 
+        /**
+         * Check for existing card by composite key INCLUDING N/A card numbers.
+         * Used by import process to check for duplicates before insert.
+         */
+        @Query("SELECT c FROM CardTemplate c WHERE c.name = :name AND c.setCode = :setCode AND c.cardNumber = :cardNumber")
+        List<CardTemplate> findByNameAndSetCodeAndCardNumberIncludingNA(@Param("name") String name,
+                        @Param("setCode") String setCode, @Param("cardNumber") String cardNumber);
+
         @Query("SELECT c.name, c.setCode, c.cardNumber FROM CardTemplate c WHERE c.tcgType = 'MAGIC'")
         List<Object[]> findAllCardKeys();
 

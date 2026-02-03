@@ -23,6 +23,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * Client for TCG API - provides real-time pricing data for TCGs
@@ -39,8 +40,8 @@ public class TCGApiClient {
 
     private static final Logger logger = LoggerFactory.getLogger(TCGApiClient.class);
 
-    // Rate limiting: delay between API calls (ms) -> increased to 3s to avoid 429
-    private static final long API_DELAY_MS = 3000;
+    // Rate limiting: delay between API calls (ms) -> 3.5s to avoid 429 rate limit
+    private static final long API_DELAY_MS = 3500;
     // Page size for card fetching
     private static final int PAGE_SIZE = 20;
     // Progress logging interval
@@ -393,15 +394,20 @@ public class TCGApiClient {
     }
 
     /**
-     * Get all cards for a set with pagination
+     * Get all cards for a set with offset-based pagination.
+     * Continues fetching until zero results are returned.
      */
     public Flux<TCGCard> getAllCardsForSet(String setId) {
-        return getCardsPage(setId, null)
+        return getCardsPageBySet(setId, 0)
                 .expand(response -> {
-                    if (response.hasMore && response.nextCursor != null) {
-                        return getCardsPage(setId, response.nextCursor)
+                    List<TCGCard> cards = response.getCards();
+                    // Continue until we get zero results
+                    if (!cards.isEmpty()) {
+                        int nextOffset = response.currentOffset + PAGE_SIZE;
+                        return getCardsPageBySet(setId, nextOffset)
                                 .delaySubscription(Duration.ofMillis(API_DELAY_MS));
                     }
+                    logger.debug("[API] Set {} pagination complete at offset {}", setId, response.currentOffset);
                     return Mono.empty();
                 })
                 .flatMapIterable(response -> response.getCards());
@@ -491,33 +497,35 @@ public class TCGApiClient {
                 });
     }
 
-    private Mono<TCGCardsResponse> getCardsPage(String setId, String cursor) {
+    /**
+     * Fetch a page of cards for a set using offset-based pagination
+     */
+    private Mono<TCGCardsResponse> getCardsPageBySet(String setId, int offset) {
         return webClient.get()
-                .uri(uriBuilder -> {
-                    var builder = uriBuilder
-                            .path("/cards")
-                            .queryParam("set", setId)
-                            .queryParam("limit", PAGE_SIZE);
-                    if (cursor != null) {
-                        builder.queryParam("cursor", cursor);
-                    }
-                    return builder.build();
-                })
+                .uri(uriBuilder -> uriBuilder
+                        .path("/cards")
+                        .queryParam("set", setId)
+                        .queryParam("limit", PAGE_SIZE)
+                        .queryParam("offset", offset)
+                        .build())
                 .header("x-api-key", apiKey)
                 .retrieve()
                 .onStatus(status -> status.isError(), response -> {
                     return response.bodyToMono(String.class)
                             .flatMap(body -> {
-                                logger.error("[TCG API ERROR] getCardsPage for set {}: HTTP {} - Response body: {}",
+                                logger.error("[TCG API ERROR] getCardsPageBySet for set {}: HTTP {} - Response body: {}",
                                         setId, response.statusCode().value(), body);
                                 return Mono.error(new RuntimeException(
                                         "TCG API error: HTTP " + response.statusCode().value() + " - " + body));
                             });
                 })
                 .bodyToMono(TCGCardsResponse.class)
-                .timeout(Duration.ofMinutes(10)) // Add timeout to prevent hanging requests
-                .doOnSuccess(resp -> logger.debug("Fetched cards page for set {}, count: {}, hasMore: {}",
-                        setId, resp.getCards().size(), resp.hasMore))
+                .timeout(Duration.ofMinutes(10))
+                .doOnSuccess(resp -> {
+                    resp.currentOffset = offset;
+                    logger.debug("Fetched cards page for set {}, offset: {}, count: {}, hasMore: {}",
+                            setId, offset, resp.getCards().size(), resp.hasMore);
+                })
                 .retryWhen(reactor.util.retry.Retry.backoff(5, Duration.ofSeconds(5))
                     .maxBackoff(Duration.ofMinutes(2))
                     .filter(throwable -> {
@@ -529,20 +537,26 @@ public class TCGApiClient {
                     })
                     .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> retrySignal.failure())
                     .doBeforeRetry(retrySignal ->
-                        logger.warn("Retrying getCardsPage for set {} - attempt {} ({})",
+                        logger.warn("Retrying getCardsPageBySet for set {} - attempt {} ({})",
                             setId, retrySignal.totalRetries() + 1, retrySignal.failure().getMessage()))
                 )
                 .onErrorResume(e -> {
                     logger.error("Error fetching cards for set {}: {}", setId, e.getMessage(), e);
-                    return Mono.just(new TCGCardsResponse());
+                    TCGCardsResponse errorResponse = new TCGCardsResponse();
+                    errorResponse.currentOffset = offset;
+                    return Mono.just(errorResponse);
                 });
     }
 
     // ===================== Import Logic =====================
 
     /**
-     * Import all cards for a specific TCG type.
-     * Uses offset-based pagination with resumable progress.
+     * Import cards for NEW sets only for a specific TCG type.
+     * Instead of offset-based pagination, this method:
+     * 1. Fetches all sets from the API
+     * 2. Identifies which sets are NEW (not in database)
+     * 3. For each new set, fetches all cards using the set parameter
+     * 4. If a card fails to save, continues with the next card (no interruption)
      */
     public Mono<Integer> importCardsForTCG(TCGType tcgType) {
         // Special handling for Magic using Scryfall
@@ -560,145 +574,128 @@ public class TCGApiClient {
         expansionCache.clear();
         tcgSetCache.clear();
 
-        // Get current progress
-        ImportProgress progress = getOrCreateImportProgress(tcgType);
-        int startOffset = (progress != null && progress.getLastOffset() != 0) ? progress.getLastOffset() : 0;
+        logger.info("╔══════════════════════════════════════════════════════════════");
+        logger.info("║ IMPORT START (NEW SETS MODE): {}", tcgType.getDisplayName().toUpperCase());
+        logger.info("╠══════════════════════════════════════════════════════════════");
+        logger.info("║ Game ID: {}", gameId);
+        logger.info("╚══════════════════════════════════════════════════════════════");
 
-        // Log import start with banner
-        logImportStart(tcgType, gameId, startOffset, progress);
+        // Track statistics
+        final ImportStats stats = new ImportStats(tcgType.getDisplayName(), gameId, 0);
 
-        // Check if import is already complete - but verify if there are actually more data
-        if (progress != null && progress.isComplete()) {
-            logger.info("[IMPORT] [{}] Previous import was complete. Checking for new data...", tcgType);
-            boolean hasMoreData = checkForNewData(gameId, startOffset);
-            if (!hasMoreData) {
-                logger.info("[IMPORT] [{}] No new data found. Skipping import.", tcgType);
-                return Mono.just(0);
-            }
-            logger.info("[IMPORT] [{}] New data detected! Resuming import.", tcgType);
-            progress.setComplete(false);
-            importProgressRepository.saveAndFlush(progress);
-        }
+        // Load existing setCode from database for this TCG type
+        Set<String> existingSetCodes = tcgSetRepository.findAllSetCodesByTcgType(tcgType);
+        logger.info("[IMPORT] [{}] Found {} existing sets in database", tcgType, existingSetCodes.size());
 
-        // Track progress in memory during import
-        final ImportStats stats = new ImportStats(tcgType.getDisplayName(), gameId, startOffset);
-        final int[] lastSuccessfulOffset = { startOffset };
-        final boolean[] importCompleted = { false };
-
-        // Step 1: Fetch all sets first to get full metadata
+        // Step 1: Fetch all sets from API
         return getAllSets(gameId)
                 .collectList()
-                .flatMap(sets -> {
-                    logger.info("[IMPORT] [{}] PHASE 1: Loaded {} sets from API", tcgType, sets.size());
+                .flatMap(apiSets -> {
+                    logger.info("[IMPORT] [{}] PHASE 1: Fetched {} sets from API", tcgType, apiSets.size());
 
-                    // Create all sets in DB first with proper metadata
-                    Map<String, com.tcg.arena.model.TCGSet> setMap = new HashMap<>();
-                    int newSets = 0;
-                    for (TCGSet set : sets) {
-                        try {
-                            com.tcg.arena.model.TCGSet tcgSet = getOrCreateTCGSet(set, tcgType);
-                            setMap.put(set.id, tcgSet);
-                            if (tcgSet.getId() == null) newSets++;
-                        } catch (Exception e) {
-                            logger.warn("[IMPORT] [{}] Failed to create set '{}': {}", tcgType, set.name, e.getMessage());
-                        }
+                    // Identify NEW sets (not in database)
+                    List<TCGSet> newSets = apiSets.stream()
+                            .filter(set -> !existingSetCodes.contains(set.id))
+                            .toList();
+
+                    if (newSets.isEmpty()) {
+                        logger.info("[IMPORT] [{}] No new sets found. Import complete.", tcgType);
+                        return Mono.just(0);
                     }
-                    logger.info("[IMPORT] [{}] PHASE 1 COMPLETE: {} sets in DB ({} new)", tcgType, setMap.size(), newSets);
 
-                    // Step 2: Fetch cards page by page starting from offset
-                    logger.info("[IMPORT] [{}] PHASE 2: Starting card import from offset {}", tcgType, startOffset);
+                    logger.info("[IMPORT] [{}] PHASE 2: Found {} NEW sets to import", tcgType, newSets.size());
+                    for (TCGSet set : newSets) {
+                        logger.info("[IMPORT] [{}]   - {} ({})", tcgType, set.name, set.id);
+                    }
 
-                    return getCardPagesForGame(gameId, startOffset)
-                            .concatMap(response -> {
-                                List<TCGCard> cards = response.getCards();
-
-                                if (cards.isEmpty()) {
-                                    importCompleted[0] = true;
-                                    stats.completed = true;
-                                    return Mono.empty();
-                                }
-
-                                // Process cards in this page
-                                int savedInPage = 0;
-                                int updatedInPage = 0;
-                                int errorsInPage = 0;
-
-                                for (TCGCard card : cards) {
-                                    if (card == null || card.name == null) {
-                                        errorsInPage++;
-                                        continue;
-                                    }
-
-                                    try {
-                                        String setId = card.set != null ? card.set : "unknown";
-                                        com.tcg.arena.model.TCGSet tcgSet = setMap.get(setId);
-                                        if (tcgSet == null) {
-                                            String setName = card.setName != null ? card.setName : setId;
-                                            tcgSet = getOrCreateTCGSetForCard(setId, setName, tcgType);
-                                            setMap.put(setId, tcgSet);
-                                        }
-
-                                        if (saveCardIfNotExists(card, tcgSet, tcgType)) {
-                                            savedInPage++;
-                                        } else {
-                                            updatedInPage++;
-                                        }
-                                    } catch (Exception e) {
-                                        errorsInPage++;
-                                        logger.debug("[IMPORT] [{}] Card error '{}': {}", tcgType, card.name, e.getMessage());
-                                    }
-                                }
-
-                                // Update stats
-                                stats.pagesProcessed++;
-                                stats.totalCardsProcessed += cards.size();
-                                stats.newCardsSaved += savedInPage;
-                                stats.pricesUpdated += updatedInPage;
-                                stats.errors += errorsInPage;
-                                stats.currentOffset = response.currentOffset + PAGE_SIZE;
-                                lastSuccessfulOffset[0] = stats.currentOffset;
-
-                                // Log progress every N pages
-                                if (stats.pagesProcessed % LOG_PROGRESS_EVERY_N_PAGES == 0) {
-                                    logProgress(tcgType, stats);
-                                    // Save checkpoint
-                                    try {
-                                        updateProgress(tcgType, lastSuccessfulOffset[0], false);
-                                    } catch (Exception e) {
-                                        logger.warn("[IMPORT] [{}] Checkpoint save failed: {}", tcgType, e.getMessage());
-                                    }
-                                }
-
-                                return Mono.just(savedInPage);
-                            })
-                            .onErrorResume(e -> {
-                                stats.errors++;
-                                logger.error("[IMPORT] [{}] ERROR: {} | Offset: {}", tcgType, e.getMessage(), lastSuccessfulOffset[0]);
-                                return Mono.empty();
-                            })
+                    // Process each new set
+                    return Flux.fromIterable(newSets)
+                            .concatMap(apiSet -> importCardsForSet(apiSet, tcgType, stats))
                             .reduce(0, Integer::sum)
                             .doOnSuccess(total -> {
                                 stats.newCardsSaved = total;
-                                logImportComplete(tcgType, stats, importCompleted[0]);
-                                try {
-                                    updateProgress(tcgType, lastSuccessfulOffset[0], importCompleted[0]);
-                                } catch (Exception e) {
-                                    logger.error("[IMPORT] [{}] Failed to save final progress: {}", tcgType, e.getMessage());
-                                }
+                                logImportCompleteNewSets(tcgType, stats, newSets.size());
                             });
                 })
                 .doOnError(e -> {
                     logger.error("[IMPORT] [{}] FATAL ERROR: {}", tcgType, e.getMessage(), e);
-                    try {
-                        updateProgress(tcgType, lastSuccessfulOffset[0], false);
-                    } catch (Exception ex) {
-                        logger.error("[IMPORT] [{}] Failed to save progress after error: {}", tcgType, ex.getMessage());
-                    }
                 })
                 .doFinally(signal -> {
                     expansionCache.clear();
                     tcgSetCache.clear();
                 });
+    }
+
+    /**
+     * Import all cards for a specific set.
+     * Uses the /cards?set={setId} API endpoint with pagination.
+     * If a card fails to save, logs the error and continues with the next card.
+     */
+    private Mono<Integer> importCardsForSet(TCGSet apiSet, TCGType tcgType, ImportStats stats) {
+        logger.info("[IMPORT] [{}] Starting import for set: {} ({})", tcgType, apiSet.name, apiSet.id);
+
+        // First, create the set in the database
+        com.tcg.arena.model.TCGSet tcgSet;
+        try {
+            tcgSet = getOrCreateTCGSet(apiSet, tcgType);
+        } catch (Exception e) {
+            logger.error("[IMPORT] [{}] Failed to create set '{}': {}", tcgType, apiSet.name, e.getMessage());
+            return Mono.just(0);
+        }
+
+        final com.tcg.arena.model.TCGSet finalTcgSet = tcgSet;
+        final int[] savedInSet = {0};
+        final int[] errorsInSet = {0};
+
+        // Fetch all cards for this set using pagination
+        return getAllCardsForSet(apiSet.id)
+                .concatMap(card -> {
+                    if (card == null || card.name == null) {
+                        errorsInSet[0]++;
+                        return Mono.just(0);
+                    }
+
+                    try {
+                        if (saveCardIfNotExists(card, finalTcgSet, tcgType)) {
+                            savedInSet[0]++;
+                            return Mono.just(1);
+                        } else {
+                            // Card already exists (updated prices)
+                            stats.pricesUpdated++;
+                            return Mono.just(0);
+                        }
+                    } catch (Exception e) {
+                        errorsInSet[0]++;
+                        logger.warn("[IMPORT] [{}] Card save error '{}' in set '{}': {}",
+                                tcgType, card.name, apiSet.name, e.getMessage());
+                        // Continue with next card - do not interrupt
+                        return Mono.just(0);
+                    }
+                })
+                .reduce(0, Integer::sum)
+                .doOnSuccess(count -> {
+                    stats.totalCardsProcessed += savedInSet[0] + errorsInSet[0];
+                    stats.errors += errorsInSet[0];
+                    logger.info("[IMPORT] [{}] Set '{}' completed: {} new cards, {} errors",
+                            tcgType, apiSet.name, savedInSet[0], errorsInSet[0]);
+                })
+                .delaySubscription(Duration.ofMillis(API_DELAY_MS)); // Rate limiting between sets
+    }
+
+    /**
+     * Log completion for new sets import mode
+     */
+    private void logImportCompleteNewSets(TCGType tcgType, ImportStats stats, int setsProcessed) {
+        logger.info("╔══════════════════════════════════════════════════════════════");
+        logger.info("║ IMPORT COMPLETED (NEW SETS MODE): {}", tcgType.getDisplayName().toUpperCase());
+        logger.info("╠══════════════════════════════════════════════════════════════");
+        logger.info("║ Duration      : {}", stats.formatElapsedTime());
+        logger.info("║ Sets Processed: {}", setsProcessed);
+        logger.info("║ New Cards     : {}", stats.newCardsSaved);
+        logger.info("║ Prices Updated: {}", stats.pricesUpdated);
+        logger.info("║ Errors        : {}", stats.errors);
+        logger.info("║ Avg Speed     : {} cards/sec", String.format("%.1f", stats.getCardsPerSecond()));
+        logger.info("╚══════════════════════════════════════════════════════════════");
     }
 
     // ===================== Logging Helpers =====================
@@ -918,20 +915,20 @@ public class TCGApiClient {
         Optional<com.tcg.arena.model.TCGSet> existingSet = tcgSetRepository.findBySetCode(tcgSet.id);
         if (existingSet.isPresent()) {
             com.tcg.arena.model.TCGSet existing = existingSet.get();
-            
-            // Preserve manually modified release date
+
+            // If manually modified, preserve ALL fields - don't update anything from API
             if (existing.getReleaseDateModifiedManually() != null && existing.getReleaseDateModifiedManually()) {
-                logger.debug("Preserving manually modified release date for set: {} (current: {}, API: {})", 
-                    existing.getName(), existing.getReleaseDate(), parseReleaseDate(tcgSet.releaseDate));
-            } else {
-                // Update release date from API
-                existing.setReleaseDate(parseReleaseDate(tcgSet.releaseDate));
+                logger.debug("Set '{}' was manually modified - preserving all fields (date: {})",
+                    existing.getName(), existing.getReleaseDate());
+                tcgSetCache.put(cacheKey, existing);
+                return existing;
             }
-            
-            // Update other fields that can be safely updated
+
+            // Update fields from API only if not manually modified
             existing.setName(tcgSet.name);
+            existing.setReleaseDate(parseReleaseDate(tcgSet.releaseDate));
             existing.setCardCount(tcgSet.cardsCount != null ? tcgSet.cardsCount : existing.getCardCount());
-            
+
             // Save the updated set
             com.tcg.arena.model.TCGSet updatedSet = tcgSetRepository.save(existing);
             tcgSetCache.put(cacheKey, updatedSet);
@@ -959,6 +956,7 @@ public class TCGApiClient {
     /**
      * Get or create Expansion
      * Synchronized to prevent race conditions and duplicate creations
+     * If expansion was manually modified, preserves all fields
      */
     @Transactional
     private synchronized Expansion getOrCreateExpansion(String name, TCGType tcgType) {
@@ -971,6 +969,10 @@ public class TCGApiClient {
         // Check database - look for existing expansion by title and tcgType
         Expansion existing = expansionRepository.findByTitle(name);
         if (existing != null && existing.getTcgType() == tcgType) {
+            // If manually modified, preserve all fields - don't update anything
+            if (existing.getModifiedManually() != null && existing.getModifiedManually()) {
+                logger.debug("Expansion '{}' was manually modified - preserving all fields", existing.getTitle());
+            }
             expansionCache.put(cacheKey, existing);
             return existing;
         }
@@ -1006,8 +1008,8 @@ public class TCGApiClient {
     private boolean saveCardIfNotExists(TCGCard card, com.tcg.arena.model.TCGSet tcgSet, TCGType tcgType) {
         String cardNumber = card.number != null ? card.number : "N/A";
 
-        // Check for existing card by unique composite key
-        List<CardTemplate> existing = cardTemplateRepository.findByNameAndSetCodeAndCardNumber(
+        // Check for existing card by unique composite key (including N/A card numbers)
+        List<CardTemplate> existing = cardTemplateRepository.findByNameAndSetCodeAndCardNumberIncludingNA(
                 card.name, card.set, cardNumber);
 
         if (!existing.isEmpty()) {
@@ -1041,7 +1043,7 @@ public class TCGApiClient {
         } catch (Exception e) {
             // Handle duplicate key violation - card was created by concurrent import
             if (e.getMessage() != null && e.getMessage().contains("constraint")) {
-                List<CardTemplate> retryExisting = cardTemplateRepository.findByNameAndSetCodeAndCardNumber(
+                List<CardTemplate> retryExisting = cardTemplateRepository.findByNameAndSetCodeAndCardNumberIncludingNA(
                         card.name, card.set, cardNumber);
                 if (!retryExisting.isEmpty()) {
                     CardTemplate existingCard = retryExisting.get(0);
