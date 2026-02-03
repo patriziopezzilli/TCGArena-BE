@@ -62,7 +62,10 @@ public class TCGImportScheduler {
                 TCGType.YUGIOH,
                 TCGType.LORCANA,
                 TCGType.ONE_PIECE,
-                TCGType.DIGIMON
+                TCGType.DIGIMON,
+                TCGType.UNION_ARENA,
+                TCGType.DRAGON_BALL_SUPER_FUSION_WORLD,
+                TCGType.FLESH_AND_BLOOD
             };
 
             for (TCGType tcgType : tcgTypes) {

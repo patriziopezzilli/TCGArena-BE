@@ -122,7 +122,10 @@ public class TCGApiClient {
             Map.entry(TCGType.LORCANA, "disney-lorcana"),
             Map.entry(TCGType.ONE_PIECE, "one-piece-card-game"),
             Map.entry(TCGType.DIGIMON, "digimon-card-game"),
-            Map.entry(TCGType.RIFTBOUND, "riftbound-league-of-legends-trading-card-game"));
+            Map.entry(TCGType.RIFTBOUND, "riftbound-league-of-legends-trading-card-game"),
+            Map.entry(TCGType.UNION_ARENA, "union-arena"),
+            Map.entry(TCGType.DRAGON_BALL_SUPER_FUSION_WORLD, "dragon-ball-super-fusion-world"),
+            Map.entry(TCGType.FLESH_AND_BLOOD, "flesh-and-blood-tcg"));
 
     public TCGApiClient(@Value("${tcg.api.base-url}") String baseUrl,
                         @Value("${scryfall.api.base-url}") String scryfallBaseUrl) {
