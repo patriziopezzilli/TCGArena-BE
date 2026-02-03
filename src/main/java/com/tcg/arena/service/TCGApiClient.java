@@ -554,11 +554,11 @@ public class TCGApiClient {
     // ===================== Import Logic =====================
 
     /**
-     * Import cards for NEW sets only for a specific TCG type.
+     * Import cards for NEW sets and EMPTY sets (sets with 0 cards) for a specific TCG type.
      * Instead of offset-based pagination, this method:
      * 1. Fetches all sets from the API
-     * 2. Identifies which sets are NEW (not in database)
-     * 3. For each new set, fetches all cards using the set parameter
+     * 2. Identifies which sets are NEW (not in database) or EMPTY (in database but with 0 cards)
+     * 3. For each new/empty set, fetches all cards using the set parameter
      * 4. If a card fails to save, continues with the next card (no interruption)
      */
     public Mono<Integer> importCardsForTCG(TCGType tcgType) {
@@ -578,7 +578,7 @@ public class TCGApiClient {
         tcgSetCache.clear();
 
         logger.info("╔══════════════════════════════════════════════════════════════");
-        logger.info("║ IMPORT START (NEW SETS MODE): {}", tcgType.getDisplayName().toUpperCase());
+        logger.info("║ IMPORT START (NEW + EMPTY SETS MODE): {}", tcgType.getDisplayName().toUpperCase());
         logger.info("╠══════════════════════════════════════════════════════════════");
         logger.info("║ Game ID: {}", gameId);
         logger.info("╚══════════════════════════════════════════════════════════════");
@@ -589,6 +589,10 @@ public class TCGApiClient {
         // Load existing setCode from database for this TCG type
         Set<String> existingSetCodes = tcgSetRepository.findAllSetCodesByTcgType(tcgType);
         logger.info("[IMPORT] [{}] Found {} existing sets in database", tcgType, existingSetCodes.size());
+
+        // Load sets with 0 cards (empty sets that need card import)
+        List<com.tcg.arena.model.TCGSet> emptySetsInDb = tcgSetRepository.findEmptySetsByTcgType(tcgType);
+        logger.info("[IMPORT] [{}] Found {} existing sets with 0 cards", tcgType, emptySetsInDb.size());
 
         // Step 1: Fetch all sets from API
         return getAllSets(gameId)
@@ -601,23 +605,38 @@ public class TCGApiClient {
                             .filter(set -> !existingSetCodes.contains(set.id))
                             .toList();
 
-                    if (newSets.isEmpty()) {
-                        logger.info("[IMPORT] [{}] No new sets found. Import complete.", tcgType);
+                    // Identify empty sets from API (sets in DB with 0 cards)
+                    List<TCGSet> emptyApiSets = apiSets.stream()
+                            .filter(apiSet -> emptySetsInDb.stream()
+                                    .anyMatch(dbSet -> dbSet.getSetCode().equals(apiSet.id)))
+                            .toList();
+
+                    // Combine new sets and empty sets
+                    List<TCGSet> setsToProcess = new java.util.ArrayList<>();
+                    setsToProcess.addAll(newSets);
+                    setsToProcess.addAll(emptyApiSets);
+
+                    if (setsToProcess.isEmpty()) {
+                        logger.info("[IMPORT] [{}] No new sets or empty sets found. Import complete.", tcgType);
                         return Mono.just(0);
                     }
 
-                    logger.info("[IMPORT] [{}] PHASE 2: Found {} NEW sets to import", tcgType, newSets.size());
+                    logger.info("[IMPORT] [{}] PHASE 2: Found {} NEW sets and {} EMPTY sets to import (total: {})", 
+                            tcgType, newSets.size(), emptyApiSets.size(), setsToProcess.size());
                     for (TCGSet set : newSets) {
-                        logger.info("[IMPORT] [{}]   - {} ({})", tcgType, set.name, set.id);
+                        logger.info("[IMPORT] [{}]   - NEW: {} ({})", tcgType, set.name, set.id);
+                    }
+                    for (TCGSet set : emptyApiSets) {
+                        logger.info("[IMPORT] [{}]   - EMPTY: {} ({})", tcgType, set.name, set.id);
                     }
 
-                    // Process each new set
-                    return Flux.fromIterable(newSets)
+                    // Process each set (new and empty)
+                    return Flux.fromIterable(setsToProcess)
                             .concatMap(apiSet -> importCardsForSet(apiSet, tcgType, stats))
                             .reduce(0, Integer::sum)
                             .doOnSuccess(total -> {
                                 stats.newCardsSaved = total;
-                                logImportCompleteNewSets(tcgType, stats, newSets.size());
+                                logImportCompleteNewSets(tcgType, stats, setsToProcess.size());
                             });
                 })
                 .doOnError(e -> {

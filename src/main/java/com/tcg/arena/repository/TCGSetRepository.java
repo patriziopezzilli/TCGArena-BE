@@ -18,4 +18,12 @@ public interface TCGSetRepository extends JpaRepository<TCGSet, Long> {
 
     @Query("SELECT s.setCode FROM TCGSet s WHERE s.expansion.tcgType = :tcgType")
     Set<String> findAllSetCodesByTcgType(@Param("tcgType") TCGType tcgType);
+
+    /**
+     * Find all sets with zero associated cards for a specific TCG type.
+     * This is useful to identify sets that need card data import.
+     */
+    @Query("SELECT s FROM TCGSet s WHERE s.expansion.tcgType = :tcgType " +
+           "AND NOT EXISTS (SELECT 1 FROM CardTemplate c WHERE c.tcgSet = s)")
+    List<TCGSet> findEmptySetsByTcgType(@Param("tcgType") TCGType tcgType);
 }
