@@ -4,9 +4,11 @@ import com.tcg.arena.model.InventoryCard;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -90,4 +92,10 @@ public interface InventoryCardRepository extends JpaRepository<InventoryCard, St
         ORDER BY i.quantity ASC
         """)
     List<InventoryCard> findLowStockItems(@Param("shopId") Long shopId, @Param("threshold") int threshold);
+
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM InventoryCard ic WHERE ic.cardTemplate.setCode = :setCode")
+    int deleteByCardTemplateSetCode(@Param("setCode") String setCode);
+}
 }

@@ -3,9 +3,11 @@ package com.tcg.arena.repository;
 import com.tcg.arena.model.Card;
 import com.tcg.arena.model.TCGType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -27,4 +29,10 @@ public interface CardRepository extends JpaRepository<Card, Long> {
 
     @Query("SELECT c FROM Card c JOIN c.cardTemplate ct WHERE ct.name = :name AND ct.setCode = :setCode AND ct.cardNumber = :cardNumber")
     List<Card> findByNameAndSetCodeAndCardNumber(@Param("name") String name, @Param("setCode") String setCode, @Param("cardNumber") String cardNumber);
+
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM Card c WHERE c.cardTemplate.setCode = :setCode")
+    int deleteByCardTemplateSetCode(@Param("setCode") String setCode);
+}
 }

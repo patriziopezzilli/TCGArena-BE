@@ -3,10 +3,13 @@ package com.tcg.arena.service;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.tcg.arena.model.*;
+import com.tcg.arena.repository.CardRepository;
 import com.tcg.arena.repository.CardTemplateRepository;
 import com.tcg.arena.repository.CardVoteRepository;
 import com.tcg.arena.repository.ExpansionRepository;
+import com.tcg.arena.repository.InventoryCardRepository;
 import com.tcg.arena.repository.TCGSetRepository;
+import com.tcg.arena.repository.TradeListEntryRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -105,6 +108,15 @@ public class TCGApiClient {
 
     @Autowired
     private CardVoteRepository cardVoteRepository;
+
+    @Autowired
+    private CardRepository cardRepository;
+
+    @Autowired
+    private InventoryCardRepository inventoryCardRepository;
+
+    @Autowired
+    private TradeListEntryRepository tradeListEntryRepository;
 
     @Autowired
     private ExpansionRepository expansionRepository;
@@ -944,20 +956,32 @@ public class TCGApiClient {
         logger.info("[RESET] Set '{}' has {} existing cards in DB - deleting them all", 
                 dbSet.getName(), existingCardsCount);
         
-        // DELETE ALL votes for cards in this set first (to avoid foreign key constraint violations)
-        logger.info("[RESET] Starting deletion of votes for cards in set '{}'", dbSet.getName());
-        long votesDeleteStartTime = System.currentTimeMillis();
-        int deletedVotesCount = 0;
+        // DELETE ALL dependent records first (to avoid foreign key constraint violations)
+        long dependentDeleteStartTime = System.currentTimeMillis();
         
-        try {
-            deletedVotesCount = cardVoteRepository.deleteByCardTemplateSetCode(setCode);
-            long votesDeleteTime = System.currentTimeMillis() - votesDeleteStartTime;
-            logger.info("[RESET] Successfully deleted {} votes for set '{}' in {}ms", 
-                    deletedVotesCount, dbSet.getName(), votesDeleteTime);
-        } catch (Exception e) {
-            logger.error("[RESET] Failed to delete votes for set '{}': {}", dbSet.getName(), e.getMessage(), e);
-            throw new RuntimeException("Failed to delete votes for set '" + dbSet.getName() + "': " + e.getMessage(), e);
-        }
+        // 1. Delete votes for cards in this set
+        logger.info("[RESET] Deleting votes for cards in set '{}'", dbSet.getName());
+        int deletedVotesCount = cardVoteRepository.deleteByCardTemplateSetCode(setCode);
+        logger.info("[RESET] Deleted {} votes for set '{}'", deletedVotesCount, dbSet.getName());
+        
+        // 2. Delete trade list entries for cards in this set
+        logger.info("[RESET] Deleting trade list entries for cards in set '{}'", dbSet.getName());
+        int deletedTradeListCount = tradeListEntryRepository.deleteByCardTemplateSetCode(setCode);
+        logger.info("[RESET] Deleted {} trade list entries for set '{}'", deletedTradeListCount, dbSet.getName());
+        
+        // 3. Delete inventory cards for cards in this set
+        logger.info("[RESET] Deleting inventory cards for cards in set '{}'", dbSet.getName());
+        int deletedInventoryCount = inventoryCardRepository.deleteByCardTemplateSetCode(setCode);
+        logger.info("[RESET] Deleted {} inventory cards for set '{}'", deletedInventoryCount, dbSet.getName());
+        
+        // 4. Delete user cards for cards in this set
+        logger.info("[RESET] Deleting user cards for cards in set '{}'", dbSet.getName());
+        int deletedCardsCount = cardRepository.deleteByCardTemplateSetCode(setCode);
+        logger.info("[RESET] Deleted {} user cards for set '{}'", deletedCardsCount, dbSet.getName());
+        
+        long dependentDeleteTime = System.currentTimeMillis() - dependentDeleteStartTime;
+        logger.info("[RESET] Successfully deleted all dependent records for set '{}' in {}ms (votes: {}, trade: {}, inventory: {}, cards: {})", 
+                dbSet.getName(), dependentDeleteTime, deletedVotesCount, deletedTradeListCount, deletedInventoryCount, deletedCardsCount);
         
         // DELETE ALL existing card templates for this set
         logger.info("[RESET] Starting deletion of {} cards for set '{}'", existingCardsCount, dbSet.getName());
