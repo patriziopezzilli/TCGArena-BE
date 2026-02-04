@@ -601,6 +601,7 @@ public class TCGApiClient {
                             retrySignal.failure().getMessage().substring(0, Math.min(50, retrySignal.failure().getMessage().length())),
                             keyType);
                     })
+                )
                 .onErrorResume(e -> {
                     logger.error("[API] FAILED for {} at offset {}: {}", gameId, offset, e.getMessage());
                     TCGCardsResponse errorResponse = new TCGCardsResponse();
@@ -667,6 +668,7 @@ public class TCGApiClient {
                             setId, retrySignal.totalRetries() + 1, retrySignal.failure().getMessage(),
                             keyType);
                     })
+                )
                 .onErrorResume(e -> {
                     logger.error("Error fetching cards for set {}: {}", setId, e.getMessage(), e);
                     TCGCardsResponse errorResponse = new TCGCardsResponse();
