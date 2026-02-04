@@ -952,13 +952,28 @@ public class TCGApiClient {
         
         // Now reload all cards from scratch using the existing import logic
         final String setName = apiSet.name; // Make effectively final for lambda usage
-        importCardsForSet(apiSet, tcgType, new ImportStats(tcgType.getDisplayName(), gameId, 0))
-                .doOnNext(count -> importedCount[0] += count)
-                .doOnError(error -> {
-                    errorsCount[0]++;
-                    logger.error("[RESET] Error importing cards for set '{}': {}", setName, error.getMessage());
-                })
-                .block(Duration.ofMinutes(30)); // Block and wait for completion
+        logger.info("[RESET] Starting card import for '{}' (expecting {} cards)", setName, apiSet.cardsCount);
+        
+        try {
+            importCardsForSet(apiSet, tcgType, new ImportStats(tcgType.getDisplayName(), gameId, 0))
+                    .doOnNext(count -> {
+                        importedCount[0] += count;
+                        logger.debug("[RESET] Imported {} cards so far for '{}'", importedCount[0], setName);
+                    })
+                    .doOnError(error -> {
+                        errorsCount[0]++;
+                        logger.error("[RESET] Error importing cards for set '{}': {}", setName, error.getMessage());
+                    })
+                    .block(Duration.ofMinutes(30)); // Block and wait for completion
+            
+            logger.info("[RESET] Card import completed for '{}' - imported: {}, errors: {}", 
+                    setName, importedCount[0], errorsCount[0]);
+                    
+        } catch (Exception e) {
+            logger.error("[RESET] Card import failed for '{}' after {} minutes: {}", 
+                    setName, 30, e.getMessage(), e);
+            throw new RuntimeException("Card import failed for set '" + setName + "': " + e.getMessage(), e);
+        }
         
         logger.info("[RESET] Set '{}' reset completed: {} cards deleted, {} cards imported, {} errors",
                 setName, deletedCount, importedCount[0], errorsCount[0]);
