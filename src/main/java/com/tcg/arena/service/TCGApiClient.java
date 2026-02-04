@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.tcg.arena.model.*;
 import com.tcg.arena.repository.CardTemplateRepository;
+import com.tcg.arena.repository.CardVoteRepository;
 import com.tcg.arena.repository.ExpansionRepository;
 import com.tcg.arena.repository.TCGSetRepository;
 import org.slf4j.Logger;
@@ -101,6 +102,9 @@ public class TCGApiClient {
 
     @Autowired
     private CardTemplateRepository cardTemplateRepository;
+
+    @Autowired
+    private CardVoteRepository cardVoteRepository;
 
     @Autowired
     private ExpansionRepository expansionRepository;
@@ -939,6 +943,21 @@ public class TCGApiClient {
         int existingCardsCount = cardTemplateRepository.findAllCardKeysBySetCode(setCode).size();
         logger.info("[RESET] Set '{}' has {} existing cards in DB - deleting them all", 
                 dbSet.getName(), existingCardsCount);
+        
+        // DELETE ALL votes for cards in this set first (to avoid foreign key constraint violations)
+        logger.info("[RESET] Starting deletion of votes for cards in set '{}'", dbSet.getName());
+        long votesDeleteStartTime = System.currentTimeMillis();
+        int deletedVotesCount = 0;
+        
+        try {
+            deletedVotesCount = cardVoteRepository.deleteByCardTemplateSetCode(setCode);
+            long votesDeleteTime = System.currentTimeMillis() - votesDeleteStartTime;
+            logger.info("[RESET] Successfully deleted {} votes for set '{}' in {}ms", 
+                    deletedVotesCount, dbSet.getName(), votesDeleteTime);
+        } catch (Exception e) {
+            logger.error("[RESET] Failed to delete votes for set '{}': {}", dbSet.getName(), e.getMessage(), e);
+            throw new RuntimeException("Failed to delete votes for set '" + dbSet.getName() + "': " + e.getMessage(), e);
+        }
         
         // DELETE ALL existing card templates for this set
         logger.info("[RESET] Starting deletion of {} cards for set '{}'", existingCardsCount, dbSet.getName());

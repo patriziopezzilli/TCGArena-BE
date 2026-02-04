@@ -7,8 +7,10 @@ import com.tcg.arena.model.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -37,4 +39,9 @@ public interface CardVoteRepository extends JpaRepository<CardVote, Long> {
     Page<CardTemplate> findRandomUnvotedCardTemplates(@Param("tcgType") TCGType tcgType,
                                                        @Param("user") User user,
                                                        Pageable pageable);
+
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM CardVote v WHERE v.cardTemplate.setCode = :setCode")
+    int deleteByCardTemplateSetCode(@Param("setCode") String setCode);
 }
