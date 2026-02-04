@@ -117,8 +117,11 @@ public class TCGApiClient {
     @Value("${tcg.api.key.secondary:tcg_b23de539c2c8414e854e73c449bf0e84}")
     private String apiKeySecondary;
 
+    @Value("${tcg.api.key.tertiary:tcg_938debac20584990a7354ad04c4f068d}")
+    private String apiKeyTertiary;
+
     // Track which API key is currently active
-    private volatile boolean usingSecondaryKey = false;
+    private volatile int activeKeyIndex = 0; // 0=primary, 1=secondary, 2=tertiary
     private volatile long lastKeySwitch = 0;
     private static final long KEY_SWITCH_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour cooldown before switching back
 
@@ -128,42 +131,69 @@ public class TCGApiClient {
      */
     private String getActiveApiKey() {
         // Check if we should switch back to primary key after cooldown
-        if (usingSecondaryKey && (System.currentTimeMillis() - lastKeySwitch) > KEY_SWITCH_COOLDOWN_MS) {
+        if (activeKeyIndex > 0 && (System.currentTimeMillis() - lastKeySwitch) > KEY_SWITCH_COOLDOWN_MS) {
             logger.info("[API KEY] Cooldown expired, switching back to PRIMARY key");
-            usingSecondaryKey = false;
+            activeKeyIndex = 0;
         }
-        String key = usingSecondaryKey ? apiKeySecondary : apiKeyPrimary;
-        String keyType = usingSecondaryKey ? "SECONDARY" : "PRIMARY";
-        String keyPreview = key != null && key.length() > 10 ? key.substring(0, 10) + "..." : key;
-        logger.info("[API KEY] Making request with {} key: {}", keyType, keyPreview);
+
+        String key;
+        String keyType;
+        switch (activeKeyIndex) {
+            case 0:
+                key = apiKeyPrimary;
+                keyType = "PRIMARY";
+                break;
+            case 1:
+                key = apiKeySecondary;
+                keyType = "SECONDARY";
+                break;
+            case 2:
+                key = apiKeyTertiary;
+                keyType = "TERTIARY";
+                break;
+            default:
+                key = apiKeyPrimary;
+                keyType = "PRIMARY";
+                activeKeyIndex = 0;
+        }
+
         return key;
     }
 
     /**
-     * Switch to secondary API key when rate limited.
-     * Returns true if switch was successful (we weren't already on secondary).
+     * Switch to the next available API key when rate limited.
+     * Cycles through: Primary -> Secondary -> Tertiary -> Primary (if all exhausted)
+     * Returns true if switch was successful (moved to a different key).
      */
-    private synchronized boolean switchToSecondaryKey() {
-        if (!usingSecondaryKey) {
-            logger.warn("[API KEY] Rate limit hit! Switching to SECONDARY API key");
-            usingSecondaryKey = true;
-            lastKeySwitch = System.currentTimeMillis();
-            return true;
+    private synchronized boolean switchToNextApiKey() {
+        int previousIndex = activeKeyIndex;
+        activeKeyIndex = (activeKeyIndex + 1) % 3; // Cycle through 0, 1, 2
+
+        String newKeyType;
+        switch (activeKeyIndex) {
+            case 0: newKeyType = "PRIMARY"; break;
+            case 1: newKeyType = "SECONDARY"; break;
+            case 2: newKeyType = "TERTIARY"; break;
+            default: newKeyType = "PRIMARY";
         }
-        logger.warn("[API KEY] Already using SECONDARY key - both keys may have hit rate limit");
-        return false;
+
+        logger.warn("[API KEY] Rate limit hit! Switching to {} API key (was {})",
+                newKeyType, previousIndex == 0 ? "PRIMARY" : previousIndex == 1 ? "SECONDARY" : "TERTIARY");
+        lastKeySwitch = System.currentTimeMillis();
+
+        return activeKeyIndex != previousIndex;
     }
 
     /**
      * Check if error is a rate limit and switch key if needed.
      * Returns true if should retry with new key (i.e., we switched keys).
-     * Returns false if we were already on secondary key (no point retrying).
+     * Returns false if we were already on tertiary key (no point retrying).
      */
     private boolean handleRateLimitError(Throwable throwable) {
         if (throwable instanceof RuntimeException) {
             String message = throwable.getMessage();
             if (message != null && message.contains("HTTP 429")) {
-                return switchToSecondaryKey(); // Only retry if we actually switched
+                return switchToNextApiKey(); // Only retry if we actually switched
             }
         }
         return false;
@@ -550,8 +580,8 @@ public class TCGApiClient {
                             String message = throwable.getMessage();
                             if (message != null && message.contains("HTTP 429")) {
                                 // Only retry if we successfully switched keys
-                                // If already on secondary, don't retry (both keys exhausted)
-                                return switchToSecondaryKey();
+                                // If already on tertiary, don't retry (all keys exhausted)
+                                return switchToNextApiKey();
                             }
                             // Always retry 500 errors
                             return message != null && message.contains("HTTP 500");
@@ -559,12 +589,18 @@ public class TCGApiClient {
                         return false;
                     })
                     .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> retrySignal.failure())
-                    .doBeforeRetry(retrySignal ->
+                    .doBeforeRetry(retrySignal -> {
+                        String keyType = switch (activeKeyIndex) {
+                            case 0 -> "PRIMARY";
+                            case 1 -> "SECONDARY";
+                            case 2 -> "TERTIARY";
+                            default -> "UNKNOWN";
+                        };
                         logger.warn("[API] RETRY {}/5 for {} at offset {} - {} [Key: {}]",
                             retrySignal.totalRetries() + 1, gameId, offset,
                             retrySignal.failure().getMessage().substring(0, Math.min(50, retrySignal.failure().getMessage().length())),
-                            usingSecondaryKey ? "SECONDARY" : "PRIMARY"))
-                )
+                            keyType);
+                    })
                 .onErrorResume(e -> {
                     logger.error("[API] FAILED for {} at offset {}: {}", gameId, offset, e.getMessage());
                     TCGCardsResponse errorResponse = new TCGCardsResponse();
@@ -611,8 +647,8 @@ public class TCGApiClient {
                             String message = throwable.getMessage();
                             if (message != null && message.contains("HTTP 429")) {
                                 // Only retry if we successfully switched keys
-                                // If already on secondary, don't retry (both keys exhausted)
-                                return switchToSecondaryKey();
+                                // If already on tertiary, don't retry (all keys exhausted)
+                                return switchToNextApiKey();
                             }
                             // Always retry 500 errors
                             return message != null && message.contains("HTTP 500");
@@ -620,11 +656,17 @@ public class TCGApiClient {
                         return false;
                     })
                     .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> retrySignal.failure())
-                    .doBeforeRetry(retrySignal ->
+                    .doBeforeRetry(retrySignal -> {
+                        String keyType = switch (activeKeyIndex) {
+                            case 0 -> "PRIMARY";
+                            case 1 -> "SECONDARY";
+                            case 2 -> "TERTIARY";
+                            default -> "UNKNOWN";
+                        };
                         logger.warn("Retrying getCardsPageBySet for set {} - attempt {} ({}) [Key: {}]",
                             setId, retrySignal.totalRetries() + 1, retrySignal.failure().getMessage(),
-                            usingSecondaryKey ? "SECONDARY" : "PRIMARY"))
-                )
+                            keyType);
+                    })
                 .onErrorResume(e -> {
                     logger.error("Error fetching cards for set {}: {}", setId, e.getMessage(), e);
                     TCGCardsResponse errorResponse = new TCGCardsResponse();
@@ -824,6 +866,65 @@ public class TCGApiClient {
         result.put("skipped", skippedCount[0]);
         result.put("errors", errorsCount[0]);
         result.put("totalExisting", existingCardKeys.size());
+        result.put("success", true);
+        
+        return result;
+    }
+
+    /**
+     * Complete reset of a set from JustTCG API.
+     * This will DELETE ALL existing card templates for the set and reload everything from scratch.
+     * This is a destructive operation that cannot be undone.
+     * 
+     * @param dbSet The TCGSet from the database to reset
+     * @return Map with reset results (deleted, imported, errors)
+     */
+    public Map<String, Object> resetSetFromApi(com.tcg.arena.model.TCGSet dbSet) {
+        String setCode = dbSet.getSetCode();
+        TCGType tcgType = dbSet.getExpansion() != null ? dbSet.getExpansion().getTcgType() : null;
+        
+        if (tcgType == null) {
+            throw new RuntimeException("Set has no expansion or TCG type defined");
+        }
+        
+        logger.info("[RESET] Starting COMPLETE reset for set '{}' (code: {}, tcg: {})", 
+                dbSet.getName(), setCode, tcgType.getDisplayName());
+        
+        // Count existing cards before deletion
+        int existingCardsCount = cardTemplateRepository.findAllCardKeysBySetCode(setCode).size();
+        logger.info("[RESET] Set '{}' has {} existing cards in DB - deleting them all", 
+                dbSet.getName(), existingCardsCount);
+        
+        // DELETE ALL existing card templates for this set
+        int deletedCount = cardTemplateRepository.deleteBySetCode(setCode);
+        logger.info("[RESET] Deleted {} card templates for set '{}'", deletedCount, dbSet.getName());
+        
+        // Now reload all cards from scratch using the existing import logic
+        logger.info("[RESET] Starting full import for set '{}' from API", dbSet.getName());
+        
+        final int[] importedCount = {0};
+        final int[] errorsCount = {0};
+        
+        // Use the existing importCardsForSet method to reload everything
+        importCardsForSet(new TCGSet(dbSet.getSetCode(), dbSet.getName(), dbSet.getId()), tcgType, new ImportStats(tcgType.getDisplayName(), TCG_TYPE_TO_GAME_ID.get(tcgType), 0))
+                .doOnNext(count -> importedCount[0] += count)
+                .doOnError(error -> {
+                    errorsCount[0]++;
+                    logger.error("[RESET] Error importing cards for set '{}': {}", dbSet.getName(), error.getMessage());
+                })
+                .blockLast(Duration.ofMinutes(30)); // Block and wait for completion
+        
+        logger.info("[RESET] Set '{}' reset completed: {} cards deleted, {} cards imported, {} errors",
+                dbSet.getName(), deletedCount, importedCount[0], errorsCount[0]);
+        
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("setId", dbSet.getId());
+        result.put("setCode", setCode);
+        result.put("setName", dbSet.getName());
+        result.put("deletedCards", deletedCount);
+        result.put("importedCards", importedCount[0]);
+        result.put("errors", errorsCount[0]);
+        result.put("previousTotal", existingCardsCount);
         result.put("success", true);
         
         return result;

@@ -171,4 +171,8 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
         Page<CardTemplate> findByTcgTypeOrderByDislikesCountDesc(TCGType tcgType, Pageable pageable);
 
         Page<CardTemplate> findAllByOrderByDislikesCountDesc(Pageable pageable);
+
+        @Modifying
+        @Query("DELETE FROM CardTemplate c WHERE c.setCode = :setCode")
+        int deleteBySetCode(@Param("setCode") String setCode);
 }

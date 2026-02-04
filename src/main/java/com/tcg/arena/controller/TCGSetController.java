@@ -152,4 +152,30 @@ public class TCGSetController {
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    /**
+     * Complete reset of a specific set from JustTCG API.
+     * This will DELETE ALL existing card templates for the set and reload everything from scratch.
+     * This is a destructive operation that cannot be undone.
+     * 
+     * @param id The database ID of the TCGSet to reset
+     * @return Reset result with deleted and imported cards count
+     */
+    @PostMapping("/{id}/reset")
+    public ResponseEntity<?> resetSet(@PathVariable Long id) {
+        return tcgSetService.getSetById(id)
+                .map(set -> {
+                    try {
+                        Map<String, Object> result = tcgApiClient.resetSetFromApi(set);
+                        return ResponseEntity.ok(result);
+                    } catch (Exception e) {
+                        return ResponseEntity.badRequest().body(Map.of(
+                                "error", e.getMessage(),
+                                "setId", id,
+                                "setCode", set.getSetCode()
+                        ));
+                    }
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
 }
