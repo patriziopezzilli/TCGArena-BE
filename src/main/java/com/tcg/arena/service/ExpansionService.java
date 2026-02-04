@@ -182,10 +182,21 @@ public class ExpansionService {
     public List<TCGStatsDTO> getTCGStatistics() {
         List<Expansion> allExpansions = expansionRepository.findAllWithSets();
 
+        // Only include TCG types that are fully supported in mobile apps
+        List<TCGType> supportedTypes = List.of(
+            TCGType.POKEMON,
+            TCGType.ONE_PIECE,
+            TCGType.MAGIC,
+            TCGType.YUGIOH,
+            TCGType.DIGIMON,
+            TCGType.LORCANA,
+            TCGType.RIFTBOUND
+        );
+
         Map<TCGType, TCGStatsDTO> statsMap = new HashMap<>();
 
-        // Initialize stats for all TCG types
-        for (TCGType tcgType : TCGType.values()) {
+        // Initialize stats only for supported TCG types
+        for (TCGType tcgType : supportedTypes) {
             statsMap.put(tcgType, new TCGStatsDTO(tcgType, 0, 0, 0));
         }
 
