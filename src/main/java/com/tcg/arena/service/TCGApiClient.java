@@ -941,8 +941,18 @@ public class TCGApiClient {
                 dbSet.getName(), existingCardsCount);
         
         // DELETE ALL existing card templates for this set
-        int deletedCount = cardTemplateRepository.deleteBySetCode(setCode);
-        logger.info("[RESET] Deleted {} card templates for set '{}'", deletedCount, dbSet.getName());
+        logger.info("[RESET] Starting deletion of {} cards for set '{}'", existingCardsCount, dbSet.getName());
+        long startTime = System.currentTimeMillis();
+        
+        try {
+            int deletedCount = cardTemplateRepository.deleteBySetCode(setCode);
+            long deleteTime = System.currentTimeMillis() - startTime;
+            logger.info("[RESET] Successfully deleted {} card templates for set '{}' in {}ms", 
+                    deletedCount, dbSet.getName(), deleteTime);
+        } catch (Exception e) {
+            logger.error("[RESET] Failed to delete cards for set '{}': {}", dbSet.getName(), e.getMessage(), e);
+            throw new RuntimeException("Failed to delete existing cards for set '" + dbSet.getName() + "': " + e.getMessage(), e);
+        }
         
         // Now reload all cards from scratch using the existing import logic
         logger.info("[RESET] Starting full import for set '{}' from API", apiSet.name);
