@@ -776,7 +776,7 @@ public class TCGApiClient {
                     }
 
                     // Build composite key for this card
-                    String cardKey = card.name + "|||" + apiSet.id + "|||" + (card.cardNumber != null ? card.cardNumber : "");
+                    String cardKey = card.name + "|||" + apiSet.id + "|||" + (card.number != null ? card.number : "");
                     
                     // Skip if card already exists
                     if (existingCardKeys.contains(cardKey)) {
