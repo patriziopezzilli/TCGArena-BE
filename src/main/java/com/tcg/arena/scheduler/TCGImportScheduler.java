@@ -56,16 +56,17 @@ public class TCGImportScheduler {
             statsCollector.resetBatch();
 
             // Import for all supported TCG types
+            // NOTE: UNION_ARENA, DRAGON_BALL_SUPER_FUSION_WORLD and FLESH_AND_BLOOD temporarily disabled
             TCGType[] tcgTypes = {
                 TCGType.MAGIC,
                 TCGType.POKEMON,
                 TCGType.YUGIOH,
                 TCGType.LORCANA,
                 TCGType.ONE_PIECE,
-                TCGType.DIGIMON,
-                TCGType.UNION_ARENA,
-                TCGType.DRAGON_BALL_SUPER_FUSION_WORLD,
-                TCGType.FLESH_AND_BLOOD
+                TCGType.DIGIMON
+                // TCGType.UNION_ARENA,              // Temporarily disabled
+                // TCGType.DRAGON_BALL_SUPER_FUSION_WORLD,  // Temporarily disabled
+                // TCGType.FLESH_AND_BLOOD           // Temporarily disabled
             };
 
             for (TCGType tcgType : tcgTypes) {
