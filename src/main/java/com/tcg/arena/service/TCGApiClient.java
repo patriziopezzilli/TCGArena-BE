@@ -924,7 +924,7 @@ public class TCGApiClient {
                     errorsCount[0]++;
                     logger.error("[RESET] Error importing cards for set '{}': {}", dbSet.getName(), error.getMessage());
                 })
-                .blockLast(Duration.ofMinutes(30)); // Block and wait for completion
+                .block(Duration.ofMinutes(30)); // Block and wait for completion
         
         logger.info("[RESET] Set '{}' reset completed: {} cards deleted, {} cards imported, {} errors",
                 dbSet.getName(), deletedCount, importedCount[0], errorsCount[0]);
