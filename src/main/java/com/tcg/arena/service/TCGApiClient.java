@@ -470,8 +470,8 @@ public class TCGApiClient {
                             String message = throwable.getMessage();
                             if (message != null && message.contains("HTTP 429")) {
                                 // Only retry if we successfully switched keys
-                                // If already on secondary, don't retry (both keys exhausted)
-                                return switchToSecondaryKey();
+                                // If already on tertiary, don't retry (all keys exhausted)
+                                return switchToNextApiKey();
                             }
                             // Always retry 500 errors
                             return message != null && message.contains("HTTP 500");
@@ -479,10 +479,17 @@ public class TCGApiClient {
                         return false;
                     })
                     .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> retrySignal.failure())
-                    .doBeforeRetry(retrySignal ->
+                    .doBeforeRetry(retrySignal -> {
+                        String keyType = switch (activeKeyIndex) {
+                            case 0 -> "PRIMARY";
+                            case 1 -> "SECONDARY";
+                            case 2 -> "TERTIARY";
+                            default -> "UNKNOWN";
+                        };
                         logger.warn("Retrying getSetsPage for {} - attempt {} ({}) [Key: {}]",
                             gameId, retrySignal.totalRetries() + 1, retrySignal.failure().getMessage(),
-                            usingSecondaryKey ? "SECONDARY" : "PRIMARY"))
+                            keyType);
+                    })
                 )
                 .onErrorResume(e -> {
                     logger.error("Error fetching sets for {}: {}", gameId, e.getMessage(), e);
@@ -908,7 +915,10 @@ public class TCGApiClient {
         final int[] errorsCount = {0};
         
         // Use the existing importCardsForSet method to reload everything
-        importCardsForSet(new TCGSet(dbSet.getSetCode(), dbSet.getName(), dbSet.getId()), tcgType, new ImportStats(tcgType.getDisplayName(), TCG_TYPE_TO_GAME_ID.get(tcgType), 0))
+        TCGSet apiSet = new TCGSet();
+        apiSet.id = dbSet.getSetCode();
+        apiSet.name = dbSet.getName();
+        importCardsForSet(apiSet, tcgType, new ImportStats(tcgType.getDisplayName(), TCG_TYPE_TO_GAME_ID.get(tcgType), 0))
                 .doOnNext(count -> importedCount[0] += count)
                 .doOnError(error -> {
                     errorsCount[0]++;
