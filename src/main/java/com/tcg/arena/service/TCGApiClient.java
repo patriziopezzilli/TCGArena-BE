@@ -400,7 +400,8 @@ public class TCGApiClient {
     }
 
     private Mono<TCGSetsResponse> getSetsPage(String gameId, String cursor) {
-        return webClient.get()
+        // Use Mono.defer to rebuild the request on each retry (so the API key is re-evaluated)
+        return Mono.defer(() -> webClient.get()
                 .uri(uriBuilder -> {
                     var builder = uriBuilder.path("/sets").queryParam("game", gameId);
                     if (cursor != null) {
@@ -427,7 +428,7 @@ public class TCGApiClient {
                 .timeout(Duration.ofMinutes(10)) // Add timeout to prevent hanging requests
                 .doOnSuccess(resp -> logger.info("Fetched sets for {}: {} sets found, hasMore: {}",
                         gameId, resp.getSets().size(), resp.hasMore))
-                .retryWhen(reactor.util.retry.Retry.backoff(5, Duration.ofSeconds(5))
+        ).retryWhen(reactor.util.retry.Retry.backoff(5, Duration.ofSeconds(5))
                     .maxBackoff(Duration.ofMinutes(2))
                     .filter(throwable -> {
                         if (throwable instanceof RuntimeException) {
@@ -508,7 +509,8 @@ public class TCGApiClient {
     }
 
     private Mono<TCGCardsResponse> getCardsPageByGame(String gameId, int offset) {
-        return webClient.get()
+        // Use Mono.defer to rebuild the request on each retry, so the API key is re-evaluated
+        return Mono.defer(() -> webClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/cards")
                         .queryParam("game", gameId)
@@ -535,7 +537,7 @@ public class TCGApiClient {
                     return response;
                 })
                 .timeout(Duration.ofMinutes(10))
-                .retryWhen(reactor.util.retry.Retry.backoff(5, Duration.ofSeconds(5))
+        ).retryWhen(reactor.util.retry.Retry.backoff(5, Duration.ofSeconds(5))
                     .maxBackoff(Duration.ofMinutes(2))
                     .filter(throwable -> {
                         if (throwable instanceof RuntimeException) {
@@ -566,7 +568,8 @@ public class TCGApiClient {
      * Fetch a page of cards for a set using offset-based pagination
      */
     private Mono<TCGCardsResponse> getCardsPageBySet(String setId, int offset) {
-        return webClient.get()
+        // Use Mono.defer to rebuild the request on each retry, so the API key is re-evaluated
+        return Mono.defer(() -> webClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/cards")
                         .queryParam("set", setId)
@@ -594,7 +597,7 @@ public class TCGApiClient {
                     logger.debug("Fetched cards page for set {}, offset: {}, count: {}, hasMore: {}",
                             setId, offset, resp.getCards().size(), resp.hasMore);
                 })
-                .retryWhen(reactor.util.retry.Retry.backoff(5, Duration.ofSeconds(5))
+        ).retryWhen(reactor.util.retry.Retry.backoff(5, Duration.ofSeconds(5))
                     .maxBackoff(Duration.ofMinutes(2))
                     .filter(throwable -> {
                         if (throwable instanceof RuntimeException) {
