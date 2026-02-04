@@ -424,10 +424,7 @@ public class TCGApiClient {
                             .flatMap(body -> {
                                 logger.error("[TCG API ERROR] getSetsPage for {}: HTTP {} - Response body: {}",
                                         gameId, response.statusCode().value(), body);
-                                // Check for rate limit and switch key
-                                if (response.statusCode().value() == 429) {
-                                    switchToSecondaryKey();
-                                }
+                                // Don't switch key here - let retryWhen handle it
                                 return Mono.error(new RuntimeException(
                                         "TCG API error: HTTP " + response.statusCode().value() + " - " + body));
                             });
@@ -535,9 +532,7 @@ public class TCGApiClient {
                             .flatMap(body -> {
                                 logger.error("[API] HTTP {} for {} at offset {} - {}",
                                         response.statusCode().value(), gameId, offset, body);
-                                if (response.statusCode().value() == 429) {
-                                    switchToSecondaryKey();
-                                }
+                                // Don't switch key here - let retryWhen handle it
                                 return Mono.error(new RuntimeException(
                                         "TCG API error: HTTP " + response.statusCode().value() + " - " + body));
                             });
@@ -597,9 +592,7 @@ public class TCGApiClient {
                             .flatMap(body -> {
                                 logger.error("[TCG API ERROR] getCardsPageBySet for set {}: HTTP {} - Response body: {}",
                                         setId, response.statusCode().value(), body);
-                                if (response.statusCode().value() == 429) {
-                                    switchToSecondaryKey();
-                                }
+                                // Don't switch key here - let retryWhen handle it
                                 return Mono.error(new RuntimeException(
                                         "TCG API error: HTTP " + response.statusCode().value() + " - " + body));
                             });
