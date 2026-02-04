@@ -943,9 +943,10 @@ public class TCGApiClient {
         // DELETE ALL existing card templates for this set
         logger.info("[RESET] Starting deletion of {} cards for set '{}'", existingCardsCount, dbSet.getName());
         long startTime = System.currentTimeMillis();
+        int deletedCount = 0;
         
         try {
-            int deletedCount = cardTemplateRepository.deleteBySetCode(setCode);
+            deletedCount = cardTemplateRepository.deleteBySetCode(setCode);
             long deleteTime = System.currentTimeMillis() - startTime;
             logger.info("[RESET] Successfully deleted {} card templates for set '{}' in {}ms", 
                     deletedCount, dbSet.getName(), deleteTime);
