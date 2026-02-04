@@ -950,22 +950,23 @@ public class TCGApiClient {
         final int[] importedCount = {0};
         final int[] errorsCount = {0};
         
-        // Use the existing importCardsForSet method to reload everything
+        // Now reload all cards from scratch using the existing import logic
+        final String setName = apiSet.name; // Make effectively final for lambda usage
         importCardsForSet(apiSet, tcgType, new ImportStats(tcgType.getDisplayName(), gameId, 0))
                 .doOnNext(count -> importedCount[0] += count)
                 .doOnError(error -> {
                     errorsCount[0]++;
-                    logger.error("[RESET] Error importing cards for set '{}': {}", apiSet.name, error.getMessage());
+                    logger.error("[RESET] Error importing cards for set '{}': {}", setName, error.getMessage());
                 })
                 .block(Duration.ofMinutes(30)); // Block and wait for completion
         
         logger.info("[RESET] Set '{}' reset completed: {} cards deleted, {} cards imported, {} errors",
-                apiSet.name, deletedCount, importedCount[0], errorsCount[0]);
+                setName, deletedCount, importedCount[0], errorsCount[0]);
         
         Map<String, Object> result = new java.util.HashMap<>();
         result.put("setId", dbSet.getId());
         result.put("setCode", setCode);
-        result.put("setName", apiSet.name);
+        result.put("setName", setName);
         result.put("deletedCards", deletedCount);
         result.put("importedCards", importedCount[0]);
         result.put("errors", errorsCount[0]);
