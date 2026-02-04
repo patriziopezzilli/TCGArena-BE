@@ -126,4 +126,30 @@ public class TCGSetController {
         Map<String, Integer> results = tcgApiClient.syncAllSetReleaseDates();
         return ResponseEntity.ok(results);
     }
+
+    /**
+     * Force reload (delta import) of a specific set from JustTCG API.
+     * This will fetch cards from the API and only add the ones missing in DB.
+     * It does NOT delete any existing cards.
+     * 
+     * @param id The database ID of the TCGSet to reload
+     * @return Import result with new cards count
+     */
+    @PostMapping("/{id}/reload")
+    public ResponseEntity<?> reloadSet(@PathVariable Long id) {
+        return tcgSetService.getSetById(id)
+                .map(set -> {
+                    try {
+                        Map<String, Object> result = tcgApiClient.reloadSetFromApi(set);
+                        return ResponseEntity.ok(result);
+                    } catch (Exception e) {
+                        return ResponseEntity.badRequest().body(Map.of(
+                                "error", e.getMessage(),
+                                "setId", id,
+                                "setCode", set.getSetCode()
+                        ));
+                    }
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
 }

@@ -744,6 +744,82 @@ public class TCGApiClient {
     }
 
     /**
+     * Reload a specific set from JustTCG API (delta import).
+     * This is called from the admin dashboard to force reload a set.
+     * It does NOT delete any existing cards, only adds missing ones.
+     * 
+     * @param dbSet The TCGSet from the database to reload
+     * @return Map with reload results (newCards, skipped, errors)
+     */
+    public Map<String, Object> reloadSetFromApi(com.tcg.arena.model.TCGSet dbSet) {
+        String setCode = dbSet.getSetCode();
+        TCGType tcgType = dbSet.getExpansion() != null ? dbSet.getExpansion().getTcgType() : null;
+        
+        if (tcgType == null) {
+            throw new RuntimeException("Set has no expansion or TCG type defined");
+        }
+        
+        logger.info("[RELOAD] Starting reload for set '{}' (code: {}, tcg: {})", 
+                dbSet.getName(), setCode, tcgType.getDisplayName());
+        
+        // Load existing card keys for this set (name|||setCode|||cardNumber)
+        Set<String> existingCardKeys = cardTemplateRepository.findAllCardKeysBySetCode(setCode);
+        logger.info("[RELOAD] Set '{}' has {} existing cards in DB", dbSet.getName(), existingCardKeys.size());
+        
+        final int[] savedCount = {0};
+        final int[] skippedCount = {0};
+        final int[] errorsCount = {0};
+        
+        // Fetch all cards for this set and only import missing ones
+        getAllCardsForSet(setCode)
+                .doOnNext(card -> {
+                    if (card == null || card.name == null) {
+                        errorsCount[0]++;
+                        return;
+                    }
+                    
+                    // Build composite key for this card
+                    String cardKey = card.name + "|||" + setCode + "|||" + (card.number != null ? card.number : "");
+                    
+                    // Skip if card already exists
+                    if (existingCardKeys.contains(cardKey)) {
+                        skippedCount[0]++;
+                        return;
+                    }
+                    
+                    try {
+                        if (saveCardIfNotExists(card, dbSet, tcgType)) {
+                            savedCount[0]++;
+                            logger.debug("[RELOAD] Saved new card: {} ({}) in set {}", 
+                                    card.name, card.number, setCode);
+                        } else {
+                            skippedCount[0]++;
+                        }
+                    } catch (Exception e) {
+                        errorsCount[0]++;
+                        logger.warn("[RELOAD] Error saving card '{}' in set '{}': {}", 
+                                card.name, setCode, e.getMessage());
+                    }
+                })
+                .blockLast(Duration.ofMinutes(30)); // Block and wait for completion
+        
+        logger.info("[RELOAD] Set '{}' completed: {} new cards, {} skipped, {} errors",
+                dbSet.getName(), savedCount[0], skippedCount[0], errorsCount[0]);
+        
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("setId", dbSet.getId());
+        result.put("setCode", setCode);
+        result.put("setName", dbSet.getName());
+        result.put("newCards", savedCount[0]);
+        result.put("skipped", skippedCount[0]);
+        result.put("errors", errorsCount[0]);
+        result.put("totalExisting", existingCardKeys.size());
+        result.put("success", true);
+        
+        return result;
+    }
+
+    /**
      * Import ONLY missing cards for a specific set (delta import).
      * Compares cards from API with existing cards in DB and only imports the difference.
      * Uses composite key (name + setCode + cardNumber) to identify missing cards.
