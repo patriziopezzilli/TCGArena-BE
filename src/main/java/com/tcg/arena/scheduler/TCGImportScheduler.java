@@ -65,7 +65,7 @@ public class TCGImportScheduler {
      * Run TCG import for ONE TCG type at 3 AM every night
      * The TCG to import is determined by the day of the week
      */
-    @Scheduled(cron = "0 0 3 * * ?") // Every day at 3 AM
+    // @Scheduled(cron = "0 0 3 * * ?") // Every day at 3 AM - TEMPORARILY DISABLED
     public void runNightlyTCGImport() {
         TCGType tcgType = getTCGTypeForToday();
         String lockKey = "nightly-tcg-import-" + tcgType.name();
