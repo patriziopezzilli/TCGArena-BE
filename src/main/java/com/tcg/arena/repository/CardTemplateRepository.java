@@ -56,6 +56,13 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
         List<CardTemplate> findByNameAndSetCodeAndCardNumberIncludingNA(@Param("name") String name,
                         @Param("setCode") String setCode, @Param("cardNumber") String cardNumber);
 
+        /**
+         * Get all card composite keys (name, setCode, cardNumber) for a specific setCode.
+         * Used for delta import to identify missing cards.
+         */
+        @Query("SELECT CONCAT(c.name, '|||', c.setCode, '|||', COALESCE(c.cardNumber, '')) FROM CardTemplate c WHERE c.setCode = :setCode")
+        java.util.Set<String> findAllCardKeysBySetCode(@Param("setCode") String setCode);
+
         @Query("SELECT c.name, c.setCode, c.cardNumber FROM CardTemplate c WHERE c.tcgType = 'MAGIC'")
         List<Object[]> findAllCardKeys();
 

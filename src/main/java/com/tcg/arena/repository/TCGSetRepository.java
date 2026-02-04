@@ -26,4 +26,14 @@ public interface TCGSetRepository extends JpaRepository<TCGSet, Long> {
     @Query("SELECT s FROM TCGSet s WHERE s.expansion.tcgType = :tcgType " +
            "AND NOT EXISTS (SELECT 1 FROM CardTemplate c WHERE c.setCode = s.setCode)")
     List<TCGSet> findEmptySetsByTcgType(@Param("tcgType") TCGType tcgType);
+
+    /**
+     * Find all sets for a specific TCG type with their actual card count.
+     * Returns sets where cardCount in TCGSet differs from actual cards in CardTemplate.
+     * Useful to identify sets that need delta import (new cards added).
+     */
+    @Query("SELECT s FROM TCGSet s WHERE s.expansion.tcgType = :tcgType " +
+           "AND s.cardCount IS NOT NULL AND s.cardCount > 0 " +
+           "AND (SELECT COUNT(c) FROM CardTemplate c WHERE c.setCode = s.setCode) < s.cardCount")
+    List<TCGSet> findSetsWithMissingCards(@Param("tcgType") TCGType tcgType);
 }
