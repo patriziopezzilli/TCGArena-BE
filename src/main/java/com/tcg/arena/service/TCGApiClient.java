@@ -132,30 +132,38 @@ public class TCGApiClient {
             logger.info("[API KEY] Cooldown expired, switching back to PRIMARY key");
             usingSecondaryKey = false;
         }
-        return usingSecondaryKey ? apiKeySecondary : apiKeyPrimary;
+        String key = usingSecondaryKey ? apiKeySecondary : apiKeyPrimary;
+        String keyType = usingSecondaryKey ? "SECONDARY" : "PRIMARY";
+        String keyPreview = key != null && key.length() > 10 ? key.substring(0, 10) + "..." : key;
+        logger.info("[API KEY] Making request with {} key: {}", keyType, keyPreview);
+        return key;
     }
 
     /**
      * Switch to secondary API key when rate limited.
+     * Returns true if switch was successful (we weren't already on secondary).
      */
-    private synchronized void switchToSecondaryKey() {
+    private synchronized boolean switchToSecondaryKey() {
         if (!usingSecondaryKey) {
             logger.warn("[API KEY] Rate limit hit! Switching to SECONDARY API key");
             usingSecondaryKey = true;
             lastKeySwitch = System.currentTimeMillis();
+            return true;
         }
+        logger.warn("[API KEY] Already using SECONDARY key - both keys may have hit rate limit");
+        return false;
     }
 
     /**
      * Check if error is a rate limit and switch key if needed.
-     * Returns true if should retry with new key.
+     * Returns true if should retry with new key (i.e., we switched keys).
+     * Returns false if we were already on secondary key (no point retrying).
      */
     private boolean handleRateLimitError(Throwable throwable) {
         if (throwable instanceof RuntimeException) {
             String message = throwable.getMessage();
             if (message != null && message.contains("HTTP 429")) {
-                switchToSecondaryKey();
-                return true;
+                return switchToSecondaryKey(); // Only retry if we actually switched
             }
         }
         return false;
@@ -434,9 +442,12 @@ public class TCGApiClient {
                         if (throwable instanceof RuntimeException) {
                             String message = throwable.getMessage();
                             if (message != null && message.contains("HTTP 429")) {
-                                switchToSecondaryKey();
+                                // Only retry if we successfully switched keys
+                                // If already on secondary, don't retry (both keys exhausted)
+                                return switchToSecondaryKey();
                             }
-                            return message != null && (message.contains("HTTP 500") || message.contains("HTTP 429"));
+                            // Always retry 500 errors
+                            return message != null && message.contains("HTTP 500");
                         }
                         return false;
                     })
@@ -543,9 +554,12 @@ public class TCGApiClient {
                         if (throwable instanceof RuntimeException) {
                             String message = throwable.getMessage();
                             if (message != null && message.contains("HTTP 429")) {
-                                switchToSecondaryKey();
+                                // Only retry if we successfully switched keys
+                                // If already on secondary, don't retry (both keys exhausted)
+                                return switchToSecondaryKey();
                             }
-                            return message != null && (message.contains("HTTP 500") || message.contains("HTTP 429"));
+                            // Always retry 500 errors
+                            return message != null && message.contains("HTTP 500");
                         }
                         return false;
                     })
@@ -603,9 +617,12 @@ public class TCGApiClient {
                         if (throwable instanceof RuntimeException) {
                             String message = throwable.getMessage();
                             if (message != null && message.contains("HTTP 429")) {
-                                switchToSecondaryKey();
+                                // Only retry if we successfully switched keys
+                                // If already on secondary, don't retry (both keys exhausted)
+                                return switchToSecondaryKey();
                             }
-                            return message != null && (message.contains("HTTP 500") || message.contains("HTTP 429"));
+                            // Always retry 500 errors
+                            return message != null && message.contains("HTTP 500");
                         }
                         return false;
                     })
