@@ -899,6 +899,42 @@ public class TCGApiClient {
         logger.info("[RESET] Starting COMPLETE reset for set '{}' (code: {}, tcg: {})", 
                 dbSet.getName(), setCode, tcgType.getDisplayName());
         
+        // Step 1: Fetch updated set metadata from API
+        logger.info("[RESET] Fetching set metadata from API for '{}'", setCode);
+        String gameId = TCG_TYPE_TO_GAME_ID.get(tcgType);
+        if (gameId == null) {
+            throw new RuntimeException("No game ID mapping found for TCG type: " + tcgType);
+        }
+        
+        logger.info("[RESET] Using game ID '{}' for TCG type '{}'", gameId, tcgType);
+        
+        TCGSet apiSet = null;
+        try {
+            apiSet = getAllSets(gameId)
+                    .filter(set -> setCode.equals(set.id))
+                    .blockFirst(Duration.ofMinutes(5)); // Get the first matching set
+        } catch (Exception e) {
+            logger.error("[RESET] Error fetching sets from API for game '{}': {}", gameId, e.getMessage());
+            throw new RuntimeException("Failed to fetch sets from API for game '" + gameId + "': " + e.getMessage());
+        }
+        
+        if (apiSet == null) {
+            // Try to provide more debug information
+            logger.warn("[RESET] Set '{}' not found in API for game '{}'. Checking what sets are available...", setCode, gameId);
+            try {
+                List<TCGSet> availableSets = getAllSets(gameId)
+                        .collectList()
+                        .block(Duration.ofMinutes(2));
+                logger.warn("[RESET] Available sets in API for game '{}' (first 10): {}", gameId, 
+                        availableSets != null ? availableSets.stream().limit(10).map(s -> s.id + " (" + s.name + ")").toList() : "none");
+            } catch (Exception e) {
+                logger.warn("[RESET] Could not fetch available sets list: {}", e.getMessage());
+            }
+            throw new RuntimeException("Set '" + setCode + "' not found in API for game '" + gameId + "'. Check if the set code is correct or if the set still exists in the API.");
+        }
+        
+        logger.info("[RESET] Found set in API: '{}' (cards: {})", apiSet.name, apiSet.cardsCount);
+        
         // Count existing cards before deletion
         int existingCardsCount = cardTemplateRepository.findAllCardKeysBySetCode(setCode).size();
         logger.info("[RESET] Set '{}' has {} existing cards in DB - deleting them all", 
@@ -909,30 +945,27 @@ public class TCGApiClient {
         logger.info("[RESET] Deleted {} card templates for set '{}'", deletedCount, dbSet.getName());
         
         // Now reload all cards from scratch using the existing import logic
-        logger.info("[RESET] Starting full import for set '{}' from API", dbSet.getName());
+        logger.info("[RESET] Starting full import for set '{}' from API", apiSet.name);
         
         final int[] importedCount = {0};
         final int[] errorsCount = {0};
         
         // Use the existing importCardsForSet method to reload everything
-        TCGSet apiSet = new TCGSet();
-        apiSet.id = dbSet.getSetCode();
-        apiSet.name = dbSet.getName();
-        importCardsForSet(apiSet, tcgType, new ImportStats(tcgType.getDisplayName(), TCG_TYPE_TO_GAME_ID.get(tcgType), 0))
+        importCardsForSet(apiSet, tcgType, new ImportStats(tcgType.getDisplayName(), gameId, 0))
                 .doOnNext(count -> importedCount[0] += count)
                 .doOnError(error -> {
                     errorsCount[0]++;
-                    logger.error("[RESET] Error importing cards for set '{}': {}", dbSet.getName(), error.getMessage());
+                    logger.error("[RESET] Error importing cards for set '{}': {}", apiSet.name, error.getMessage());
                 })
                 .block(Duration.ofMinutes(30)); // Block and wait for completion
         
         logger.info("[RESET] Set '{}' reset completed: {} cards deleted, {} cards imported, {} errors",
-                dbSet.getName(), deletedCount, importedCount[0], errorsCount[0]);
+                apiSet.name, deletedCount, importedCount[0], errorsCount[0]);
         
         Map<String, Object> result = new java.util.HashMap<>();
         result.put("setId", dbSet.getId());
         result.put("setCode", setCode);
-        result.put("setName", dbSet.getName());
+        result.put("setName", apiSet.name);
         result.put("deletedCards", deletedCount);
         result.put("importedCards", importedCount[0]);
         result.put("errors", errorsCount[0]);
