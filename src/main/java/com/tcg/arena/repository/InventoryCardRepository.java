@@ -98,4 +98,3 @@ public interface InventoryCardRepository extends JpaRepository<InventoryCard, St
     @Query("DELETE FROM InventoryCard ic WHERE ic.cardTemplate.setCode = :setCode")
     int deleteByCardTemplateSetCode(@Param("setCode") String setCode);
 }
-}

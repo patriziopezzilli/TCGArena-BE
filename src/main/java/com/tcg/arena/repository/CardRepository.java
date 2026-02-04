@@ -35,4 +35,3 @@ public interface CardRepository extends JpaRepository<Card, Long> {
     @Query("DELETE FROM Card c WHERE c.cardTemplate.setCode = :setCode")
     int deleteByCardTemplateSetCode(@Param("setCode") String setCode);
 }
-}
