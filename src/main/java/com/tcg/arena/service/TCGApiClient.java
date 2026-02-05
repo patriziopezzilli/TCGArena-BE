@@ -2196,43 +2196,73 @@ public class TCGApiClient {
         public String id;
         public String name;
         public String releaseDate;
-        public Integer cardCount;
+        public TCGDexCardCount cardCount;
         public String logo;
         public String symbol;
+
+        // Computed property to get total card count
+        public Integer getTotalCardCount() {
+            return cardCount != null ? cardCount.total : null;
+        }
     }
 
     /**
-     * TCGDex Card response structure
+     * TCGDex Card Count structure
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TCGDexCardCount {
+        public Integer firstEd;
+        public Integer holo;
+        public Integer normal;
+        public Integer official;
+        public Integer reverse;
+        public Integer total;
+    }
+
+    /**
+     * TCGDex Card response structure (basic info from set list)
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TCGDexCardBasic {
+        public String id;
+        public String localId;
+        public String name;
+        public String image;
+    }
+
+    /**
+     * TCGDex Card response structure (detailed info)
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class TCGDexCard {
         public String id;
+        public String localId;
         public String name;
-        public String number;
         public String rarity;
-        public TCGDexCardImage images;
-        public List<TCGDexCardVariant> variants;
+        public String image;
+        public TCGDexCardVariants variants;
+
+        // Computed property to get card number (localId)
+        public String getCardNumber() {
+            return localId != null ? localId : "N/A";
+        }
+
+        // Computed property to get image URL
+        public String getImageUrl() {
+            return image;
+        }
     }
 
     /**
-     * TCGDex Card Image structure
+     * TCGDex Card Variants structure
      */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class TCGDexCardImage {
-        public String logo;
-        public String symbol;
-        public String small;
-        public String large;
-    }
-
-    /**
-     * TCGDex Card Variant structure
-     */
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    public static class TCGDexCardVariant {
-        public String id;
-        public String name;
-        public Double price;
+    public static class TCGDexCardVariants {
+        public Boolean firstEdition;
+        public Boolean holo;
+        public Boolean normal;
+        public Boolean reverse;
+        public Boolean wPromo;
     }
 
     /**
@@ -2253,30 +2283,56 @@ public class TCGApiClient {
                 })
                 .bodyToMono(TCGDexSet.class)
                 .timeout(Duration.ofMinutes(5))
-                .doOnSuccess(set -> logger.info("[TCGDEX] Fetched set info for '{}': {} cards", setCode, set.cardCount))
+                .doOnSuccess(set -> logger.info("[TCGDEX] Fetched set info for '{}': {} cards", setCode, set.getTotalCardCount()))
                 .doOnError(error -> logger.error("[TCGDEX] Failed to fetch set '{}' from TCGDex: {}", setCode, error.getMessage()));
     }
 
     /**
-     * Fetch all cards for a set from TCGDex API
+     * Fetch all cards for a set from TCGDex API (with full details)
      */
     private Flux<TCGDexCard> getTcgDexCardsForSet(String setCode) {
+        // First get the basic card list
         return webClient.get()
-                .uri(TCGDEX_API_BASE_URL + "/sets/" + setCode + "/cards")
+                .uri(TCGDEX_API_BASE_URL + "/cards?set=" + setCode)
                 .retrieve()
                 .onStatus(status -> status.isError(), response -> {
                     return response.bodyToMono(String.class)
                             .flatMap(body -> {
-                                logger.error("[TCGDEX API ERROR] getTcgDexCardsForSet for {}: HTTP {} - Response body: {}",
+                                logger.error("[TCGDEX API ERROR] getTcgDexCardsForSet basic list for {}: HTTP {} - Response body: {}",
                                         setCode, response.statusCode().value(), body);
                                 return Mono.error(new RuntimeException(
                                         "TCGDex API error: HTTP " + response.statusCode().value() + " - " + body));
                             });
                 })
-                .bodyToFlux(TCGDexCard.class)
-                .timeout(Duration.ofMinutes(10))
-                .doOnNext(card -> logger.debug("[TCGDEX] Fetched card '{}' from set '{}'", card.name, setCode))
-                .doOnError(error -> logger.error("[TCGDEX] Failed to fetch cards for set '{}' from TCGDex: {}", setCode, error.getMessage()));
+                .bodyToFlux(TCGDexCardBasic.class)
+                .timeout(Duration.ofMinutes(5))
+                .doOnNext(card -> logger.debug("[TCGDEX] Found card '{}' in set '{}'", card.name, setCode))
+                .doOnError(error -> logger.error("[TCGDEX] Failed to fetch basic card list for set '{}' from TCGDex: {}", setCode, error.getMessage()))
+                // For each basic card, fetch detailed information
+                .concatMap(basicCard -> getTcgDexCardDetails(basicCard.id))
+                .timeout(Duration.ofMinutes(10));
+    }
+
+    /**
+     * Fetch detailed information for a specific card from TCGDex API
+     */
+    private Mono<TCGDexCard> getTcgDexCardDetails(String cardId) {
+        return webClient.get()
+                .uri(TCGDEX_API_BASE_URL + "/cards/" + cardId)
+                .retrieve()
+                .onStatus(status -> status.isError(), response -> {
+                    return response.bodyToMono(String.class)
+                            .flatMap(body -> {
+                                logger.error("[TCGDEX API ERROR] getTcgDexCardDetails for {}: HTTP {} - Response body: {}",
+                                        cardId, response.statusCode().value(), body);
+                                return Mono.error(new RuntimeException(
+                                        "TCGDex API error: HTTP " + response.statusCode().value() + " - " + body));
+                            });
+                })
+                .bodyToMono(TCGDexCard.class)
+                .timeout(Duration.ofMinutes(2))
+                .doOnSuccess(card -> logger.debug("[TCGDEX] Fetched detailed info for card '{}'", cardId))
+                .doOnError(error -> logger.error("[TCGDEX] Failed to fetch card details for '{}' from TCGDex: {}", cardId, error.getMessage()));
     }
 
     /**
@@ -2315,7 +2371,7 @@ public class TCGApiClient {
         }
 
         logger.info("[TCGDEX RESET] Found set in TCGDex API: '{}' (id: {}, cards: {})",
-                tcgDexSet.name, tcgDexSet.id, tcgDexSet.cardCount);
+                tcgDexSet.name, tcgDexSet.id, tcgDexSet.getTotalCardCount());
 
         // Count existing cards before deletion
         int existingCardsCount = cardTemplateRepository.findAllCardKeysBySetCode(setCode).size();
@@ -2380,7 +2436,7 @@ public class TCGApiClient {
 
                         try {
                             // Check for existing card (shouldn't exist after delete, but be safe)
-                            String cardNumber = card.number != null ? card.number : "N/A";
+                            String cardNumber = card.getCardNumber();
                             List<CardTemplate> existing = cardTemplateRepository.findByNameAndSetCodeAndCardNumberIncludingNA(
                                     card.name, setCode, cardNumber);
 
@@ -2395,7 +2451,7 @@ public class TCGApiClient {
                             template.setSetCode(setCode);
                             template.setCardNumber(cardNumber);
                             template.setRarity(mapRarity(card.rarity));
-                            template.setImageUrl(card.images != null ? card.images.large : null);
+                            template.setImageUrl(card.getImageUrl());
                             template.setTcgType(tcgType);
                             template.setExpansion(dbSet.getExpansion());
                             template.setDateCreated(LocalDateTime.now());
