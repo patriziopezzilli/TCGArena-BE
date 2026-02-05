@@ -2180,4 +2180,274 @@ public class TCGApiClient {
             }
         }
     }
+
+    // ===================== TCGDex API Integration =====================
+
+    /**
+     * TCGDex API base URL
+     */
+    private static final String TCGDEX_API_BASE_URL = "https://api.tcgdex.net/v2/en";
+
+    /**
+     * TCGDex Set response structure
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TCGDexSet {
+        public String id;
+        public String name;
+        public String releaseDate;
+        public Integer cardCount;
+        public String logo;
+        public String symbol;
+    }
+
+    /**
+     * TCGDex Card response structure
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TCGDexCard {
+        public String id;
+        public String name;
+        public String number;
+        public String rarity;
+        public TCGDexCardImage images;
+        public List<TCGDexCardVariant> variants;
+    }
+
+    /**
+     * TCGDex Card Image structure
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TCGDexCardImage {
+        public String logo;
+        public String symbol;
+        public String small;
+        public String large;
+    }
+
+    /**
+     * TCGDex Card Variant structure
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TCGDexCardVariant {
+        public String id;
+        public String name;
+        public Double price;
+    }
+
+    /**
+     * Fetch set information from TCGDex API
+     */
+    private Mono<TCGDexSet> getTcgDexSet(String setCode) {
+        return webClient.get()
+                .uri(TCGDEX_API_BASE_URL + "/sets/" + setCode)
+                .retrieve()
+                .onStatus(status -> status.isError(), response -> {
+                    return response.bodyToMono(String.class)
+                            .flatMap(body -> {
+                                logger.error("[TCGDEX API ERROR] getTcgDexSet for {}: HTTP {} - Response body: {}",
+                                        setCode, response.statusCode().value(), body);
+                                return Mono.error(new RuntimeException(
+                                        "TCGDex API error: HTTP " + response.statusCode().value() + " - " + body));
+                            });
+                })
+                .bodyToMono(TCGDexSet.class)
+                .timeout(Duration.ofMinutes(5))
+                .doOnSuccess(set -> logger.info("[TCGDEX] Fetched set info for '{}': {} cards", setCode, set.cardCount))
+                .doOnError(error -> logger.error("[TCGDEX] Failed to fetch set '{}' from TCGDex: {}", setCode, error.getMessage()));
+    }
+
+    /**
+     * Fetch all cards for a set from TCGDex API
+     */
+    private Flux<TCGDexCard> getTcgDexCardsForSet(String setCode) {
+        return webClient.get()
+                .uri(TCGDEX_API_BASE_URL + "/sets/" + setCode + "/cards")
+                .retrieve()
+                .onStatus(status -> status.isError(), response -> {
+                    return response.bodyToMono(String.class)
+                            .flatMap(body -> {
+                                logger.error("[TCGDEX API ERROR] getTcgDexCardsForSet for {}: HTTP {} - Response body: {}",
+                                        setCode, response.statusCode().value(), body);
+                                return Mono.error(new RuntimeException(
+                                        "TCGDex API error: HTTP " + response.statusCode().value() + " - " + body));
+                            });
+                })
+                .bodyToFlux(TCGDexCard.class)
+                .timeout(Duration.ofMinutes(10))
+                .doOnNext(card -> logger.debug("[TCGDEX] Fetched card '{}' from set '{}'", card.name, setCode))
+                .doOnError(error -> logger.error("[TCGDEX] Failed to fetch cards for set '{}' from TCGDex: {}", setCode, error.getMessage()));
+    }
+
+    /**
+     * Complete reset of a set from TCGDex API.
+     * This will DELETE ALL existing card templates for the set and reload everything from TCGDex API.
+     * This is a destructive operation that cannot be undone.
+     *
+     * @param dbSet The TCGSet from the database to reset
+     * @param tcgDexSetCode The set code to use for TCGDex API lookup
+     * @return Map with reset results (deleted, imported, errors)
+     */
+    public Map<String, Object> resetSetFromTcgDexApi(com.tcg.arena.model.TCGSet dbSet, String tcgDexSetCode) {
+        String setCode = dbSet.getSetCode();
+        TCGType tcgType = dbSet.getExpansion() != null ? dbSet.getExpansion().getTcgType() : null;
+
+        if (tcgType == null) {
+            throw new RuntimeException("Set has no expansion or TCG type defined");
+        }
+
+        logger.info("[TCGDEX RESET] Starting COMPLETE reset for set '{}' (code: {}, db: {}) using TCGDex set code '{}'",
+                dbSet.getName(), setCode, dbSet.getId(), tcgDexSetCode);
+
+        // Step 1: Fetch updated set metadata from TCGDex API
+        logger.info("[TCGDEX RESET] Fetching set metadata from TCGDex API for '{}'", tcgDexSetCode);
+        TCGDexSet tcgDexSet = null;
+        try {
+            tcgDexSet = getTcgDexSet(tcgDexSetCode)
+                    .block(Duration.ofMinutes(5));
+        } catch (Exception e) {
+            logger.error("[TCGDEX RESET] Error fetching set '{}' from TCGDex API: {}", tcgDexSetCode, e.getMessage());
+            throw new RuntimeException("Failed to fetch set '" + tcgDexSetCode + "' from TCGDex API: " + e.getMessage());
+        }
+
+        if (tcgDexSet == null) {
+            throw new RuntimeException("Set '" + tcgDexSetCode + "' not found in TCGDex API");
+        }
+
+        logger.info("[TCGDEX RESET] Found set in TCGDex API: '{}' (id: {}, cards: {})",
+                tcgDexSet.name, tcgDexSet.id, tcgDexSet.cardCount);
+
+        // Count existing cards before deletion
+        int existingCardsCount = cardTemplateRepository.findAllCardKeysBySetCode(setCode).size();
+        logger.info("[TCGDEX RESET] Set '{}' has {} existing cards in DB - deleting them all",
+                dbSet.getName(), existingCardsCount);
+
+        // DELETE ALL dependent records first (to avoid foreign key constraint violations)
+        long dependentDeleteStartTime = System.currentTimeMillis();
+
+        // 1. Delete votes for cards in this set
+        logger.info("[TCGDEX RESET] Deleting votes for cards in set '{}'", dbSet.getName());
+        int deletedVotesCount = cardVoteRepository.deleteByCardTemplateSetCode(setCode);
+        logger.info("[TCGDEX RESET] Deleted {} votes for set '{}'", deletedVotesCount, dbSet.getName());
+
+        // 2. Delete trade list entries for cards in this set
+        logger.info("[TCGDEX RESET] Deleting trade list entries for cards in set '{}'", dbSet.getName());
+        int deletedTradeListCount = tradeListEntryRepository.deleteByCardTemplateSetCode(setCode);
+        logger.info("[TCGDEX RESET] Deleted {} trade list entries for set '{}'", deletedTradeListCount, dbSet.getName());
+
+        // 3. Delete inventory cards for cards in this set
+        logger.info("[TCGDEX RESET] Deleting inventory cards for cards in set '{}'", dbSet.getName());
+        int deletedInventoryCount = inventoryCardRepository.deleteByCardTemplateSetCode(setCode);
+        logger.info("[TCGDEX RESET] Deleted {} inventory cards for set '{}'", deletedInventoryCount, dbSet.getName());
+
+        // 4. Delete user cards for cards in this set
+        logger.info("[TCGDEX RESET] Deleting user cards for cards in set '{}'", dbSet.getName());
+        int deletedCardsCount = cardRepository.deleteByCardTemplateSetCode(setCode);
+        logger.info("[TCGDEX RESET] Deleted {} user cards for set '{}'", deletedCardsCount, dbSet.getName());
+
+        long dependentDeleteTime = System.currentTimeMillis() - dependentDeleteStartTime;
+        logger.info("[TCGDEX RESET] Successfully deleted all dependent records for set '{}' in {}ms (votes: {}, trade: {}, inventory: {}, cards: {})",
+                dbSet.getName(), dependentDeleteTime, deletedVotesCount, deletedTradeListCount, deletedInventoryCount, deletedCardsCount);
+
+        // DELETE ALL existing card templates for this set
+        logger.info("[TCGDEX RESET] Starting deletion of {} cards for set '{}'", existingCardsCount, dbSet.getName());
+        long startTime = System.currentTimeMillis();
+        int deletedCount = 0;
+
+        try {
+            deletedCount = cardTemplateRepository.deleteBySetCode(setCode);
+            long deleteTime = System.currentTimeMillis() - startTime;
+            logger.info("[TCGDEX RESET] Successfully deleted {} card templates for set '{}' in {}ms",
+                    deletedCount, dbSet.getName(), deleteTime);
+        } catch (Exception e) {
+            logger.error("[TCGDEX RESET] Failed to delete cards for set '{}': {}", dbSet.getName(), e.getMessage(), e);
+            throw new RuntimeException("Failed to delete existing cards for set '" + dbSet.getName() + "': " + e.getMessage(), e);
+        }
+
+        // Now reload all cards from TCGDex API
+        logger.info("[TCGDEX RESET] Starting full import for set '{}' from TCGDex API", tcgDexSet.name);
+
+        final int[] importedCount = {0};
+        final int[] errorsCount = {0};
+
+        try {
+            getTcgDexCardsForSet(tcgDexSetCode)
+                    .concatMap(card -> {
+                        if (card == null || card.name == null) {
+                            errorsCount[0]++;
+                            return Mono.just(0);
+                        }
+
+                        try {
+                            // Check for existing card (shouldn't exist after delete, but be safe)
+                            String cardNumber = card.number != null ? card.number : "N/A";
+                            List<CardTemplate> existing = cardTemplateRepository.findByNameAndSetCodeAndCardNumberIncludingNA(
+                                    card.name, setCode, cardNumber);
+
+                            if (!existing.isEmpty()) {
+                                logger.warn("[TCGDEX RESET] Card '{}' ({}) already exists for set '{}' - skipping",
+                                        card.name, cardNumber, dbSet.getName());
+                                return Mono.just(0);
+                            }
+
+                            CardTemplate template = new CardTemplate();
+                            template.setName(card.name);
+                            template.setSetCode(setCode);
+                            template.setCardNumber(cardNumber);
+                            template.setRarity(mapRarity(card.rarity));
+                            template.setImageUrl(card.images != null ? card.images.large : null);
+                            template.setTcgType(tcgType);
+                            template.setExpansion(dbSet.getExpansion());
+                            template.setDateCreated(LocalDateTime.now());
+
+                            // Set prices from variants if available
+                            if (card.variants != null && !card.variants.isEmpty()) {
+                                TCGDexCardVariant firstVariant = card.variants.get(0);
+                                if (firstVariant.price != null) {
+                                    template.setMarketPrice(firstVariant.price);
+                                }
+                            }
+
+                            template.setLastPriceUpdate(LocalDateTime.now());
+
+                            cardTemplateRepository.save(template);
+                            importedCount[0]++;
+                            logger.debug("[TCGDEX RESET] Imported card '{}' ({}) for set '{}'",
+                                    card.name, cardNumber, dbSet.getName());
+
+                            return Mono.just(1);
+                        } catch (Exception e) {
+                            errorsCount[0]++;
+                            logger.error("[TCGDEX RESET] Error importing card '{}' for set '{}': {}",
+                                    card.name, dbSet.getName(), e.getMessage());
+                            return Mono.just(0);
+                        }
+                    })
+                    .blockLast(Duration.ofMinutes(30)); // Block and wait for completion
+
+            logger.info("[TCGDEX RESET] Card import completed for '{}' - imported: {}, errors: {}",
+                    tcgDexSet.name, importedCount[0], errorsCount[0]);
+
+        } catch (Exception e) {
+            logger.error("[TCGDEX RESET] Card import failed for '{}' after 30 minutes: {}",
+                    tcgDexSet.name, e.getMessage(), e);
+            throw new RuntimeException("Card import failed for set '" + tcgDexSet.name + "': " + e.getMessage(), e);
+        }
+
+        logger.info("[TCGDEX RESET] Set '{}' reset completed: {} cards deleted, {} cards imported, {} errors",
+                tcgDexSet.name, deletedCount, importedCount[0], errorsCount[0]);
+
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("setId", dbSet.getId());
+        result.put("setCode", setCode);
+        result.put("tcgDexSetCode", tcgDexSetCode);
+        result.put("setName", tcgDexSet.name);
+        result.put("deletedCards", deletedCount);
+        result.put("importedCards", importedCount[0]);
+        result.put("errors", errorsCount[0]);
+        result.put("previousTotal", existingCardsCount);
+        result.put("success", true);
+
+        return result;
+    }
 }

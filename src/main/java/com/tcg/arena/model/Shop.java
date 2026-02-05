@@ -64,7 +64,7 @@ public class Shop {
     private String photoBase64;
 
     // TCG Types supported (stored as comma-separated string)
-    // e.g., "POKEMON,MAGIC,YUGIOH,ONE_PIECE,DRAGON_BALL,LORCANA"
+    // e.g., "POKEMON,MAGIC,YUGIOH,ONE_PIECE,LORCANA"
     @Column(length = 500)
     private String tcgTypes;
 

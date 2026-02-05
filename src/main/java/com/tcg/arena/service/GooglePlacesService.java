@@ -497,16 +497,13 @@ public class GooglePlacesService {
         if (combinedText.contains("one piece")) {
             tcgTypes.add("ONE_PIECE");
         }
-        if (combinedText.contains("dragon ball")) {
-            tcgTypes.add("DRAGON_BALL");
-        }
         if (combinedText.contains("lorcana")) {
             tcgTypes.add("LORCANA");
         }
 
         // If no specific TCG detected, add all (generic card shop)
         if (tcgTypes.isEmpty()) {
-            tcgTypes.addAll(Arrays.asList("POKEMON", "MAGIC", "YUGIOH", "ONE_PIECE", "DRAGON_BALL", "LORCANA"));
+            tcgTypes.addAll(Arrays.asList("POKEMON", "MAGIC", "YUGIOH", "ONE_PIECE", "LORCANA"));
         }
 
         shop.setTcgTypesList(tcgTypes);

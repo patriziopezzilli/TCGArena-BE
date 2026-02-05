@@ -178,4 +178,37 @@ public class TCGSetController {
                 })
                 .orElse(ResponseEntity.notFound().build());
     }
+
+    /**
+     * Complete reset of a specific set from TCGDex API.
+     * This will DELETE ALL existing card templates for the set and reload everything from TCGDex API.
+     * This is a destructive operation that cannot be undone.
+     * 
+     * @param id The database ID of the TCGSet to reset
+     * @param requestBody Map containing the setCode for TCGDex API
+     * @return Reset result with deleted and imported cards count
+     */
+    @PostMapping("/{id}/reset-tcgdex")
+    public ResponseEntity<?> resetSetFromTcgDex(@PathVariable Long id, @RequestBody Map<String, String> requestBody) {
+        String setCode = requestBody.get("setCode");
+        if (setCode == null || setCode.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "setCode is required"));
+        }
+
+        return tcgSetService.getSetById(id)
+                .map(set -> {
+                    try {
+                        Map<String, Object> result = tcgApiClient.resetSetFromTcgDexApi(set, setCode.trim());
+                        return ResponseEntity.ok(result);
+                    } catch (Exception e) {
+                        return ResponseEntity.badRequest().body(Map.of(
+                                "error", e.getMessage(),
+                                "setId", id,
+                                "setCode", set.getSetCode(),
+                                "tcgDexSetCode", setCode.trim()
+                        ));
+                    }
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
 }

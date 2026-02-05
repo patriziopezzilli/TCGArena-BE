@@ -7,8 +7,7 @@ import java.util.List;
 
 /**
  * Represents a trading card game from JustTCG API.
- * Supported games: MTG, Pokemon, Yu-Gi-Oh!, Lorcana, One Piece, Digimon, Union
- * Arena.
+ * Supported games: MTG, Pokemon, Yu-Gi-Oh!, Lorcana, One Piece, Digimon
  */
 @Entity
 @Table(name = "arena_games")

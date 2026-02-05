@@ -193,7 +193,9 @@ public class CardController {
                         @ApiResponse(responseCode = "200", description = "TCG types retrieved successfully")
         })
         public TCGType[] getTcgTypes() {
-                return TCGType.values();
+                return java.util.Arrays.stream(TCGType.values())
+                        .filter(tcgType -> tcgType != TCGType.UNION_ARENA && tcgType != TCGType.DRAGON_BALL_SUPER_FUSION_WORLD)
+                        .toArray(TCGType[]::new);
         }
 
         @GetMapping("/filters/rarities")

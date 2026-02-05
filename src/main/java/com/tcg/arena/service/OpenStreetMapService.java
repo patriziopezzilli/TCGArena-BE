@@ -333,9 +333,6 @@ public class OpenStreetMapService {
         if (lowerName.contains("one piece")) {
             tcgTypes.add("ONE_PIECE");
         }
-        if (lowerName.contains("dragon ball")) {
-            tcgTypes.add("DRAGON_BALL");
-        }
         if (lowerName.contains("lorcana")) {
             tcgTypes.add("LORCANA");
         }
@@ -345,7 +342,7 @@ public class OpenStreetMapService {
 
         // If no specific TCG detected, assume all (generic card shop)
         if (tcgTypes.isEmpty()) {
-            tcgTypes.addAll(Arrays.asList("POKEMON", "MAGIC", "YUGIOH", "ONE_PIECE", "DRAGON_BALL", "LORCANA"));
+            tcgTypes.addAll(Arrays.asList("POKEMON", "MAGIC", "YUGIOH", "ONE_PIECE", "LORCANA"));
         }
 
         shop.setTcgTypesList(tcgTypes);

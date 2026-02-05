@@ -55,7 +55,7 @@ public class InventoryBulkImportService {
         sb.append("# COLUMNS:\n");
         sb.append("# card_name: Card name (partial match, e.g. 'Charizard' or 'char')\n");
         sb.append("# set_code: Set code (exact match, e.g. 'SV01', 'PAL')\n");
-        sb.append("# tcg_type: TCG type (exact match: POKEMON, MAGIC, YUGIOH, ONEPIECE, LORCANA, DRAGONBALL)\n");
+        sb.append("# tcg_type: TCG type (exact match: POKEMON, MAGIC, YUGIOH, ONEPIECE, LORCANA)\n");
         sb.append("# condition: MINT, NEAR_MINT, EXCELLENT, GOOD, LIGHT_PLAYED, PLAYED, POOR\n");
         sb.append("# nationality: EN, ITA, JPN, COR, FRA, GER, SPA, POR, CHI, RUS (default: EN)\n");
         return sb.toString().getBytes(StandardCharsets.UTF_8);
