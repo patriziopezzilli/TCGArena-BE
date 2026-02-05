@@ -31,14 +31,21 @@ public class CardVoteService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private StreakService streakService;
+
     @Transactional
     public CardVoteStatsDTO submitVote(Long cardTemplateId, CardVoteRequest request, Long userId) {
+        // Record streak activity on every vote
+        streakService.recordActivity(userId);
+
         CardTemplate cardTemplate = cardTemplateRepository.findById(cardTemplateId)
                 .orElseThrow(() -> new RuntimeException("Card template not found"));
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // Use findByCardTemplateAndUser with pessimistic locking to prevent race conditions
+        // Use findByCardTemplateAndUser with pessimistic locking to prevent race
+        // conditions
         Optional<CardVote> existingVote = voteRepository.findByCardTemplateAndUser(cardTemplate, user);
 
         if (existingVote.isPresent()) {
@@ -88,8 +95,7 @@ public class CardVoteService {
                     return new CardVoteStatsDTO(
                             cardTemplate.getId(),
                             cardTemplate.getLikesCount(),
-                            cardTemplate.getDislikesCount()
-                    );
+                            cardTemplate.getDislikesCount());
                 }
                 throw e;
             }
@@ -100,8 +106,7 @@ public class CardVoteService {
         return new CardVoteStatsDTO(
                 cardTemplate.getId(),
                 cardTemplate.getLikesCount(),
-                cardTemplate.getDislikesCount()
-        );
+                cardTemplate.getDislikesCount());
     }
 
     public Page<CardTemplate> getDiscoverFeed(TCGType tcgType, Long userId, int page, int size) {
@@ -119,8 +124,7 @@ public class CardVoteService {
         return new CardVoteStatsDTO(
                 cardTemplate.getId(),
                 cardTemplate.getLikesCount(),
-                cardTemplate.getDislikesCount()
-        );
+                cardTemplate.getDislikesCount());
     }
 
     public Page<CardTemplate> getTopLovedCards(TCGType tcgType, Pageable pageable) {

@@ -2,12 +2,14 @@ package com.tcg.arena.controller;
 
 import com.tcg.arena.dto.CardVoteRequest;
 import com.tcg.arena.dto.CardVoteStatsDTO;
+import com.tcg.arena.dto.UserRatingStreakDTO;
 import com.tcg.arena.model.CardTemplate;
 import com.tcg.arena.model.TCGType;
 import com.tcg.arena.model.User;
 import com.tcg.arena.repository.UserRepository;
 import com.tcg.arena.security.JwtTokenUtil;
 import com.tcg.arena.service.CardVoteService;
+import com.tcg.arena.service.StreakService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,6 +36,25 @@ public class CardRatingArenaController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private StreakService streakService;
+
+    @GetMapping("/streak")
+    @Operation(summary = "Get rating streak", description = "Get user's rating streak statistics including current streak, milestones, and total votes")
+    public ResponseEntity<?> getStreakStats(@RequestHeader("Authorization") String token) {
+        Long userId = resolveUserIdFromToken(token);
+        if (userId == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+        }
+
+        try {
+            UserRatingStreakDTO streak = streakService.getStreak(userId);
+            return ResponseEntity.ok(streak);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
 
     @PostMapping("/vote/{cardTemplateId}")
     @Operation(summary = "Vote on a card", description = "Submit a like or dislike vote for a card template")
