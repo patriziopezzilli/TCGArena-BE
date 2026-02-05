@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class DeckService {
@@ -191,7 +192,10 @@ public class DeckService {
 
         // Check if user has this card in their personal collection and copy grading
         // info
-        List<UserCard> userCards = userCardRepository.findByCardTemplateId(templateId);
+        List<UserCard> userCards = userCardRepository.findByCardTemplateId(templateId)
+                .stream()
+                .filter(uc -> uc.getCardTemplate() != null)
+                .collect(Collectors.toList());
         UserCard existingUserCard = userCards.stream()
                 .filter(uc -> uc.getOwner().getId().equals(userId))
                 .findFirst()
@@ -400,7 +404,10 @@ public class DeckService {
             Long cardTemplateId = deckCard.getCardId();
 
             // Find the corresponding UserCard
-            List<UserCard> userCards = userCardRepository.findByCardTemplateId(cardTemplateId);
+            List<UserCard> userCards = userCardRepository.findByCardTemplateId(cardTemplateId)
+                    .stream()
+                    .filter(uc -> uc.getCardTemplate() != null)
+                    .collect(Collectors.toList());
             UserCard userCard = userCards.stream()
                     .filter(uc -> uc.getOwner().getId().equals(userId))
                     .findFirst()

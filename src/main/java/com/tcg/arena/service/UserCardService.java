@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class UserCardService {
@@ -48,7 +49,10 @@ public class UserCardService {
     private ShopRepository shopRepository;
 
     public List<UserCard> getAllUserCards() {
-        return userCardRepository.findAll();
+        return userCardRepository.findAll()
+                .stream()
+                .filter(userCard -> userCard.getCardTemplate() != null)
+                .collect(Collectors.toList());
     }
 
     public Optional<UserCard> getUserCardById(Long id) {
@@ -56,11 +60,17 @@ public class UserCardService {
     }
 
     public List<UserCard> getUserCardsByUserId(Long userId) {
-        return userCardRepository.findByOwnerId(userId);
+        return userCardRepository.findByOwnerId(userId)
+                .stream()
+                .filter(userCard -> userCard.getCardTemplate() != null)
+                .collect(Collectors.toList());
     }
 
     public List<UserCard> getUserCardsByCardTemplateId(Long cardTemplateId) {
-        return userCardRepository.findByCardTemplateId(cardTemplateId);
+        return userCardRepository.findByCardTemplateId(cardTemplateId)
+                .stream()
+                .filter(userCard -> userCard.getCardTemplate() != null)
+                .collect(Collectors.toList());
     }
 
     public UserCard saveUserCard(UserCard userCard) {
