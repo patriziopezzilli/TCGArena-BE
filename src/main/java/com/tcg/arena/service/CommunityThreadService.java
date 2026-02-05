@@ -250,4 +250,36 @@ public class CommunityThreadService {
 
         return new PollOptionDTO(pollOption.getId(), pollOption.getOptionText(), voteCount, hasCurrentUserVoted);
     }
+
+    /**
+     * Delete a thread (only creator)
+     */
+    @Transactional
+    public void deleteThread(Long threadId, Long requesterId) {
+        CommunityThread thread = threadRepository.findById(threadId)
+                .orElseThrow(() -> new RuntimeException("Thread not found"));
+
+        if (!thread.getCreator().getId().equals(requesterId)) {
+            throw new RuntimeException("Only the creator can delete this thread");
+        }
+
+        // Delete all responses
+        List<ThreadResponse> responses = responseRepository.findByThreadOrderByCreatedAtAsc(thread);
+        responseRepository.deleteAll(responses);
+
+        // Delete poll votes and options if exists
+        if (thread.getThreadType() == ThreadType.POLL) {
+            List<PollOption> options = pollOptionRepository.findByThreadOrderByCreatedAtAsc(thread);
+            for (PollOption option : options) {
+                // Delete votes for this option
+                List<PollVote> votes = pollVoteRepository.findAll().stream()
+                        .filter(v -> v.getPollOption().getId().equals(option.getId()))
+                        .collect(Collectors.toList());
+                pollVoteRepository.deleteAll(votes);
+            }
+            pollOptionRepository.deleteAll(options);
+        }
+
+        threadRepository.delete(thread);
+    }
 }

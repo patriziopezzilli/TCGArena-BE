@@ -51,20 +51,20 @@ public class CardTemplateService {
 
     @Cacheable(value = CacheConfig.EXPANSION_CARDS_CACHE, key = "'expansion_' + #expansionId + '_page_' + #pageable.pageNumber + '_size_' + #pageable.pageSize")
     public Page<CardTemplate> getCardTemplatesByExpansionId(Long expansionId, Pageable pageable) {
-        return cardTemplateRepository.findByExpansionId(expansionId, pageable);
+        return cardTemplateRepository.findAllByExpansionId(expansionId, pageable);
     }
 
     @Cacheable(value = CacheConfig.SET_CARDS_CACHE, key = "'setCode_' + #setCode + '_page_' + #pageable.pageNumber + '_size_' + #pageable.pageSize")
     public Page<CardTemplate> getCardTemplatesBySetCode(String setCode, Pageable pageable) {
-        return cardTemplateRepository.findBySetCode(setCode, pageable);
+        return cardTemplateRepository.findAllBySetCode(setCode, pageable);
     }
 
     public long countCardsBySetCode(String setCode) {
-        return cardTemplateRepository.countBySetCode(setCode);
+        return cardTemplateRepository.countAllBySetCode(setCode);
     }
 
     public long countCardsByExpansionId(Long expansionId) {
-        return cardTemplateRepository.countByExpansionId(expansionId);
+        return cardTemplateRepository.countAllByExpansionId(expansionId);
     }
 
     public List<CardTemplate> getCardTemplatesByRarity(String rarity) {

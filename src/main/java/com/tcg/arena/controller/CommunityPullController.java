@@ -98,4 +98,23 @@ public class CommunityPullController {
             return null;
         }
     }
+
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Delete a pull", description = "Delete a pull (only owner)")
+    public ResponseEntity<?> deletePull(
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String token) {
+
+        Long userId = resolveUserIdFromToken(token);
+        if (userId == null) {
+            return ResponseEntity.status(401).body(Map.of("error", "Unauthorized"));
+        }
+
+        try {
+            pullService.deletePull(id, userId);
+            return ResponseEntity.noContent().build();
+        } catch (Exception e) {
+            return ResponseEntity.status(403).body(Map.of("error", e.getMessage()));
+        }
+    }
 }

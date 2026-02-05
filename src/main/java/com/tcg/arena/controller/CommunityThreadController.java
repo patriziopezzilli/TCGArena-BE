@@ -171,4 +171,25 @@ public class CommunityThreadController {
             return null;
         }
     }
+
+    /**
+     * Delete a thread
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> deleteThread(
+            @PathVariable Long id,
+            @RequestHeader("Authorization") String authHeader) {
+
+        try {
+            Long userId = extractUserIdFromToken(authHeader);
+            if (userId == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Authentication required");
+            }
+
+            threadService.deleteThread(id, userId);
+            return ResponseEntity.noContent().build();
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        }
+    }
 }

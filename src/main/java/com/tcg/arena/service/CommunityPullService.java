@@ -15,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -112,5 +113,27 @@ public class CommunityPullService {
         }
 
         return dto;
+    }
+
+    /**
+     * Delete a pull (only owner)
+     */
+    @Transactional
+    public void deletePull(Long pullId, Long requesterId) {
+        CommunityPull pull = pullRepository.findById(pullId)
+                .orElseThrow(() -> new RuntimeException("Pull not found"));
+
+        if (!pull.getUser().getId().equals(requesterId)) {
+            throw new RuntimeException("Only the owner can delete this pull");
+        }
+
+        // Delete all likes for this pull
+        // Assuming we need to manually delete them if cascade isn't set up
+        List<PullLike> likes = likeRepository.findAll().stream()
+                .filter(l -> l.getPull().getId().equals(pullId))
+                .toList();
+        likeRepository.deleteAll(likes);
+
+        pullRepository.delete(pull);
     }
 }
