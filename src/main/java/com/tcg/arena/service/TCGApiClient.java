@@ -2241,6 +2241,7 @@ public class TCGApiClient {
         public String rarity;
         public String image;
         public TCGDexCardVariants variants;
+        public TCGDexCardPricing pricing;
 
         // Computed property to get card number (localId)
         public String getCardNumber() {
@@ -2263,6 +2264,43 @@ public class TCGApiClient {
         public Boolean normal;
         public Boolean reverse;
         public Boolean wPromo;
+    }
+
+    /**
+     * TCGDex Card Pricing structure
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TCGDexCardPricing {
+        public TCGDexCardMarketPricing cardmarket;
+        public TCGDexTCGPlayerPricing tcgplayer;
+    }
+
+    /**
+     * TCGDex CardMarket Pricing structure
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TCGDexCardMarketPricing {
+        public Double avg;
+        public Double low;
+        public Double trend;
+    }
+
+    /**
+     * TCGDex TCGPlayer Pricing structure
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TCGDexTCGPlayerPricing {
+        public TCGDexTCGPlayerNormalPricing normal;
+    }
+
+    /**
+     * TCGDex TCGPlayer Normal Pricing structure
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public static class TCGDexTCGPlayerNormalPricing {
+        public Double marketPrice;
+        public Double lowPrice;
+        public Double midPrice;
     }
 
     /**
@@ -2456,11 +2494,17 @@ public class TCGApiClient {
                             template.setExpansion(dbSet.getExpansion());
                             template.setDateCreated(LocalDateTime.now());
 
-                            // Set prices from variants if available
-                            if (card.variants != null && !card.variants.isEmpty()) {
-                                TCGDexCardVariant firstVariant = card.variants.get(0);
-                                if (firstVariant.price != null) {
-                                    template.setMarketPrice(firstVariant.price);
+                            // Set prices from pricing data if available
+                            if (card.pricing != null) {
+                                Double price = null;
+                                // Prefer CardMarket average price, fallback to TCGPlayer market price
+                                if (card.pricing.cardmarket != null && card.pricing.cardmarket.avg != null) {
+                                    price = card.pricing.cardmarket.avg;
+                                } else if (card.pricing.tcgplayer != null && card.pricing.tcgplayer.normal != null && card.pricing.tcgplayer.normal.marketPrice != null) {
+                                    price = card.pricing.tcgplayer.normal.marketPrice;
+                                }
+                                if (price != null) {
+                                    template.setMarketPrice(price);
                                 }
                             }
 
