@@ -78,7 +78,8 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
                         @Param("setCode") String setCode, @Param("cardNumber") String cardNumber);
 
         /**
-         * Get all card composite keys (name, setCode, cardNumber) for a specific setCode.
+         * Get all card composite keys (name, setCode, cardNumber) for a specific
+         * setCode.
          * Used for delta import to identify missing cards.
          */
         @Query("SELECT CONCAT(c.name, '|||', c.setCode, '|||', COALESCE(c.cardNumber, '')) FROM CardTemplate c WHERE c.setCode = :setCode")
@@ -153,6 +154,15 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
                         "WHERE c.expansion IS NOT NULL AND " + EXCLUDE_NA_CONDITION + " " +
                         "GROUP BY c.expansion.id")
         List<Object[]> countAllGroupedByExpansionId();
+
+        /**
+         * OPTIMIZED: Get particular TCG card counts grouped by setCode
+         * Returns a list of Object[] where [0] = setCode (String), [1] = count (Long)
+         */
+        @Query("SELECT c.setCode, COUNT(c) FROM CardTemplate c " +
+                        "WHERE c.tcgType = :tcgType AND " + EXCLUDE_NA_CONDITION + " " +
+                        "GROUP BY c.setCode")
+        List<Object[]> countByTcgTypeGroupedBySetCode(@Param("tcgType") TCGType tcgType);
 
         /**
          * Standard JPA query for case-insensitive name search

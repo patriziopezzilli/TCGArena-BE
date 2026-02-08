@@ -506,9 +506,10 @@ public class AdminController {
         Map<String, Long> counts = new HashMap<>();
         for (TCGType tcgType : TCGType.values()) {
             // Skip disabled TCG types
-            if (tcgType == TCGType.UNION_ARENA || tcgType == TCGType.DRAGON_BALL_SUPER_FUSION_WORLD) {
-                continue;
-            }
+            // if (tcgType == TCGType.UNION_ARENA || tcgType ==
+            // TCGType.DRAGON_BALL_SUPER_FUSION_WORLD) {
+            // continue;
+            // }
             long count = cardTemplateRepository.countByTcgType(tcgType);
             counts.put(tcgType.name(), count);
         }

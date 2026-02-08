@@ -90,8 +90,10 @@ public class TCGApiClient {
 
         String formatElapsedTime() {
             long seconds = getElapsedSeconds();
-            if (seconds < 60) return seconds + "s";
-            if (seconds < 3600) return (seconds / 60) + "m " + (seconds % 60) + "s";
+            if (seconds < 60)
+                return seconds + "s";
+            if (seconds < 3600)
+                return (seconds / 60) + "m " + (seconds % 60) + "s";
             return (seconds / 3600) + "h " + ((seconds % 3600) / 60) + "m";
         }
     }
@@ -178,7 +180,8 @@ public class TCGApiClient {
 
     /**
      * Switch to the next available API key when rate limited.
-     * Cycles through: Primary -> Secondary -> Tertiary -> Primary (if all exhausted)
+     * Cycles through: Primary -> Secondary -> Tertiary -> Primary (if all
+     * exhausted)
      * Returns true if switch was successful (moved to a different key).
      */
     private synchronized boolean switchToNextApiKey() {
@@ -187,10 +190,17 @@ public class TCGApiClient {
 
         String newKeyType;
         switch (activeKeyIndex) {
-            case 0: newKeyType = "PRIMARY"; break;
-            case 1: newKeyType = "SECONDARY"; break;
-            case 2: newKeyType = "TERTIARY"; break;
-            default: newKeyType = "PRIMARY";
+            case 0:
+                newKeyType = "PRIMARY";
+                break;
+            case 1:
+                newKeyType = "SECONDARY";
+                break;
+            case 2:
+                newKeyType = "TERTIARY";
+                break;
+            default:
+                newKeyType = "PRIMARY";
         }
 
         logger.warn("[API KEY] Rate limit hit! Switching to {} API key (was {})",
@@ -229,7 +239,7 @@ public class TCGApiClient {
             Map.entry(TCGType.FLESH_AND_BLOOD, "flesh-and-blood-tcg"));
 
     public TCGApiClient(@Value("${tcg.api.base-url}") String baseUrl,
-                        @Value("${scryfall.api.base-url}") String scryfallBaseUrl) {
+            @Value("${scryfall.api.base-url}") String scryfallBaseUrl) {
         this.webClient = WebClient.builder()
                 .baseUrl(baseUrl)
                 .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
@@ -329,7 +339,8 @@ public class TCGApiClient {
         }
     }
 
-    // ===================== DTO classes for Scryfall API responses =====================
+    // ===================== DTO classes for Scryfall API responses
+    // =====================
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class ScryfallSet {
@@ -454,7 +465,8 @@ public class TCGApiClient {
     }
 
     private Mono<TCGSetsResponse> getSetsPage(String gameId, String cursor) {
-        // Use Mono.defer to rebuild the request on each retry (so the API key is re-evaluated)
+        // Use Mono.defer to rebuild the request on each retry (so the API key is
+        // re-evaluated)
         return Mono.defer(() -> webClient.get()
                 .uri(uriBuilder -> {
                     var builder = uriBuilder.path("/sets").queryParam("game", gameId);
@@ -478,35 +490,34 @@ public class TCGApiClient {
                 .bodyToMono(TCGSetsResponse.class)
                 .timeout(Duration.ofMinutes(10)) // Add timeout to prevent hanging requests
                 .doOnSuccess(resp -> logger.info("Fetched sets for {}: {} sets found, hasMore: {}",
-                        gameId, resp.getSets().size(), resp.hasMore))
-        ).retryWhen(reactor.util.retry.Retry.backoff(5, Duration.ofSeconds(5))
-                    .maxBackoff(Duration.ofMinutes(2))
-                    .filter(throwable -> {
-                        if (throwable instanceof RuntimeException) {
-                            String message = throwable.getMessage();
-                            if (message != null && message.contains("HTTP 429")) {
-                                // Only retry if we successfully switched keys
-                                // If already on tertiary, don't retry (all keys exhausted)
-                                return switchToNextApiKey();
+                        gameId, resp.getSets().size(), resp.hasMore)))
+                .retryWhen(reactor.util.retry.Retry.backoff(5, Duration.ofSeconds(5))
+                        .maxBackoff(Duration.ofMinutes(2))
+                        .filter(throwable -> {
+                            if (throwable instanceof RuntimeException) {
+                                String message = throwable.getMessage();
+                                if (message != null && message.contains("HTTP 429")) {
+                                    // Only retry if we successfully switched keys
+                                    // If already on tertiary, don't retry (all keys exhausted)
+                                    return switchToNextApiKey();
+                                }
+                                // Always retry 500 errors
+                                return message != null && message.contains("HTTP 500");
                             }
-                            // Always retry 500 errors
-                            return message != null && message.contains("HTTP 500");
-                        }
-                        return false;
-                    })
-                    .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> retrySignal.failure())
-                    .doBeforeRetry(retrySignal -> {
-                        String keyType = switch (activeKeyIndex) {
-                            case 0 -> "PRIMARY";
-                            case 1 -> "SECONDARY";
-                            case 2 -> "TERTIARY";
-                            default -> "UNKNOWN";
-                        };
-                        logger.warn("Retrying getSetsPage for {} - attempt {} ({}) [Key: {}]",
-                            gameId, retrySignal.totalRetries() + 1, retrySignal.failure().getMessage(),
-                            keyType);
-                    })
-                )
+                            return false;
+                        })
+                        .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> retrySignal.failure())
+                        .doBeforeRetry(retrySignal -> {
+                            String keyType = switch (activeKeyIndex) {
+                                case 0 -> "PRIMARY";
+                                case 1 -> "SECONDARY";
+                                case 2 -> "TERTIARY";
+                                default -> "UNKNOWN";
+                            };
+                            logger.warn("Retrying getSetsPage for {} - attempt {} ({}) [Key: {}]",
+                                    gameId, retrySignal.totalRetries() + 1, retrySignal.failure().getMessage(),
+                                    keyType);
+                        }))
                 .onErrorResume(e -> {
                     logger.error("Error fetching sets for {}: {}", gameId, e.getMessage(), e);
                     return Mono.just(new TCGSetsResponse());
@@ -570,7 +581,8 @@ public class TCGApiClient {
     }
 
     private Mono<TCGCardsResponse> getCardsPageByGame(String gameId, int offset) {
-        // Use Mono.defer to rebuild the request on each retry, so the API key is re-evaluated
+        // Use Mono.defer to rebuild the request on each retry, so the API key is
+        // re-evaluated
         return Mono.defer(() -> webClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/cards")
@@ -595,36 +607,35 @@ public class TCGApiClient {
                     response.currentOffset = offset;
                     return response;
                 })
-                .timeout(Duration.ofMinutes(10))
-        ).retryWhen(reactor.util.retry.Retry.backoff(5, Duration.ofSeconds(5))
-                    .maxBackoff(Duration.ofMinutes(2))
-                    .filter(throwable -> {
-                        if (throwable instanceof RuntimeException) {
-                            String message = throwable.getMessage();
-                            if (message != null && message.contains("HTTP 429")) {
-                                // Only retry if we successfully switched keys
-                                // If already on tertiary, don't retry (all keys exhausted)
-                                return switchToNextApiKey();
+                .timeout(Duration.ofMinutes(10))).retryWhen(reactor.util.retry.Retry.backoff(5, Duration.ofSeconds(5))
+                        .maxBackoff(Duration.ofMinutes(2))
+                        .filter(throwable -> {
+                            if (throwable instanceof RuntimeException) {
+                                String message = throwable.getMessage();
+                                if (message != null && message.contains("HTTP 429")) {
+                                    // Only retry if we successfully switched keys
+                                    // If already on tertiary, don't retry (all keys exhausted)
+                                    return switchToNextApiKey();
+                                }
+                                // Always retry 500 errors
+                                return message != null && message.contains("HTTP 500");
                             }
-                            // Always retry 500 errors
-                            return message != null && message.contains("HTTP 500");
-                        }
-                        return false;
-                    })
-                    .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> retrySignal.failure())
-                    .doBeforeRetry(retrySignal -> {
-                        String keyType = switch (activeKeyIndex) {
-                            case 0 -> "PRIMARY";
-                            case 1 -> "SECONDARY";
-                            case 2 -> "TERTIARY";
-                            default -> "UNKNOWN";
-                        };
-                        logger.warn("[API] RETRY {}/5 for {} at offset {} - {} [Key: {}]",
-                            retrySignal.totalRetries() + 1, gameId, offset,
-                            retrySignal.failure().getMessage().substring(0, Math.min(50, retrySignal.failure().getMessage().length())),
-                            keyType);
-                    })
-                )
+                            return false;
+                        })
+                        .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> retrySignal.failure())
+                        .doBeforeRetry(retrySignal -> {
+                            String keyType = switch (activeKeyIndex) {
+                                case 0 -> "PRIMARY";
+                                case 1 -> "SECONDARY";
+                                case 2 -> "TERTIARY";
+                                default -> "UNKNOWN";
+                            };
+                            logger.warn("[API] RETRY {}/5 for {} at offset {} - {} [Key: {}]",
+                                    retrySignal.totalRetries() + 1, gameId, offset,
+                                    retrySignal.failure().getMessage().substring(0,
+                                            Math.min(50, retrySignal.failure().getMessage().length())),
+                                    keyType);
+                        }))
                 .onErrorResume(e -> {
                     logger.error("[API] FAILED for {} at offset {}: {}", gameId, offset, e.getMessage());
                     TCGCardsResponse errorResponse = new TCGCardsResponse();
@@ -637,7 +648,8 @@ public class TCGApiClient {
      * Fetch a page of cards for a set using offset-based pagination
      */
     private Mono<TCGCardsResponse> getCardsPageBySet(String setId, int offset) {
-        // Use Mono.defer to rebuild the request on each retry, so the API key is re-evaluated
+        // Use Mono.defer to rebuild the request on each retry, so the API key is
+        // re-evaluated
         return Mono.defer(() -> webClient.get()
                 .uri(uriBuilder -> uriBuilder
                         .path("/cards")
@@ -650,7 +662,8 @@ public class TCGApiClient {
                 .onStatus(status -> status.isError(), response -> {
                     return response.bodyToMono(String.class)
                             .flatMap(body -> {
-                                logger.error("[TCG API ERROR] getCardsPageBySet for set {}: HTTP {} - Response body: {}",
+                                logger.error(
+                                        "[TCG API ERROR] getCardsPageBySet for set {}: HTTP {} - Response body: {}",
                                         setId, response.statusCode().value(), body);
                                 // Don't switch key here - let retryWhen handle it
                                 return Mono.error(new RuntimeException(
@@ -663,35 +676,33 @@ public class TCGApiClient {
                     resp.currentOffset = offset;
                     logger.debug("Fetched cards page for set {}, offset: {}, count: {}, hasMore: {}",
                             setId, offset, resp.getCards().size(), resp.hasMore);
-                })
-        ).retryWhen(reactor.util.retry.Retry.backoff(5, Duration.ofSeconds(5))
-                    .maxBackoff(Duration.ofMinutes(2))
-                    .filter(throwable -> {
-                        if (throwable instanceof RuntimeException) {
-                            String message = throwable.getMessage();
-                            if (message != null && message.contains("HTTP 429")) {
-                                // Only retry if we successfully switched keys
-                                // If already on tertiary, don't retry (all keys exhausted)
-                                return switchToNextApiKey();
+                })).retryWhen(reactor.util.retry.Retry.backoff(5, Duration.ofSeconds(5))
+                        .maxBackoff(Duration.ofMinutes(2))
+                        .filter(throwable -> {
+                            if (throwable instanceof RuntimeException) {
+                                String message = throwable.getMessage();
+                                if (message != null && message.contains("HTTP 429")) {
+                                    // Only retry if we successfully switched keys
+                                    // If already on tertiary, don't retry (all keys exhausted)
+                                    return switchToNextApiKey();
+                                }
+                                // Always retry 500 errors
+                                return message != null && message.contains("HTTP 500");
                             }
-                            // Always retry 500 errors
-                            return message != null && message.contains("HTTP 500");
-                        }
-                        return false;
-                    })
-                    .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> retrySignal.failure())
-                    .doBeforeRetry(retrySignal -> {
-                        String keyType = switch (activeKeyIndex) {
-                            case 0 -> "PRIMARY";
-                            case 1 -> "SECONDARY";
-                            case 2 -> "TERTIARY";
-                            default -> "UNKNOWN";
-                        };
-                        logger.warn("Retrying getCardsPageBySet for set {} - attempt {} ({}) [Key: {}]",
-                            setId, retrySignal.totalRetries() + 1, retrySignal.failure().getMessage(),
-                            keyType);
-                    })
-                )
+                            return false;
+                        })
+                        .onRetryExhaustedThrow((retryBackoffSpec, retrySignal) -> retrySignal.failure())
+                        .doBeforeRetry(retrySignal -> {
+                            String keyType = switch (activeKeyIndex) {
+                                case 0 -> "PRIMARY";
+                                case 1 -> "SECONDARY";
+                                case 2 -> "TERTIARY";
+                                default -> "UNKNOWN";
+                            };
+                            logger.warn("Retrying getCardsPageBySet for set {} - attempt {} ({}) [Key: {}]",
+                                    setId, retrySignal.totalRetries() + 1, retrySignal.failure().getMessage(),
+                                    keyType);
+                        }))
                 .onErrorResume(e -> {
                     logger.error("Error fetching cards for set {}: {}", setId, e.getMessage(), e);
                     TCGCardsResponse errorResponse = new TCGCardsResponse();
@@ -703,13 +714,17 @@ public class TCGApiClient {
     // ===================== Import Logic =====================
 
     /**
-     * Import cards for NEW sets and EMPTY sets (sets with 0 cards) for a specific TCG type.
+     * Import cards for NEW sets and EMPTY sets (sets with 0 cards) for a specific
+     * TCG type.
      * Instead of offset-based pagination, this method:
      * 1. Fetches all sets from the API
-     * 2. Identifies which sets are NEW (not in database) or EMPTY (in database but with 0 cards)
-     * 3. Identifies sets with MISSING CARDS (cardCount in DB differs from actual cards)
+     * 2. Identifies which sets are NEW (not in database) or EMPTY (in database but
+     * with 0 cards)
+     * 3. Identifies sets with MISSING CARDS (cardCount in DB differs from actual
+     * cards)
      * 4. For each new/empty set, fetches all cards using the set parameter
-     * 5. For sets with missing cards, only imports the delta (cards not already in DB)
+     * 5. For sets with missing cards, only imports the delta (cards not already in
+     * DB)
      * 6. If a card fails to save, continues with the next card (no interruption)
      */
     public Mono<Integer> importCardsForTCG(TCGType tcgType) {
@@ -745,9 +760,33 @@ public class TCGApiClient {
         List<com.tcg.arena.model.TCGSet> emptySetsInDb = tcgSetRepository.findEmptySetsByTcgType(tcgType);
         logger.info("[IMPORT] [{}] Found {} existing sets with 0 cards", tcgType, emptySetsInDb.size());
 
-        // Load sets with missing cards (cardCount differs from actual cards in DB)
-        List<com.tcg.arena.model.TCGSet> setsWithMissingCards = tcgSetRepository.findSetsWithMissingCards(tcgType);
-        logger.info("[IMPORT] [{}] Found {} sets with missing cards (need delta import)", tcgType, setsWithMissingCards.size());
+        // Optimized: Fetch card counts for all sets in a single query
+        List<Object[]> setCountsRaw = cardTemplateRepository.countByTcgTypeGroupedBySetCode(tcgType);
+        Map<String, Long> actualCardCounts = setCountsRaw.stream()
+                .collect(Collectors.toMap(
+                        row -> (String) row[0],
+                        row -> (Long) row[1]));
+        logger.info("[IMPORT] [{}] Retrieved card counts for {} sets", tcgType, actualCardCounts.size());
+
+        // Find sets with missing cards in memory
+        // We need all sets for this TCG type to compare
+        List<com.tcg.arena.model.TCGSet> allDbSets = tcgSetRepository.findAllByExpansionTcgType(tcgType); // Ensure this
+                                                                                                          // method
+                                                                                                          // exists or
+                                                                                                          // use
+                                                                                                          // alternative
+
+        List<com.tcg.arena.model.TCGSet> setsWithMissingCards = allDbSets.stream()
+                .filter(set -> {
+                    if (set.getCardCount() == null || set.getCardCount() <= 0)
+                        return false;
+                    long actualCount = actualCardCounts.getOrDefault(set.getSetCode(), 0L);
+                    return actualCount < set.getCardCount();
+                })
+                .collect(Collectors.toList());
+
+        logger.info("[IMPORT] [{}] Found {} sets with missing cards (need delta import)", tcgType,
+                setsWithMissingCards.size());
 
         // Step 1: Fetch all sets from API
         return getAllSets(gameId)
@@ -782,9 +821,9 @@ public class TCGApiClient {
                         return Mono.just(0);
                     }
 
-                    logger.info("[IMPORT] [{}] PHASE 2: Found {} NEW sets, {} EMPTY sets, {} DELTA sets", 
+                    logger.info("[IMPORT] [{}] PHASE 2: Found {} NEW sets, {} EMPTY sets, {} DELTA sets",
                             tcgType, newSets.size(), emptyApiSets.size(), deltaApiSets.size());
-                    
+
                     for (TCGSet set : newSets) {
                         logger.info("[IMPORT] [{}]   - NEW: {} ({})", tcgType, set.name, set.id);
                     }
@@ -808,7 +847,8 @@ public class TCGApiClient {
                             .flatMap(fullCount -> deltaImportMono.map(deltaCount -> fullCount + deltaCount))
                             .doOnSuccess(total -> {
                                 stats.newCardsSaved = total;
-                                logImportCompleteNewSets(tcgType, stats, setsForFullImport.size() + deltaApiSets.size());
+                                logImportCompleteNewSets(tcgType, stats,
+                                        setsForFullImport.size() + deltaApiSets.size());
                             });
                 })
                 .doOnError(e -> {
@@ -831,22 +871,22 @@ public class TCGApiClient {
     public Map<String, Object> reloadSetFromApi(com.tcg.arena.model.TCGSet dbSet) {
         String setCode = dbSet.getSetCode();
         TCGType tcgType = dbSet.getExpansion() != null ? dbSet.getExpansion().getTcgType() : null;
-        
+
         if (tcgType == null) {
             throw new RuntimeException("Set has no expansion or TCG type defined");
         }
-        
-        logger.info("[RELOAD] Starting reload for set '{}' (code: {}, tcg: {})", 
+
+        logger.info("[RELOAD] Starting reload for set '{}' (code: {}, tcg: {})",
                 dbSet.getName(), setCode, tcgType.getDisplayName());
-        
+
         // Load existing card keys for this set (name|||setCode|||cardNumber)
         Set<String> existingCardKeys = cardTemplateRepository.findAllCardKeysBySetCode(setCode);
         logger.info("[RELOAD] Set '{}' has {} existing cards in DB", dbSet.getName(), existingCardKeys.size());
-        
-        final int[] savedCount = {0};
-        final int[] skippedCount = {0};
-        final int[] errorsCount = {0};
-        
+
+        final int[] savedCount = { 0 };
+        final int[] skippedCount = { 0 };
+        final int[] errorsCount = { 0 };
+
         // Fetch all cards for this set and only import missing ones
         getAllCardsForSet(setCode)
                 .doOnNext(card -> {
@@ -854,35 +894,35 @@ public class TCGApiClient {
                         errorsCount[0]++;
                         return;
                     }
-                    
+
                     // Build composite key for this card
                     String cardKey = card.name + "|||" + setCode + "|||" + (card.number != null ? card.number : "");
-                    
+
                     // Skip if card already exists
                     if (existingCardKeys.contains(cardKey)) {
                         skippedCount[0]++;
                         return;
                     }
-                    
+
                     try {
                         if (saveCardIfNotExists(card, dbSet, tcgType)) {
                             savedCount[0]++;
-                            logger.debug("[RELOAD] Saved new card: {} ({}) in set {}", 
+                            logger.debug("[RELOAD] Saved new card: {} ({}) in set {}",
                                     card.name, card.number, setCode);
                         } else {
                             skippedCount[0]++;
                         }
                     } catch (Exception e) {
                         errorsCount[0]++;
-                        logger.warn("[RELOAD] Error saving card '{}' in set '{}': {}", 
+                        logger.warn("[RELOAD] Error saving card '{}' in set '{}': {}",
                                 card.name, setCode, e.getMessage());
                     }
                 })
                 .blockLast(Duration.ofMinutes(30)); // Block and wait for completion
-        
+
         logger.info("[RELOAD] Set '{}' completed: {} new cards, {} skipped, {} errors",
                 dbSet.getName(), savedCount[0], skippedCount[0], errorsCount[0]);
-        
+
         Map<String, Object> result = new java.util.HashMap<>();
         result.put("setId", dbSet.getId());
         result.put("setCode", setCode);
@@ -892,13 +932,14 @@ public class TCGApiClient {
         result.put("errors", errorsCount[0]);
         result.put("totalExisting", existingCardKeys.size());
         result.put("success", true);
-        
+
         return result;
     }
 
     /**
      * Complete reset of a set from JustTCG API.
-     * This will DELETE ALL existing card templates for the set and reload everything from scratch.
+     * This will DELETE ALL existing card templates for the set and reload
+     * everything from scratch.
      * This is a destructive operation that cannot be undone.
      * 
      * @param dbSet The TCGSet from the database to reset
@@ -907,23 +948,23 @@ public class TCGApiClient {
     public Map<String, Object> resetSetFromApi(com.tcg.arena.model.TCGSet dbSet) {
         String setCode = dbSet.getSetCode();
         TCGType tcgType = dbSet.getExpansion() != null ? dbSet.getExpansion().getTcgType() : null;
-        
+
         if (tcgType == null) {
             throw new RuntimeException("Set has no expansion or TCG type defined");
         }
-        
-        logger.info("[RESET] Starting COMPLETE reset for set '{}' (code: {}, tcg: {})", 
+
+        logger.info("[RESET] Starting COMPLETE reset for set '{}' (code: {}, tcg: {})",
                 dbSet.getName(), setCode, tcgType.getDisplayName());
-        
+
         // Step 1: Fetch updated set metadata from API
         logger.info("[RESET] Fetching set metadata from API for '{}'", setCode);
         String gameId = TCG_TYPE_TO_GAME_ID.get(tcgType);
         if (gameId == null) {
             throw new RuntimeException("No game ID mapping found for TCG type: " + tcgType);
         }
-        
+
         logger.info("[RESET] Using game ID '{}' for TCG type '{}'", gameId, tcgType);
-        
+
         TCGSet apiSet = null;
         try {
             apiSet = getAllSets(gameId)
@@ -933,81 +974,89 @@ public class TCGApiClient {
             logger.error("[RESET] Error fetching sets from API for game '{}': {}", gameId, e.getMessage());
             throw new RuntimeException("Failed to fetch sets from API for game '" + gameId + "': " + e.getMessage());
         }
-        
+
         if (apiSet == null) {
             // Try to provide more debug information
-            logger.warn("[RESET] Set '{}' not found in API for game '{}'. Checking what sets are available...", setCode, gameId);
+            logger.warn("[RESET] Set '{}' not found in API for game '{}'. Checking what sets are available...", setCode,
+                    gameId);
             try {
                 List<TCGSet> availableSets = getAllSets(gameId)
                         .collectList()
                         .block(Duration.ofMinutes(2));
-                logger.warn("[RESET] Available sets in API for game '{}' (first 10): {}", gameId, 
-                        availableSets != null ? availableSets.stream().limit(10).map(s -> s.id + " (" + s.name + ")").toList() : "none");
+                logger.warn("[RESET] Available sets in API for game '{}' (first 10): {}", gameId,
+                        availableSets != null
+                                ? availableSets.stream().limit(10).map(s -> s.id + " (" + s.name + ")").toList()
+                                : "none");
             } catch (Exception e) {
                 logger.warn("[RESET] Could not fetch available sets list: {}", e.getMessage());
             }
-            throw new RuntimeException("Set '" + setCode + "' not found in API for game '" + gameId + "'. Check if the set code is correct or if the set still exists in the API.");
+            throw new RuntimeException("Set '" + setCode + "' not found in API for game '" + gameId
+                    + "'. Check if the set code is correct or if the set still exists in the API.");
         }
-        
+
         logger.info("[RESET] Found set in API: '{}' (cards: {})", apiSet.name, apiSet.cardsCount);
-        
+
         // Count existing cards before deletion
         int existingCardsCount = cardTemplateRepository.findAllCardKeysBySetCode(setCode).size();
-        logger.info("[RESET] Set '{}' has {} existing cards in DB - deleting them all", 
+        logger.info("[RESET] Set '{}' has {} existing cards in DB - deleting them all",
                 dbSet.getName(), existingCardsCount);
-        
-        // DELETE ALL dependent records first (to avoid foreign key constraint violations)
+
+        // DELETE ALL dependent records first (to avoid foreign key constraint
+        // violations)
         long dependentDeleteStartTime = System.currentTimeMillis();
-        
+
         // 1. Delete votes for cards in this set
         logger.info("[RESET] Deleting votes for cards in set '{}'", dbSet.getName());
         int deletedVotesCount = cardVoteRepository.deleteByCardTemplateSetCode(setCode);
         logger.info("[RESET] Deleted {} votes for set '{}'", deletedVotesCount, dbSet.getName());
-        
+
         // 2. Delete trade list entries for cards in this set
         logger.info("[RESET] Deleting trade list entries for cards in set '{}'", dbSet.getName());
         int deletedTradeListCount = tradeListEntryRepository.deleteByCardTemplateSetCode(setCode);
         logger.info("[RESET] Deleted {} trade list entries for set '{}'", deletedTradeListCount, dbSet.getName());
-        
+
         // 3. Delete inventory cards for cards in this set
         logger.info("[RESET] Deleting inventory cards for cards in set '{}'", dbSet.getName());
         int deletedInventoryCount = inventoryCardRepository.deleteByCardTemplateSetCode(setCode);
         logger.info("[RESET] Deleted {} inventory cards for set '{}'", deletedInventoryCount, dbSet.getName());
-        
+
         // 4. Delete user cards for cards in this set
         logger.info("[RESET] Deleting user cards for cards in set '{}'", dbSet.getName());
         int deletedCardsCount = cardRepository.deleteByCardTemplateSetCode(setCode);
         logger.info("[RESET] Deleted {} user cards for set '{}'", deletedCardsCount, dbSet.getName());
-        
+
         long dependentDeleteTime = System.currentTimeMillis() - dependentDeleteStartTime;
-        logger.info("[RESET] Successfully deleted all dependent records for set '{}' in {}ms (votes: {}, trade: {}, inventory: {}, cards: {})", 
-                dbSet.getName(), dependentDeleteTime, deletedVotesCount, deletedTradeListCount, deletedInventoryCount, deletedCardsCount);
-        
+        logger.info(
+                "[RESET] Successfully deleted all dependent records for set '{}' in {}ms (votes: {}, trade: {}, inventory: {}, cards: {})",
+                dbSet.getName(), dependentDeleteTime, deletedVotesCount, deletedTradeListCount, deletedInventoryCount,
+                deletedCardsCount);
+
         // DELETE ALL existing card templates for this set
         logger.info("[RESET] Starting deletion of {} cards for set '{}'", existingCardsCount, dbSet.getName());
         long startTime = System.currentTimeMillis();
         int deletedCount = 0;
-        
+
         try {
             deletedCount = cardTemplateRepository.deleteBySetCode(setCode);
             long deleteTime = System.currentTimeMillis() - startTime;
-            logger.info("[RESET] Successfully deleted {} card templates for set '{}' in {}ms", 
+            logger.info("[RESET] Successfully deleted {} card templates for set '{}' in {}ms",
                     deletedCount, dbSet.getName(), deleteTime);
         } catch (Exception e) {
             logger.error("[RESET] Failed to delete cards for set '{}': {}", dbSet.getName(), e.getMessage(), e);
-            throw new RuntimeException("Failed to delete existing cards for set '" + dbSet.getName() + "': " + e.getMessage(), e);
+            throw new RuntimeException(
+                    "Failed to delete existing cards for set '" + dbSet.getName() + "': " + e.getMessage(), e);
         }
-        
+
         // Now reload all cards from scratch using the existing import logic
         logger.info("[RESET] Starting full import for set '{}' from API", apiSet.name);
-        
-        final int[] importedCount = {0};
-        final int[] errorsCount = {0};
-        
+
+        final int[] importedCount = { 0 };
+        final int[] errorsCount = { 0 };
+
         // Now reload all cards from scratch using the existing import logic
         final String setName = apiSet.name; // Make effectively final for lambda usage
         logger.info("[RESET] Starting card import for '{}' (expecting {} cards)", setName, apiSet.cardsCount);
-        
+
         try {
             importCardsForSet(apiSet, tcgType, new ImportStats(tcgType.getDisplayName(), gameId, 0))
                     .doOnNext(count -> {
@@ -1019,19 +1068,19 @@ public class TCGApiClient {
                         logger.error("[RESET] Error importing cards for set '{}': {}", setName, error.getMessage());
                     })
                     .block(Duration.ofMinutes(30)); // Block and wait for completion
-            
-            logger.info("[RESET] Card import completed for '{}' - imported: {}, errors: {}", 
+
+            logger.info("[RESET] Card import completed for '{}' - imported: {}, errors: {}",
                     setName, importedCount[0], errorsCount[0]);
-                    
+
         } catch (Exception e) {
-            logger.error("[RESET] Card import failed for '{}' after {} minutes: {}", 
+            logger.error("[RESET] Card import failed for '{}' after {} minutes: {}",
                     setName, 30, e.getMessage(), e);
             throw new RuntimeException("Card import failed for set '" + setName + "': " + e.getMessage(), e);
         }
-        
+
         logger.info("[RESET] Set '{}' reset completed: {} cards deleted, {} cards imported, {} errors",
                 setName, deletedCount, importedCount[0], errorsCount[0]);
-        
+
         Map<String, Object> result = new java.util.HashMap<>();
         result.put("setId", dbSet.getId());
         result.put("setCode", setCode);
@@ -1041,13 +1090,14 @@ public class TCGApiClient {
         result.put("errors", errorsCount[0]);
         result.put("previousTotal", existingCardsCount);
         result.put("success", true);
-        
+
         return result;
     }
 
     /**
      * Import ONLY missing cards for a specific set (delta import).
-     * Compares cards from API with existing cards in DB and only imports the difference.
+     * Compares cards from API with existing cards in DB and only imports the
+     * difference.
      * Uses composite key (name + setCode + cardNumber) to identify missing cards.
      */
     private Mono<Integer> importDeltaCardsForSet(TCGSet apiSet, TCGType tcgType, ImportStats stats) {
@@ -1063,14 +1113,15 @@ public class TCGApiClient {
         }
 
         final com.tcg.arena.model.TCGSet finalTcgSet = tcgSet;
-        
+
         // Load existing card keys for this set (name|||setCode|||cardNumber)
         Set<String> existingCardKeys = cardTemplateRepository.findAllCardKeysBySetCode(apiSet.id);
-        logger.info("[IMPORT] [{}] Set '{}' has {} existing cards in DB", tcgType, apiSet.name, existingCardKeys.size());
+        logger.info("[IMPORT] [{}] Set '{}' has {} existing cards in DB", tcgType, apiSet.name,
+                existingCardKeys.size());
 
-        final int[] savedInSet = {0};
-        final int[] skippedInSet = {0};
-        final int[] errorsInSet = {0};
+        final int[] savedInSet = { 0 };
+        final int[] skippedInSet = { 0 };
+        final int[] errorsInSet = { 0 };
 
         // Fetch all cards for this set and only import missing ones
         return getAllCardsForSet(apiSet.id)
@@ -1082,7 +1133,7 @@ public class TCGApiClient {
 
                     // Build composite key for this card
                     String cardKey = card.name + "|||" + apiSet.id + "|||" + (card.number != null ? card.number : "");
-                    
+
                     // Skip if card already exists
                     if (existingCardKeys.contains(cardKey)) {
                         skippedInSet[0]++;
@@ -1109,7 +1160,8 @@ public class TCGApiClient {
                 .doOnSuccess(count -> {
                     stats.totalCardsProcessed += savedInSet[0] + skippedInSet[0] + errorsInSet[0];
                     stats.errors += errorsInSet[0];
-                    logger.info("[IMPORT] [{}] DELTA Set '{}' completed: {} new cards, {} skipped (existing), {} errors",
+                    logger.info(
+                            "[IMPORT] [{}] DELTA Set '{}' completed: {} new cards, {} skipped (existing), {} errors",
                             tcgType, apiSet.name, savedInSet[0], skippedInSet[0], errorsInSet[0]);
                 })
                 .delaySubscription(Duration.ofMillis(API_DELAY_MS));
@@ -1133,8 +1185,8 @@ public class TCGApiClient {
         }
 
         final com.tcg.arena.model.TCGSet finalTcgSet = tcgSet;
-        final int[] savedInSet = {0};
-        final int[] errorsInSet = {0};
+        final int[] savedInSet = { 0 };
+        final int[] errorsInSet = { 0 };
 
         // Fetch all cards for this set using pagination
         return getAllCardsForSet(apiSet.id)
@@ -1195,13 +1247,15 @@ public class TCGApiClient {
         logger.info("╠══════════════════════════════════════════════════════════════");
         logger.info("║ Game ID     : {}", gameId);
         logger.info("║ Start Offset: {}", startOffset);
-        logger.info("║ Status      : {}", progress != null && progress.isComplete() ? "Previously completed" : "In progress");
+        logger.info("║ Status      : {}",
+                progress != null && progress.isComplete() ? "Previously completed" : "In progress");
         logger.info("║ Last Updated: {}", progress != null ? progress.getLastUpdated() : "Never");
         logger.info("╚══════════════════════════════════════════════════════════════");
     }
 
     private void logProgress(TCGType tcgType, ImportStats stats) {
-        logger.info("[IMPORT] [{}] PROGRESS | Pages: {} | Cards: {} | New: {} | Updated: {} | Errors: {} | Time: {} | Speed: {} cards/s",
+        logger.info(
+                "[IMPORT] [{}] PROGRESS | Pages: {} | Cards: {} | New: {} | Updated: {} | Errors: {} | Time: {} | Speed: {} cards/s",
                 tcgType,
                 stats.pagesProcessed,
                 stats.totalCardsProcessed,
@@ -1328,7 +1382,8 @@ public class TCGApiClient {
     }
 
     // Update progress - simplified version that creates or updates by TCGType
-    // Uses REQUIRES_NEW to ensure immediate persistence even if parent transaction fails
+    // Uses REQUIRES_NEW to ensure immediate persistence even if parent transaction
+    // fails
     @Transactional(propagation = org.springframework.transaction.annotation.Propagation.REQUIRES_NEW)
     public void updateProgress(TCGType tcgType, int offset, boolean complete) {
         ImportProgress p = importProgressRepository.findByTcgType(tcgType).orElseGet(() -> {
@@ -1350,7 +1405,8 @@ public class TCGApiClient {
      * Get or create TCGSet for a card (simplified method for direct card import)
      */
     @Transactional
-    private synchronized com.tcg.arena.model.TCGSet getOrCreateTCGSetForCard(String setId, String setName, TCGType tcgType) {
+    private synchronized com.tcg.arena.model.TCGSet getOrCreateTCGSetForCard(String setId, String setName,
+            TCGType tcgType) {
         // Check cache first
         if (tcgSetCache.containsKey(setId)) {
             return tcgSetCache.get(setId);
@@ -1360,12 +1416,13 @@ public class TCGApiClient {
         Optional<com.tcg.arena.model.TCGSet> existingSet = tcgSetRepository.findBySetCode(setId);
         if (existingSet.isPresent()) {
             com.tcg.arena.model.TCGSet existing = existingSet.get();
-            
-            // Preserve manually modified release date - don't update from API for this method
+
+            // Preserve manually modified release date - don't update from API for this
+            // method
             // since we don't have the API data here
-            logger.debug("Using existing TCGSet: {} (release date preserved: {})", 
-                existing.getName(), existing.getReleaseDate());
-            
+            logger.debug("Using existing TCGSet: {} (release date preserved: {})",
+                    existing.getName(), existing.getReleaseDate());
+
             tcgSetCache.put(setId, existing);
             return existing;
         }
@@ -1408,7 +1465,7 @@ public class TCGApiClient {
             // If manually modified, preserve ALL fields - don't update anything from API
             if (existing.getReleaseDateModifiedManually() != null && existing.getReleaseDateModifiedManually()) {
                 logger.debug("Set '{}' was manually modified - preserving all fields (date: {})",
-                    existing.getName(), existing.getReleaseDate());
+                        existing.getName(), existing.getReleaseDate());
                 tcgSetCache.put(cacheKey, existing);
                 return existing;
             }
@@ -1710,28 +1767,29 @@ public class TCGApiClient {
             logger.debug("Checking for new data in {} at offset {}", gameId, currentOffset);
             TCGCardsResponse response = getCardsPageByGame(gameId, currentOffset)
                     .block(); // Method already has timeout handling
-            
+
             if (response == null) {
                 logger.warn("Null response when checking for new data");
                 return false;
             }
-            
+
             List<TCGCard> cards = response.getCards();
             boolean hasData = cards != null && !cards.isEmpty();
-            
-            logger.info("New data check for {} at offset {}: {} cards found", 
+
+            logger.info("New data check for {} at offset {}: {} cards found",
                     gameId, currentOffset, cards != null ? cards.size() : 0);
-            
+
             return hasData;
         } catch (Exception e) {
-            logger.error("Error checking for new data in {} at offset {}: {}", 
+            logger.error("Error checking for new data in {} at offset {}: {}",
                     gameId, currentOffset, e.getMessage());
             // On error, assume no new data to be safe
             return false;
         }
     }
 
-    // ===================== Scryfall-specific methods for Magic =====================
+    // ===================== Scryfall-specific methods for Magic
+    // =====================
 
     /**
      * Import Magic cards using Scryfall bulk data
@@ -1759,7 +1817,8 @@ public class TCGApiClient {
     }
 
     /**
-     * Import Magic delta using Scryfall search API (only new cards since last import)
+     * Import Magic delta using Scryfall search API (only new cards since last
+     * import)
      */
     public Mono<Integer> importMagicDelta() {
         return Mono.fromCallable(() -> {
@@ -2021,7 +2080,7 @@ public class TCGApiClient {
         logger.info("Searching Scryfall for: {}", query);
 
         try {
-            final int[] totalImported = {0};
+            final int[] totalImported = { 0 };
             int page = 1;
             boolean hasMore = true;
 
@@ -2321,8 +2380,10 @@ public class TCGApiClient {
                 })
                 .bodyToMono(TCGDexSet.class)
                 .timeout(Duration.ofMinutes(5))
-                .doOnSuccess(set -> logger.info("[TCGDEX] Fetched set info for '{}': {} cards", setCode, set.getTotalCardCount()))
-                .doOnError(error -> logger.error("[TCGDEX] Failed to fetch set '{}' from TCGDex: {}", setCode, error.getMessage()));
+                .doOnSuccess(set -> logger.info("[TCGDEX] Fetched set info for '{}': {} cards", setCode,
+                        set.getTotalCardCount()))
+                .doOnError(error -> logger.error("[TCGDEX] Failed to fetch set '{}' from TCGDex: {}", setCode,
+                        error.getMessage()));
     }
 
     /**
@@ -2336,7 +2397,8 @@ public class TCGApiClient {
                 .onStatus(status -> status.isError(), response -> {
                     return response.bodyToMono(String.class)
                             .flatMap(body -> {
-                                logger.error("[TCGDEX API ERROR] getTcgDexCardsForSet basic list for {}: HTTP {} - Response body: {}",
+                                logger.error(
+                                        "[TCGDEX API ERROR] getTcgDexCardsForSet basic list for {}: HTTP {} - Response body: {}",
                                         setCode, response.statusCode().value(), body);
                                 return Mono.error(new RuntimeException(
                                         "TCGDex API error: HTTP " + response.statusCode().value() + " - " + body));
@@ -2345,7 +2407,9 @@ public class TCGApiClient {
                 .bodyToFlux(TCGDexCardBasic.class)
                 .timeout(Duration.ofMinutes(5))
                 .doOnNext(card -> logger.debug("[TCGDEX] Found card '{}' in set '{}'", card.name, setCode))
-                .doOnError(error -> logger.error("[TCGDEX] Failed to fetch basic card list for set '{}' from TCGDex: {}", setCode, error.getMessage()))
+                .doOnError(
+                        error -> logger.error("[TCGDEX] Failed to fetch basic card list for set '{}' from TCGDex: {}",
+                                setCode, error.getMessage()))
                 // For each basic card, fetch detailed information
                 .concatMap(basicCard -> getTcgDexCardDetails(basicCard.id))
                 .timeout(Duration.ofMinutes(10));
@@ -2361,7 +2425,8 @@ public class TCGApiClient {
                 .onStatus(status -> status.isError(), response -> {
                     return response.bodyToMono(String.class)
                             .flatMap(body -> {
-                                logger.error("[TCGDEX API ERROR] getTcgDexCardDetails for {}: HTTP {} - Response body: {}",
+                                logger.error(
+                                        "[TCGDEX API ERROR] getTcgDexCardDetails for {}: HTTP {} - Response body: {}",
                                         cardId, response.statusCode().value(), body);
                                 return Mono.error(new RuntimeException(
                                         "TCGDex API error: HTTP " + response.statusCode().value() + " - " + body));
@@ -2370,15 +2435,17 @@ public class TCGApiClient {
                 .bodyToMono(TCGDexCard.class)
                 .timeout(Duration.ofMinutes(2))
                 .doOnSuccess(card -> logger.debug("[TCGDEX] Fetched detailed info for card '{}'", cardId))
-                .doOnError(error -> logger.error("[TCGDEX] Failed to fetch card details for '{}' from TCGDex: {}", cardId, error.getMessage()));
+                .doOnError(error -> logger.error("[TCGDEX] Failed to fetch card details for '{}' from TCGDex: {}",
+                        cardId, error.getMessage()));
     }
 
     /**
      * Complete reset of a set from TCGDex API.
-     * This will DELETE ALL existing card templates for the set and reload everything from TCGDex API.
+     * This will DELETE ALL existing card templates for the set and reload
+     * everything from TCGDex API.
      * This is a destructive operation that cannot be undone.
      *
-     * @param dbSet The TCGSet from the database to reset
+     * @param dbSet         The TCGSet from the database to reset
      * @param tcgDexSetCode The set code to use for TCGDex API lookup
      * @return Map with reset results (deleted, imported, errors)
      */
@@ -2401,7 +2468,8 @@ public class TCGApiClient {
                     .block(Duration.ofMinutes(5));
         } catch (Exception e) {
             logger.error("[TCGDEX RESET] Error fetching set '{}' from TCGDex API: {}", tcgDexSetCode, e.getMessage());
-            throw new RuntimeException("Failed to fetch set '" + tcgDexSetCode + "' from TCGDex API: " + e.getMessage());
+            throw new RuntimeException(
+                    "Failed to fetch set '" + tcgDexSetCode + "' from TCGDex API: " + e.getMessage());
         }
 
         if (tcgDexSet == null) {
@@ -2416,7 +2484,8 @@ public class TCGApiClient {
         logger.info("[TCGDEX RESET] Set '{}' has {} existing cards in DB - deleting them all",
                 dbSet.getName(), existingCardsCount);
 
-        // DELETE ALL dependent records first (to avoid foreign key constraint violations)
+        // DELETE ALL dependent records first (to avoid foreign key constraint
+        // violations)
         long dependentDeleteStartTime = System.currentTimeMillis();
 
         // 1. Delete votes for cards in this set
@@ -2427,7 +2496,8 @@ public class TCGApiClient {
         // 2. Delete trade list entries for cards in this set
         logger.info("[TCGDEX RESET] Deleting trade list entries for cards in set '{}'", dbSet.getName());
         int deletedTradeListCount = tradeListEntryRepository.deleteByCardTemplateSetCode(setCode);
-        logger.info("[TCGDEX RESET] Deleted {} trade list entries for set '{}'", deletedTradeListCount, dbSet.getName());
+        logger.info("[TCGDEX RESET] Deleted {} trade list entries for set '{}'", deletedTradeListCount,
+                dbSet.getName());
 
         // 3. Delete inventory cards for cards in this set
         logger.info("[TCGDEX RESET] Deleting inventory cards for cards in set '{}'", dbSet.getName());
@@ -2440,8 +2510,10 @@ public class TCGApiClient {
         logger.info("[TCGDEX RESET] Deleted {} user cards for set '{}'", deletedCardsCount, dbSet.getName());
 
         long dependentDeleteTime = System.currentTimeMillis() - dependentDeleteStartTime;
-        logger.info("[TCGDEX RESET] Successfully deleted all dependent records for set '{}' in {}ms (votes: {}, trade: {}, inventory: {}, cards: {})",
-                dbSet.getName(), dependentDeleteTime, deletedVotesCount, deletedTradeListCount, deletedInventoryCount, deletedCardsCount);
+        logger.info(
+                "[TCGDEX RESET] Successfully deleted all dependent records for set '{}' in {}ms (votes: {}, trade: {}, inventory: {}, cards: {})",
+                dbSet.getName(), dependentDeleteTime, deletedVotesCount, deletedTradeListCount, deletedInventoryCount,
+                deletedCardsCount);
 
         // DELETE ALL existing card templates for this set
         logger.info("[TCGDEX RESET] Starting deletion of {} cards for set '{}'", existingCardsCount, dbSet.getName());
@@ -2455,14 +2527,15 @@ public class TCGApiClient {
                     deletedCount, dbSet.getName(), deleteTime);
         } catch (Exception e) {
             logger.error("[TCGDEX RESET] Failed to delete cards for set '{}': {}", dbSet.getName(), e.getMessage(), e);
-            throw new RuntimeException("Failed to delete existing cards for set '" + dbSet.getName() + "': " + e.getMessage(), e);
+            throw new RuntimeException(
+                    "Failed to delete existing cards for set '" + dbSet.getName() + "': " + e.getMessage(), e);
         }
 
         // Now reload all cards from TCGDex API
         logger.info("[TCGDEX RESET] Starting full import for set '{}' from TCGDex API", tcgDexSet.name);
 
-        final int[] importedCount = {0};
-        final int[] errorsCount = {0};
+        final int[] importedCount = { 0 };
+        final int[] errorsCount = { 0 };
 
         try {
             getTcgDexCardsForSet(tcgDexSetCode)
@@ -2475,8 +2548,9 @@ public class TCGApiClient {
                         try {
                             // Check for existing card (shouldn't exist after delete, but be safe)
                             String cardNumber = card.getCardNumber();
-                            List<CardTemplate> existing = cardTemplateRepository.findByNameAndSetCodeAndCardNumberIncludingNA(
-                                    card.name, setCode, cardNumber);
+                            List<CardTemplate> existing = cardTemplateRepository
+                                    .findByNameAndSetCodeAndCardNumberIncludingNA(
+                                            card.name, setCode, cardNumber);
 
                             if (!existing.isEmpty()) {
                                 logger.warn("[TCGDEX RESET] Card '{}' ({}) already exists for set '{}' - skipping",
@@ -2500,7 +2574,8 @@ public class TCGApiClient {
                                 // Prefer CardMarket average price, fallback to TCGPlayer market price
                                 if (card.pricing.cardmarket != null && card.pricing.cardmarket.avg != null) {
                                     price = card.pricing.cardmarket.avg;
-                                } else if (card.pricing.tcgplayer != null && card.pricing.tcgplayer.normal != null && card.pricing.tcgplayer.normal.marketPrice != null) {
+                                } else if (card.pricing.tcgplayer != null && card.pricing.tcgplayer.normal != null
+                                        && card.pricing.tcgplayer.normal.marketPrice != null) {
                                     price = card.pricing.tcgplayer.normal.marketPrice;
                                 }
                                 if (price != null) {

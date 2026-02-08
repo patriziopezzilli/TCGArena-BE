@@ -94,13 +94,18 @@ public class UserService {
         if (user.getIsMerchant() == null) {
             user.setIsMerchant(false);
         }
+        // Check if new user
+        boolean isNewUser = user.getId() == null;
+
         // Save the user first
         User savedUser = userRepository.save(user);
 
-        // Log user registration activity
-        userActivityService.logActivity(savedUser.getId(),
-                com.tcg.arena.model.ActivityType.USER_REGISTERED,
-                "Si è iscritto a TCG Arena");
+        // Log user registration activity only for new users
+        if (isNewUser) {
+            userActivityService.logActivity(savedUser.getId(),
+                    com.tcg.arena.model.ActivityType.USER_REGISTERED,
+                    "Si è iscritto a TCG Arena");
+        }
 
         // Migrate existing decks to have default deck type
         deckService.migrateExistingDecksToDefaultType();
