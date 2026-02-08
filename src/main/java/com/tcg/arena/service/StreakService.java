@@ -103,7 +103,7 @@ public class StreakService {
             // Return default empty streak
             return new UserRatingStreakDTO(
                     0, 0, 0, 0, 0, null,
-                    MILESTONES[0], 0, false);
+                    MILESTONES[0], 0, false, 0);
         }
 
         LocalDate today = LocalDate.now();
@@ -121,6 +121,11 @@ public class StreakService {
         int nextMilestone = calculateNextMilestone(currentStreak);
         int daysToNextMilestone = nextMilestone - currentStreak;
 
+        // Calculate rank based on total votes
+        // Rank is number of people with more votes + 1
+        long usersWithMoreVotes = streakRepository.countByTotalVotesGreaterThan(streak.getTotalVotes());
+        int rank = (int) usersWithMoreVotes + 1;
+
         return new UserRatingStreakDTO(
                 currentStreak,
                 streak.getLongestStreak(),
@@ -130,7 +135,8 @@ public class StreakService {
                 streak.getLastRatingDate(),
                 nextMilestone,
                 daysToNextMilestone,
-                ratedToday);
+                ratedToday,
+                rank);
     }
 
     /**

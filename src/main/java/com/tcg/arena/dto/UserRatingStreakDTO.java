@@ -12,13 +12,14 @@ public class UserRatingStreakDTO {
     private Integer nextMilestone;
     private Integer pointsToNextMilestone;
     private Boolean ratedToday;
+    private Integer rank;
 
     public UserRatingStreakDTO() {
     }
 
     public UserRatingStreakDTO(Integer currentStreak, Integer longestStreak, Integer totalVotes,
             Integer streakBreaks, Integer totalRatingDays, LocalDate lastRatingDate,
-            Integer nextMilestone, Integer pointsToNextMilestone, Boolean ratedToday) {
+            Integer nextMilestone, Integer pointsToNextMilestone, Boolean ratedToday, Integer rank) {
         this.currentStreak = currentStreak;
         this.longestStreak = longestStreak;
         this.totalVotes = totalVotes;
@@ -28,6 +29,7 @@ public class UserRatingStreakDTO {
         this.nextMilestone = nextMilestone;
         this.pointsToNextMilestone = pointsToNextMilestone;
         this.ratedToday = ratedToday;
+        this.rank = rank;
     }
 
     // Getters and Setters
@@ -101,5 +103,13 @@ public class UserRatingStreakDTO {
 
     public void setRatedToday(Boolean ratedToday) {
         this.ratedToday = ratedToday;
+    }
+
+    public Integer getRank() {
+        return rank;
+    }
+
+    public void setRank(Integer rank) {
+        this.rank = rank;
     }
 }
