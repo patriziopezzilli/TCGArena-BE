@@ -14,87 +14,88 @@ import java.util.List;
 
 @Repository
 public interface InventoryCardRepository extends JpaRepository<InventoryCard, String> {
-    
+
     /**
      * Find all inventory cards for a specific shop
      */
     Page<InventoryCard> findByShopId(Long shopId, Pageable pageable);
-    
+
     /**
      * Find inventory cards by shop and condition
      */
     Page<InventoryCard> findByShopIdAndCondition(
-        Long shopId, 
-        InventoryCard.CardCondition condition, 
-        Pageable pageable
-    );
-    
+            Long shopId,
+            InventoryCard.CardCondition condition,
+            Pageable pageable);
+
     /**
      * Complex search with filters
      */
     @Query("""
-        SELECT i FROM InventoryCard i
-        JOIN CardTemplate ct ON ct.id = i.cardTemplateId
-        WHERE i.shopId = :shopId
-        AND (:tcgType IS NULL OR CAST(ct.tcgType AS string) = :tcgType)
-        AND (:condition IS NULL OR i.condition = :condition)
-        AND (:minPrice IS NULL OR i.price >= :minPrice)
-        AND (:maxPrice IS NULL OR i.price <= :maxPrice)
-        AND (:searchQuery IS NULL OR 
-             LOWER(ct.name) LIKE LOWER(CONCAT('%', :searchQuery, '%')) OR
-             LOWER(ct.setCode) LIKE LOWER(CONCAT('%', :searchQuery, '%')))
-        AND i.quantity > 0
-        """)
+            SELECT i FROM InventoryCard i
+            JOIN CardTemplate ct ON ct.id = i.cardTemplateId
+            WHERE i.shopId = :shopId
+            AND (:tcgType IS NULL OR CAST(ct.tcgType AS string) = :tcgType)
+            AND (:condition IS NULL OR i.condition = :condition)
+            AND (:minPrice IS NULL OR i.price >= :minPrice)
+            AND (:maxPrice IS NULL OR i.price <= :maxPrice)
+            AND (:searchQuery IS NULL OR
+                 LOWER(ct.name) LIKE LOWER(CONCAT('%', :searchQuery, '%')) OR
+                 LOWER(ct.setCode) LIKE LOWER(CONCAT('%', :searchQuery, '%')))
+            AND i.quantity > 0
+            """)
     Page<InventoryCard> searchInventory(
-        @Param("shopId") Long shopId,
-        @Param("tcgType") String tcgType,
-        @Param("condition") InventoryCard.CardCondition condition,
-        @Param("minPrice") Double minPrice,
-        @Param("maxPrice") Double maxPrice,
-        @Param("searchQuery") String searchQuery,
-        Pageable pageable
-    );
-    
+            @Param("shopId") Long shopId,
+            @Param("tcgType") String tcgType,
+            @Param("condition") InventoryCard.CardCondition condition,
+            @Param("minPrice") Double minPrice,
+            @Param("maxPrice") Double maxPrice,
+            @Param("searchQuery") String searchQuery,
+            Pageable pageable);
+
     /**
      * Find by card template ID and shop
      */
     List<InventoryCard> findByCardTemplateIdAndShopId(Long cardTemplateId, Long shopId);
-    
+
     /**
      * Find by shop ID and card template ID (convenience method)
      */
     List<InventoryCard> findByShopIdAndCardTemplateId(Long shopId, Long cardTemplateId);
-    
+
     /**
      * Count inventory items by shop
      */
     long countByShopId(Long shopId);
-    
+
     /**
      * Count low stock items (optimized for dashboard)
      */
     @Query("""
-        SELECT COUNT(i) FROM InventoryCard i
-        WHERE i.shopId = :shopId
-        AND i.quantity > 0
-        AND i.quantity <= :threshold
-        """)
+            SELECT COUNT(i) FROM InventoryCard i
+            WHERE i.shopId = :shopId
+            AND i.quantity > 0
+            AND i.quantity <= :threshold
+            """)
     long countLowStockItems(@Param("shopId") Long shopId, @Param("threshold") int threshold);
-    
+
     /**
      * Find low stock items (quantity <= threshold)
      */
     @Query("""
-        SELECT i FROM InventoryCard i
-        WHERE i.shopId = :shopId
-        AND i.quantity > 0
-        AND i.quantity <= :threshold
-        ORDER BY i.quantity ASC
-        """)
+            SELECT i FROM InventoryCard i
+            WHERE i.shopId = :shopId
+            AND i.quantity > 0
+            AND i.quantity <= :threshold
+            ORDER BY i.quantity ASC
+            """)
     List<InventoryCard> findLowStockItems(@Param("shopId") Long shopId, @Param("threshold") int threshold);
 
     @Modifying
     @Transactional
     @Query("DELETE FROM InventoryCard ic WHERE ic.cardTemplate.setCode = :setCode")
     int deleteByCardTemplateSetCode(@Param("setCode") String setCode);
+
+    @Query("SELECT COUNT(i) FROM InventoryCard i JOIN CardTemplate ct ON i.cardTemplateId = ct.id WHERE i.createdAt >= :since AND CAST(ct.tcgType as string) = :tcgType")
+    long countRecentlyAdded(@Param("tcgType") String tcgType, @Param("since") java.time.LocalDateTime since);
 }

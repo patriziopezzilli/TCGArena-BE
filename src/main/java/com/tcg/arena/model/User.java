@@ -79,6 +79,8 @@ public class User {
     @Column(nullable = false, columnDefinition = "VARCHAR(5) DEFAULT 'it'")
     private String locale = "it"; // User's preferred language (it, en)
 
+    private LocalDateTime lastLogin;
+
     // Getters and Setters
     public Long getId() {
         return id;
@@ -327,5 +329,13 @@ public class User {
 
     public void setLocale(String locale) {
         this.locale = locale;
+    }
+
+    public LocalDateTime getLastLogin() {
+        return lastLogin;
+    }
+
+    public void setLastLogin(LocalDateTime lastLogin) {
+        this.lastLogin = lastLogin;
     }
 }

@@ -64,6 +64,41 @@ public class TradeService {
         entry.setCardTemplate(cardTemplate);
         entry.setType(type);
         tradeListEntryRepository.save(entry);
+
+        // WISHLIST RADAR: If checking "HAVE", notify users who "WANT"
+        if (type == TradeListType.HAVE) {
+            notifyNearbyWishlistUsers(user, cardTemplate);
+        }
+    }
+
+    private void notifyNearbyWishlistUsers(User uploader, CardTemplate card) {
+        // Find users who WANT this card
+        List<TradeListEntry> wantEntries = tradeListEntryRepository.findByCardTemplateIdAndType(card.getId(),
+                TradeListType.WANT);
+
+        for (TradeListEntry wantEntry : wantEntries) {
+            User interestedUser = wantEntry.getUser();
+
+            // Skip self
+            if (interestedUser.getId().equals(uploader.getId()))
+                continue;
+
+            // Check distance (e.g. 50km raduis)
+            if (isWithinRadius(uploader, interestedUser, 50.0)) {
+                boolean isEnglish = "en".equalsIgnoreCase(interestedUser.getLocale());
+                String title = isEnglish ? "🎯 Found nearby!" : "🎯 Trovato in zona!";
+                String message = isEnglish
+                        ? String.format("Someone nearby has '%s' available!", card.getName())
+                        : String.format("Qualcuno vicino a te ha '%s' disponibile!", card.getName());
+
+                // We can add deep link to the user's profile or trade creation
+                java.util.Map<String, String> data = java.util.Map.of(
+                        "type", "profile",
+                        "id", uploader.getId().toString());
+
+                notificationService.sendPushNotification(interestedUser.getId(), title, message, data);
+            }
+        }
     }
 
     @Transactional
@@ -317,14 +352,16 @@ public class TradeService {
 
         // Send Push Notification to the other user
         User recipient = match.getUser1().getId().equals(senderId) ? match.getUser2() : match.getUser1();
-        String title = "Nuovo messaggio da " + sender.getUsername().toLowerCase();
-        
+        boolean isEnglish = "en".equalsIgnoreCase(recipient.getLocale());
+        String title = isEnglish
+                ? "New message from " + sender.getUsername().toLowerCase()
+                : "Nuovo messaggio da " + sender.getUsername().toLowerCase();
+
         // Add deep linking data for trade chat
         Map<String, String> notificationData = Map.of(
-            "type", "trade",
-            "id", matchId.toString(),
-            "action", "view"
-        );
+                "type", "trade",
+                "id", matchId.toString(),
+                "action", "view");
         notificationService.sendPushNotification(recipient.getId(), title, content, notificationData);
     }
 
@@ -390,6 +427,16 @@ public class TradeService {
                 .map(e -> e.getCardTemplate().getId()).collect(Collectors.toSet());
 
         List<TradeListEntry> toRemove = new ArrayList<>();
+
+        // Use user locale for summary?? Probably hard to localize shared message.
+        // Let's keep it IT for now as it's a persisted chat message.
+        // Actually, we can check who is receiving the message.
+        // But sendMessage saves to DB.
+        // Let's keep the content in Italian/Default for the chat history,
+        // as chat is likely between users who speak same language or English.
+        // Or we can try to localize based on sender?
+        // The summary is a system message.
+
         StringBuilder summary = new StringBuilder("🤝 Scambio Concluso!\n\nCarte scambiate:\n");
         boolean hasTrades = false;
 
@@ -436,28 +483,32 @@ public class TradeService {
             // Email to user1
             if (shouldSendTradeNotification(match.getUser1())) {
                 emailService.sendTradeCompleted(
-                    match.getUser1(),
-                    match.getUser2().getUsername(),
-                    matchId
-                );
+                        match.getUser1(),
+                        match.getUser2().getUsername(),
+                        matchId);
             }
             // Email to user2
             if (shouldSendTradeNotification(match.getUser2())) {
                 emailService.sendTradeCompleted(
-                    match.getUser2(),
-                    match.getUser1().getUsername(),
-                    matchId
-                );
+                        match.getUser2(),
+                        match.getUser1().getUsername(),
+                        matchId);
             }
         } catch (Exception e) {
             logger.error("Failed to send trade completed emails for match: {}", matchId, e);
         }
 
         // Award Loyalty Points
-        rewardService.earnPoints(match.getUser1().getId(), 50,
-                "Scambio completato con " + match.getUser2().getUsername());
-        rewardService.earnPoints(match.getUser2().getId(), 50,
-                "Scambio completato con " + match.getUser1().getUsername());
+        String awardMessageU1 = "en".equalsIgnoreCase(match.getUser1().getLocale())
+                ? "Trade completed with " + match.getUser2().getUsername()
+                : "Scambio completato con " + match.getUser2().getUsername();
+
+        String awardMessageU2 = "en".equalsIgnoreCase(match.getUser2().getLocale())
+                ? "Trade completed with " + match.getUser1().getUsername()
+                : "Scambio completato con " + match.getUser1().getUsername();
+
+        rewardService.earnPoints(match.getUser1().getId(), 50, awardMessageU1);
+        rewardService.earnPoints(match.getUser2().getId(), 50, awardMessageU2);
     }
 
     @Transactional
@@ -478,15 +529,17 @@ public class TradeService {
         tradeMatchRepository.save(match);
 
         // Send notification to the other user
-        String title = "Scambio rifiutato";
-        String body = cancellingUser.getUsername() + " ha rifiutato lo scambio";
-        
+        boolean isEnglish = "en".equalsIgnoreCase(otherUser.getLocale());
+        String title = isEnglish ? "Trade Rejected" : "Scambio rifiutato";
+        String body = isEnglish
+                ? cancellingUser.getUsername() + " has rejected the trade"
+                : cancellingUser.getUsername() + " ha rifiutato lo scambio";
+
         // Add deep linking data for trade
         Map<String, String> notificationData = Map.of(
-            "type", "trade",
-            "id", matchId.toString(),
-            "action", "view"
-        );
+                "type", "trade",
+                "id", matchId.toString(),
+                "action", "view");
         notificationService.sendPushNotification(otherUser.getId(), title, body, notificationData);
     }
 

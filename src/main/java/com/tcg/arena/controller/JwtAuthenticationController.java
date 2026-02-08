@@ -86,9 +86,11 @@ public class JwtAuthenticationController {
         final String token = jwtTokenUtil.generateToken(userDetails);
         final String refreshToken = jwtTokenUtil.generateRefreshToken(userDetails);
 
-        // Track login for security alerts
+        // Track login for security alerts and update lastLogin
         User user = userService.getUserByUsername(authenticationRequest.getUsername()).orElse(null);
         if (user != null) {
+            user.setLastLogin(LocalDateTime.now());
+            userService.saveUser(user);
             try {
                 securityAlertService.trackLoginAndNotify(user, request);
             } catch (Exception e) {
@@ -138,11 +140,14 @@ public class JwtAuthenticationController {
 
             if (userOpt.isPresent()) {
                 user = userOpt.get();
+                // Update last login
+                user.setLastLogin(LocalDateTime.now());
+
                 // Optionally update profile picture if it's missing
                 if (user.getProfileImageUrl() == null && picture != null) {
                     user.setProfileImageUrl(picture);
-                    userService.saveUser(user);
                 }
+                userService.saveUser(user);
             } else {
                 // Register new user
                 user = new User();
@@ -163,6 +168,7 @@ public class JwtAuthenticationController {
                 user.setPassword(passwordEncoder.encode(randomPassword));
 
                 user.setDateJoined(LocalDateTime.now());
+                user.setLastLogin(LocalDateTime.now());
                 user.setProfileImageUrl(picture);
 
                 // Set locale from request if provided, otherwise default 'it'

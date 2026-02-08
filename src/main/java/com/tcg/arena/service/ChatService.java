@@ -108,7 +108,11 @@ public class ChatService {
                 .orElse(null);
 
         if (recipient != null) {
-            String title = "Nuovo messaggio da " + sender.getDisplayName().toLowerCase();
+            boolean isEnglish = "en".equalsIgnoreCase(recipient.getLocale());
+            String title = isEnglish
+                    ? "New message from " + sender.getDisplayName().toLowerCase()
+                    : "Nuovo messaggio da " + sender.getDisplayName().toLowerCase();
+
             String preview = content.length() > 50 ? content.substring(0, 47) + "..." : content;
             try {
                 notificationService.sendChatNotification(recipient.getId(), title, preview, conversationId);
@@ -255,10 +259,16 @@ public class ChatService {
                     + " to review user " + userId);
 
             // Send notification to the other user
+            boolean isEnglish = "en".equalsIgnoreCase(otherUser.getLocale());
+            String title = isEnglish ? "Trade Completed!" : "Trattativa completata!";
+            String body = isEnglish
+                    ? "Leave a review for " + user.getDisplayName().toLowerCase()
+                    : "Lascia una recensione per " + user.getDisplayName().toLowerCase();
+
             notificationService.sendPushNotification(
                     otherUser.getId(),
-                    "Trattativa completata!",
-                    "Lascia una recensione per " + user.getDisplayName().toLowerCase(),
+                    title,
+                    body,
                     Map.of("type", "chat", "id", conversation.getId().toString(), "action", "review"));
         }
 

@@ -26,139 +26,166 @@ import java.util.stream.Collectors;
 @Component
 public class TournamentReminderScheduler {
 
-    private static final Logger log = LoggerFactory.getLogger(TournamentReminderScheduler.class);
+        private static final Logger log = LoggerFactory.getLogger(TournamentReminderScheduler.class);
 
-    @Autowired
-    private TournamentRepository tournamentRepository;
+        @Autowired
+        private TournamentRepository tournamentRepository;
 
-    @Autowired
-    private TournamentParticipantRepository tournamentParticipantRepository;
+        @Autowired
+        private TournamentParticipantRepository tournamentParticipantRepository;
 
-    @Autowired
-    private NotificationService notificationService;
+        @Autowired
+        private NotificationService notificationService;
 
-    @Autowired
-    private SchedulerLockService schedulerLockService;
+        @Autowired
+        private SchedulerLockService schedulerLockService;
 
-    /**
-     * Runs every 10 minutes to check for tournaments starting within 30 minutes
-     * and send reminder notifications to all registered participants.
-     */
-    @Scheduled(fixedRate = 600000) // Every 10 minutes (10 * 60 * 1000 ms)
-    @Transactional
-    public void sendTournamentStartReminders() {
-        // Try to acquire lock to prevent duplicate executions
-        if (!schedulerLockService.acquireLock("tournament_reminders", Duration.ofMinutes(15))) {
-            log.info("⏳ Tournament reminder job already running, skipping execution");
-            return;
-        }
-
-        log.info("🔔 Running scheduled job: sendTournamentStartReminders");
-
-        try {
-            LocalDateTime now = LocalDateTime.now();
-            LocalDateTime within30Minutes = now.plusMinutes(30);
-            LocalDateTime twoHoursAgo = now.minusHours(2);
-
-            // Find tournaments starting within the next 30 minutes (not reminded in last 2 hours)
-            List<Tournament> upcomingTournaments = tournamentRepository.findTournamentsStartingWithinMinutes(now, within30Minutes, twoHoursAgo);
-
-            if (upcomingTournaments.isEmpty()) {
-                log.info("📭 No tournaments starting within 30 minutes (or already reminded recently). Skipping notifications.");
-                return;
-            }
-
-            log.info("🏆 Found {} tournaments starting within 30 minutes", upcomingTournaments.size());
-
-            // Get tournament IDs
-            List<Long> tournamentIds = upcomingTournaments.stream()
-                    .map(Tournament::getId)
-                    .collect(Collectors.toList());
-
-            // Get all participants for these tournaments
-            List<TournamentParticipant> participants = tournamentParticipantRepository.findByTournamentIdsWithUserDetails(tournamentIds);
-
-            if (participants.isEmpty()) {
-                log.info("👥 No participants found for upcoming tournaments. Skipping notifications.");
-                return;
-            }
-
-            log.info("👥 Found {} participants across {} tournaments. Sending notifications...", participants.size(), upcomingTournaments.size());
-
-            // Group participants by tournament for better logging
-            var participantsByTournament = participants.stream()
-                    .collect(Collectors.groupingBy(TournamentParticipant::getTournamentId));
-
-            int totalNotificationsSent = 0;
-
-            // Send notifications for each tournament
-            for (Tournament tournament : upcomingTournaments) {
-                List<TournamentParticipant> tournamentParticipants = participantsByTournament.get(tournament.getId());
-
-                if (tournamentParticipants == null || tournamentParticipants.isEmpty()) {
-                    continue;
+        /**
+         * Runs every 10 minutes to check for tournaments starting within 30 minutes
+         * and send reminder notifications to all registered participants.
+         */
+        @Scheduled(fixedRate = 600000) // Every 10 minutes (10 * 60 * 1000 ms)
+        @Transactional
+        public void sendTournamentStartReminders() {
+                // Try to acquire lock to prevent duplicate executions
+                if (!schedulerLockService.acquireLock("tournament_reminders", Duration.ofMinutes(15))) {
+                        log.info("⏳ Tournament reminder job already running, skipping execution");
+                        return;
                 }
 
-                // Calculate minutes until start
-                long minutesUntilStart = java.time.Duration.between(now, tournament.getStartDate()).toMinutes();
+                log.info("🔔 Running scheduled job: sendTournamentStartReminders");
 
-                // Format start time
-                DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
-                String startTime = tournament.getStartDate().format(timeFormatter);
+                try {
+                        LocalDateTime now = LocalDateTime.now();
+                        LocalDateTime within30Minutes = now.plusMinutes(30);
+                        LocalDateTime twoHoursAgo = now.minusHours(2);
 
-                // Send notification to each participant
-                for (TournamentParticipant participant : tournamentParticipants) {
-                    try {
-                        String message = createReminderMessage(tournament, minutesUntilStart, startTime);
+                        // Find tournaments starting within the next 30 minutes (not reminded in last 2
+                        // hours)
+                        List<Tournament> upcomingTournaments = tournamentRepository
+                                        .findTournamentsStartingWithinMinutes(now,
+                                                        within30Minutes, twoHoursAgo);
 
-                        // Send push notification
-                        notificationService.sendPushNotification(
-                            participant.getUserId(),
-                            "🏆 Torneo in arrivo!",
-                            message
-                        );
+                        if (upcomingTournaments.isEmpty()) {
+                                log.info(
+                                                "📭 No tournaments starting within 30 minutes (or already reminded recently). Skipping notifications.");
+                                return;
+                        }
 
-                        totalNotificationsSent++;
+                        log.info("🏆 Found {} tournaments starting within 30 minutes", upcomingTournaments.size());
 
-                        // Small delay to avoid overwhelming Firebase
-                        Thread.sleep(50);
+                        // Get tournament IDs
+                        List<Long> tournamentIds = upcomingTournaments.stream()
+                                        .map(Tournament::getId)
+                                        .collect(Collectors.toList());
 
-                    } catch (Exception e) {
-                        log.error("Failed to send tournament reminder to user {} for tournament {}: {}",
-                                participant.getUserId(), tournament.getId(), e.getMessage());
-                    }
+                        // Get all participants for these tournaments
+                        List<TournamentParticipant> participants = tournamentParticipantRepository
+                                        .findByTournamentIdsWithUserDetails(tournamentIds);
+
+                        if (participants.isEmpty()) {
+                                log.info("👥 No participants found for upcoming tournaments. Skipping notifications.");
+                                return;
+                        }
+
+                        log.info("👥 Found {} participants across {} tournaments. Sending notifications...",
+                                        participants.size(),
+                                        upcomingTournaments.size());
+
+                        // Group participants by tournament for better logging
+                        var participantsByTournament = participants.stream()
+                                        .collect(Collectors.groupingBy(TournamentParticipant::getTournamentId));
+
+                        int totalNotificationsSent = 0;
+
+                        // Send notifications for each tournament
+                        for (Tournament tournament : upcomingTournaments) {
+                                List<TournamentParticipant> tournamentParticipants = participantsByTournament
+                                                .get(tournament.getId());
+
+                                if (tournamentParticipants == null || tournamentParticipants.isEmpty()) {
+                                        continue;
+                                }
+
+                                // Calculate minutes until start
+                                long minutesUntilStart = java.time.Duration.between(now, tournament.getStartDate())
+                                                .toMinutes();
+
+                                // Format start time
+                                DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("HH:mm");
+                                String startTime = tournament.getStartDate().format(timeFormatter);
+
+                                // Send notification to each participant
+                                for (TournamentParticipant participant : tournamentParticipants) {
+                                        try {
+                                                String locale = participant.getUser().getLocale();
+                                                String title = "en".equalsIgnoreCase(locale) ? "🏆 Tournament Incoming!"
+                                                                : "🏆 Torneo in arrivo!";
+
+                                                String message = createReminderMessage(tournament, minutesUntilStart,
+                                                                startTime, locale);
+
+                                                // Send push notification
+                                                notificationService.sendPushNotification(
+                                                                participant.getUserId(),
+                                                                title,
+                                                                message);
+
+                                                totalNotificationsSent++;
+
+                                                // Small delay to avoid overwhelming Firebase
+                                                Thread.sleep(50);
+
+                                        } catch (Exception e) {
+                                                log.error("Failed to send tournament reminder to user {} for tournament {}: {}",
+                                                                participant.getUserId(), tournament.getId(),
+                                                                e.getMessage());
+                                        }
+                                }
+
+                                // Update last reminder sent timestamp
+                                tournament.setLastReminderSentAt(now);
+                                tournamentRepository.save(tournament);
+
+                                log.info("✅ Sent {} notifications for tournament '{}' and updated reminder timestamp",
+                                                tournamentParticipants.size(), tournament.getTitle());
+                        }
+
+                        log.info("🎯 Successfully sent {} tournament reminder notifications", totalNotificationsSent);
+
+                } catch (Exception e) {
+                        log.error("❌ Error in sendTournamentStartReminders job", e);
                 }
-
-                // Update last reminder sent timestamp
-                tournament.setLastReminderSentAt(now);
-                tournamentRepository.save(tournament);
-
-                log.info("✅ Sent {} notifications for tournament '{}' and updated reminder timestamp",
-                        tournamentParticipants.size(), tournament.getTitle());
-            }
-
-            log.info("🎯 Successfully sent {} tournament reminder notifications", totalNotificationsSent);
-
-        } catch (Exception e) {
-            log.error("❌ Error in sendTournamentStartReminders job", e);
         }
-    }
 
-    /**
-     * Creates a personalized reminder message based on time until tournament starts
-     */
-    private String createReminderMessage(Tournament tournament, long minutesUntilStart, String startTime) {
-        String tournamentName = tournament.getTitle();
+        /**
+         * Creates a personalized reminder message based on time until tournament starts
+         */
+        private String createReminderMessage(Tournament tournament, long minutesUntilStart, String startTime,
+                        String locale) {
+                String tournamentName = tournament.getTitle();
+                boolean isEnglish = "en".equalsIgnoreCase(locale);
 
-        if (minutesUntilStart <= 5) {
-            return String.format("⚡ Il torneo '%s' inizia tra %d minuti alle %s! Preparati!",
-                    tournamentName, minutesUntilStart, startTime);
-        } else if (minutesUntilStart <= 15) {
-            return String.format("⏰ Il torneo '%s' inizia tra %d minuti alle %s. È ora di prepararsi!",
-                    tournamentName, minutesUntilStart, startTime);
-        } else {
-            return String.format("🏆 Il torneo '%s' a cui sei iscritto inizia tra %d minuti alle %s.",
-                    tournamentName, minutesUntilStart, startTime);
+                if (minutesUntilStart <= 5) {
+                        return isEnglish
+                                        ? String.format("⚡ The tournament '%s' starts in %d minutes at %s! Get ready!",
+                                                        tournamentName,
+                                                        minutesUntilStart, startTime)
+                                        : String.format("⚡ Il torneo '%s' inizia tra %d minuti alle %s! Preparati!",
+                                                        tournamentName,
+                                                        minutesUntilStart, startTime);
+                } else if (minutesUntilStart <= 15) {
+                        return isEnglish
+                                        ? String.format("⏰ The tournament '%s' starts in %d minutes at %s. Time to prepare!",
+                                                        tournamentName, minutesUntilStart, startTime)
+                                        : String.format("⏰ Il torneo '%s' inizia tra %d minuti alle %s. È ora di prepararsi!",
+                                                        tournamentName, minutesUntilStart, startTime);
+                } else {
+                        return isEnglish
+                                        ? String.format("🏆 The tournament '%s' you registered for starts in %d minutes at %s.",
+                                                        tournamentName, minutesUntilStart, startTime)
+                                        : String.format("🏆 Il torneo '%s' a cui sei iscritto inizia tra %d minuti alle %s.",
+                                                        tournamentName, minutesUntilStart, startTime);
+                }
         }
-    }
 }
