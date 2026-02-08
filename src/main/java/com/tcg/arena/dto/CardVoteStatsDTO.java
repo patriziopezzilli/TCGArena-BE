@@ -1,11 +1,15 @@
 package com.tcg.arena.dto;
 
+import com.tcg.arena.model.CardVote;
+
 public class CardVoteStatsDTO {
     private Long cardTemplateId;
     private Long likesCount;
     private Long dislikesCount;
     private Double likePercentage;
     private Long totalVotes;
+
+    private CardVote.VoteType userVote;
 
     public CardVoteStatsDTO() {
     }
@@ -56,5 +60,13 @@ public class CardVoteStatsDTO {
 
     public void setTotalVotes(Long totalVotes) {
         this.totalVotes = totalVotes;
+    }
+
+    public CardVote.VoteType getUserVote() {
+        return userVote;
+    }
+
+    public void setUserVote(CardVote.VoteType userVote) {
+        this.userVote = userVote;
     }
 }

@@ -100,10 +100,12 @@ public class CardRatingArenaController {
     @GetMapping("/stats/{cardTemplateId}")
     @Operation(summary = "Get vote statistics", description = "Get like/dislike counts for a specific card")
     public ResponseEntity<?> getVoteStats(
-            @PathVariable Long cardTemplateId) {
+            @PathVariable Long cardTemplateId,
+            @RequestHeader(value = "Authorization", required = false) String token) {
 
         try {
-            CardVoteStatsDTO stats = voteService.getVoteStats(cardTemplateId);
+            Long userId = resolveUserIdFromToken(token);
+            CardVoteStatsDTO stats = voteService.getVoteStats(cardTemplateId, userId);
             return ResponseEntity.ok(stats);
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));

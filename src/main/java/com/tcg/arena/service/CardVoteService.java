@@ -117,14 +117,24 @@ public class CardVoteService {
         return voteRepository.findRandomUnvotedCardTemplates(tcgType, user, pageable);
     }
 
-    public CardVoteStatsDTO getVoteStats(Long cardTemplateId) {
+    public CardVoteStatsDTO getVoteStats(Long cardTemplateId, Long userId) {
         CardTemplate cardTemplate = cardTemplateRepository.findById(cardTemplateId)
                 .orElseThrow(() -> new RuntimeException("Card template not found"));
 
-        return new CardVoteStatsDTO(
+        CardVoteStatsDTO stats = new CardVoteStatsDTO(
                 cardTemplate.getId(),
                 cardTemplate.getLikesCount(),
                 cardTemplate.getDislikesCount());
+
+        if (userId != null) {
+            Optional<User> userOpt = userRepository.findById(userId);
+            if (userOpt.isPresent()) {
+                Optional<CardVote> userVote = voteRepository.findByCardTemplateAndUser(cardTemplate, userOpt.get());
+                userVote.ifPresent(vote -> stats.setUserVote(vote.getVoteType()));
+            }
+        }
+
+        return stats;
     }
 
     public Page<CardTemplate> getTopLovedCards(TCGType tcgType, Pageable pageable) {
