@@ -6,6 +6,7 @@ public class UserLeaderboardDTO {
     private String username;
     private String profileImageUrl;
     private int score;
+    @com.fasterxml.jackson.annotation.JsonProperty("isPremium")
     private boolean isPremium;
 
     public UserLeaderboardDTO() {
@@ -62,6 +63,7 @@ public class UserLeaderboardDTO {
         this.score = score;
     }
 
+    @com.fasterxml.jackson.annotation.JsonProperty("isPremium")
     public boolean isPremium() {
         return isPremium;
     }
