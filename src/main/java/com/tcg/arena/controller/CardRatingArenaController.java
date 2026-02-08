@@ -136,6 +136,24 @@ public class CardRatingArenaController {
         return ResponseEntity.ok(cards);
     }
 
+    @GetMapping("/leaderboard/votes")
+    @Operation(summary = "Get votes leaderboard", description = "Get top users by total votes")
+    public ResponseEntity<java.util.List<com.tcg.arena.dto.UserLeaderboardDTO>> getVotesLeaderboard(
+            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "50") int size) {
+
+        return ResponseEntity.ok(streakService.getVotesLeaderboard(page, size));
+    }
+
+    @GetMapping("/leaderboard/streak")
+    @Operation(summary = "Get streak leaderboard", description = "Get top users by current streak")
+    public ResponseEntity<java.util.List<com.tcg.arena.dto.UserLeaderboardDTO>> getStreakLeaderboard(
+            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size") @RequestParam(defaultValue = "50") int size) {
+
+        return ResponseEntity.ok(streakService.getStreakLeaderboard(page, size));
+    }
+
     private Long resolveUserIdFromToken(String token) {
         if (token == null || !token.startsWith("Bearer ")) {
             return null;

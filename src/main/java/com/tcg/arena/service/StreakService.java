@@ -151,6 +151,51 @@ public class StreakService {
     /**
      * Calculates the next milestone target for a given streak.
      */
+    /**
+     * Gets the leaderboard based on total votes.
+     */
+    public java.util.List<com.tcg.arena.dto.UserLeaderboardDTO> getVotesLeaderboard(int page, int size) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        org.springframework.data.domain.Page<UserRatingStreak> streaks = streakRepository
+                .findAllByOrderByTotalVotesDesc(pageable);
+
+        return streaks.getContent().stream()
+                .map(streak -> mapToLeaderboardDTO(streak, streak.getTotalVotes(), page, size,
+                        streaks.getContent().indexOf(streak)))
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    /**
+     * Gets the leaderboard based on current streak.
+     */
+    public java.util.List<com.tcg.arena.dto.UserLeaderboardDTO> getStreakLeaderboard(int page, int size) {
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size);
+        org.springframework.data.domain.Page<UserRatingStreak> streaks = streakRepository
+                .findAllByOrderByCurrentStreakDesc(pageable);
+
+        return streaks.getContent().stream()
+                .map(streak -> mapToLeaderboardDTO(streak, streak.getCurrentStreak(), page, size,
+                        streaks.getContent().indexOf(streak)))
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    private com.tcg.arena.dto.UserLeaderboardDTO mapToLeaderboardDTO(UserRatingStreak streak, int score, int page,
+            int size, int index) {
+        User user = streak.getUser();
+        int rank = (page * size) + index + 1;
+
+        return new com.tcg.arena.dto.UserLeaderboardDTO(
+                rank,
+                user.getId(),
+                user.getUsername(),
+                user.getProfileImageUrl(),
+                score,
+                user.getIsPremium());
+    }
+
+    /**
+     * Calculates the next milestone target for a given streak.
+     */
     private int calculateNextMilestone(int currentStreak) {
         for (int milestone : MILESTONES) {
             if (currentStreak < milestone) {
