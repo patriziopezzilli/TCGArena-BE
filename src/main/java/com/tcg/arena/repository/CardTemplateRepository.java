@@ -36,22 +36,22 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
         Page<CardTemplate> findByExpansionId(@Param("expansionId") Long expansionId, Pageable pageable);
 
         // Methods that include cards with cardNumber = 'N/A' for expansion details
-        @Query("SELECT c FROM CardTemplate c WHERE c.expansion.id = :expansionId")
+        @Query("SELECT c FROM CardTemplate c WHERE c.expansion.id = :expansionId AND " + EXCLUDE_NA_CONDITION)
         List<CardTemplate> findAllByExpansionId(@Param("expansionId") Long expansionId);
 
-        @Query("SELECT c FROM CardTemplate c WHERE c.expansion.id = :expansionId")
+        @Query("SELECT c FROM CardTemplate c WHERE c.expansion.id = :expansionId AND " + EXCLUDE_NA_CONDITION)
         Page<CardTemplate> findAllByExpansionId(@Param("expansionId") Long expansionId, Pageable pageable);
 
         @Query("SELECT COUNT(c) FROM CardTemplate c WHERE c.setCode = :setCode AND " + EXCLUDE_NA_CONDITION)
         long countBySetCode(@Param("setCode") String setCode);
 
-        @Query("SELECT COUNT(c) FROM CardTemplate c WHERE c.setCode = :setCode")
+        @Query("SELECT COUNT(c) FROM CardTemplate c WHERE c.setCode = :setCode AND " + EXCLUDE_NA_CONDITION)
         long countAllBySetCode(@Param("setCode") String setCode);
 
         @Query("SELECT COUNT(c) FROM CardTemplate c WHERE c.expansion.id = :expansionId AND " + EXCLUDE_NA_CONDITION)
         long countByExpansionId(@Param("expansionId") Long expansionId);
 
-        @Query("SELECT COUNT(c) FROM CardTemplate c WHERE c.expansion.id = :expansionId")
+        @Query("SELECT COUNT(c) FROM CardTemplate c WHERE c.expansion.id = :expansionId AND " + EXCLUDE_NA_CONDITION)
         long countAllByExpansionId(@Param("expansionId") Long expansionId);
 
         @Query("SELECT c FROM CardTemplate c WHERE c.rarity = :rarity AND " + EXCLUDE_NA_CONDITION)
@@ -64,10 +64,10 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
         Page<CardTemplate> findBySetCode(@Param("setCode") String setCode, Pageable pageable);
 
         // Methods that include cards with cardNumber = 'N/A' for set details
-        @Query("SELECT c FROM CardTemplate c WHERE c.setCode = :setCode")
+        @Query("SELECT c FROM CardTemplate c WHERE c.setCode = :setCode AND " + EXCLUDE_NA_CONDITION)
         List<CardTemplate> findAllBySetCode(@Param("setCode") String setCode);
 
-        @Query("SELECT c FROM CardTemplate c WHERE c.setCode = :setCode")
+        @Query("SELECT c FROM CardTemplate c WHERE c.setCode = :setCode AND " + EXCLUDE_NA_CONDITION)
         Page<CardTemplate> findAllBySetCode(@Param("setCode") String setCode, Pageable pageable);
 
         @Query("SELECT c FROM CardTemplate c WHERE c.name = :name AND c.setCode = :setCode AND c.cardNumber = :cardNumber AND "
