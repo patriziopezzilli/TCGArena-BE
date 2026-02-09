@@ -37,7 +37,8 @@ public class ExpansionController {
         List<Expansion> expansions;
         if (tcgType != null && !tcgType.isEmpty()) {
             // Filter by TCG type
-            expansions = expansionService.getExpansionsByTcgType(com.tcg.arena.model.TCGType.valueOf(tcgType.toUpperCase()));
+            expansions = expansionService
+                    .getExpansionsByTcgType(com.tcg.arena.model.TCGType.valueOf(tcgType.toUpperCase()));
         } else {
             // Use year-filtered query (defaults to current year if no years specified)
             expansions = expansionService.getExpansionsByYears(years);
@@ -53,6 +54,52 @@ public class ExpansionController {
                     return totalCards > 0;
                 })
                 .collect(Collectors.toList());
+    }
+
+    @GetMapping("/list")
+    public org.springframework.data.domain.Page<ExpansionDTO> getExpansionsPaginated(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String tcgType,
+            @RequestParam(required = false) List<Integer> years,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        // Prepare Pageable
+        // Sort by release date descending (newest first) by default
+        org.springframework.data.domain.Pageable pageable = org.springframework.data.domain.PageRequest.of(page, size,
+                org.springframework.data.domain.Sort.by("id").descending()); // Fallback sort, Service applies complex
+                                                                             // date sort logic or SPEC does it?
+        // Wait, Specification doesn't sort by computed dates.
+        // Let's rely on default ID sort or we need to join sets to sort by release
+        // date?
+        // The current implementation sorts in memory.
+        // For pagination, we should sort in DB.
+        // Let's sort by ID DESC for now as a proxy for "recent added", or we can try to
+        // sort by title.
+        // NOTE: Sorting by "releaseDate" which is computed from sets is hard in DB
+        // without a real column.
+        // Assuming ID is roughly chronological for expansions.
+
+        // Convert TCG Type
+        com.tcg.arena.model.TCGType type = null;
+        if (tcgType != null && !tcgType.isEmpty()) {
+            try {
+                type = com.tcg.arena.model.TCGType.valueOf(tcgType.toUpperCase());
+            } catch (IllegalArgumentException e) {
+                // Ignore invalid type
+            }
+        }
+
+        // Fetch Page
+        org.springframework.data.domain.Page<Expansion> expansionPage = expansionService.getExpansionsPaginated(query,
+                type, years, pageable);
+
+        // Batch load counts for DTOs
+        Map<String, Long> setCodeCounts = cardTemplateService.getAllCardCountsBySetCode();
+        Map<Long, Long> expansionIdCounts = cardTemplateService.getAllCardCountsByExpansionId();
+
+        // Convert to DTOs
+        return expansionPage.map(expansion -> new ExpansionDTO(expansion, setCodeCounts, expansionIdCounts));
     }
 
     @GetMapping("/{id}")

@@ -147,7 +147,8 @@ public class ExpansionService {
      * @param id    Expansion ID
      * @param force If true, delete all associated sets and cards
      */
-    @CacheEvict(value = {CacheConfig.EXPANSIONS_CACHE, CacheConfig.CARD_TEMPLATES_CACHE, CacheConfig.SETS_CACHE}, allEntries = true)
+    @CacheEvict(value = { CacheConfig.EXPANSIONS_CACHE, CacheConfig.CARD_TEMPLATES_CACHE,
+            CacheConfig.SETS_CACHE }, allEntries = true)
     @Transactional
     public void deleteExpansion(Long id, boolean force) {
         Expansion expansion = expansionRepository.findById(id)
@@ -184,14 +185,13 @@ public class ExpansionService {
 
         // Only include TCG types that are fully supported in mobile apps
         List<TCGType> supportedTypes = List.of(
-            TCGType.POKEMON,
-            TCGType.ONE_PIECE,
-            TCGType.MAGIC,
-            TCGType.YUGIOH,
-            TCGType.DIGIMON,
-            TCGType.LORCANA,
-            TCGType.RIFTBOUND
-        );
+                TCGType.POKEMON,
+                TCGType.ONE_PIECE,
+                TCGType.MAGIC,
+                TCGType.YUGIOH,
+                TCGType.DIGIMON,
+                TCGType.LORCANA,
+                TCGType.RIFTBOUND);
 
         Map<TCGType, TCGStatsDTO> statsMap = new HashMap<>();
 
@@ -213,5 +213,48 @@ public class ExpansionService {
         }
 
         return statsMap.values().stream().collect(Collectors.toList());
+    }
+
+    /**
+     * Get expansions with pagination and dynamic filtering
+     * 
+     * @param query    Search query (optional)
+     * @param tcgType  Filter by TCG Type (optional)
+     * @param years    Filter by release years (optional)
+     * @param pageable Pagination info
+     * @return Page of expansions
+     */
+    public org.springframework.data.domain.Page<Expansion> getExpansionsPaginated(
+            String query,
+            TCGType tcgType,
+            List<Integer> years,
+            org.springframework.data.domain.Pageable pageable) {
+
+        org.springframework.data.jpa.domain.Specification<Expansion> spec = (root, querySpec, cb) -> {
+            java.util.List<jakarta.persistence.criteria.Predicate> predicates = new java.util.ArrayList<>();
+
+            // Filter by TCG Type
+            if (tcgType != null) {
+                predicates.add(cb.equal(root.get("tcgType"), tcgType));
+            }
+
+            // Filter by Years (joins with Sets)
+            if (years != null && !years.isEmpty()) {
+                jakarta.persistence.criteria.Join<Expansion, TCGSet> setsJoin = root.join("sets",
+                        jakarta.persistence.criteria.JoinType.LEFT);
+                predicates.add(cb.function("year", Integer.class, setsJoin.get("releaseDate")).in(years));
+                querySpec.distinct(true);
+            }
+
+            // Filter by Search Query
+            if (query != null && !query.trim().isEmpty()) {
+                String searchLike = "%" + query.trim().toLowerCase() + "%";
+                predicates.add(cb.like(cb.lower(root.get("title")), searchLike));
+            }
+
+            return cb.and(predicates.toArray(new jakarta.persistence.criteria.Predicate[0]));
+        };
+
+        return expansionRepository.findAll(spec, pageable);
     }
 }

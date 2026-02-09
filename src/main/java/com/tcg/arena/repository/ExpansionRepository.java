@@ -11,7 +11,8 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface ExpansionRepository extends JpaRepository<Expansion, Long> {
+public interface ExpansionRepository extends JpaRepository<Expansion, Long>,
+        org.springframework.data.jpa.repository.JpaSpecificationExecutor<Expansion> {
     List<Expansion> findByTcgType(TCGType tcgType);
 
     Expansion findByTitle(String title);
