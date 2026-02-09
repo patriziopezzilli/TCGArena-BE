@@ -17,8 +17,14 @@ import java.util.List;
 @Repository
 public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long> {
 
-        // Filter condition to exclude N/A card numbers
-        String EXCLUDE_NA_CONDITION = "c.cardNumber IS NOT NULL AND c.cardNumber <> 'N/A' AND c.cardNumber <> ''";
+        // Filter condition to exclude N/A card numbers and non-card products (Boxes,
+        // Decks, Codes)
+        String EXCLUDE_NA_CONDITION = "c.cardNumber IS NOT NULL AND c.cardNumber <> 'N/A' AND c.cardNumber <> '' " +
+                        "AND LOWER(c.name) NOT LIKE '%code%' " +
+                        "AND LOWER(c.name) NOT LIKE '%blister%' " +
+                        "AND LOWER(c.name) NOT LIKE '%box%' " +
+                        "AND LOWER(c.name) NOT LIKE '%deck%' " +
+                        "AND LOWER(c.name) NOT LIKE '%decks%'";
 
         @Query("SELECT c FROM CardTemplate c WHERE c.tcgType = :tcgType AND " + EXCLUDE_NA_CONDITION)
         List<CardTemplate> findByTcgType(@Param("tcgType") String tcgType);
@@ -110,6 +116,11 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
                         "(:searchQuery IS NULL OR LOWER(ct.name) LIKE LOWER('%' || :searchQuery || '%') OR LOWER(ct.card_number) LIKE LOWER('%' || :searchQuery || '%')) AND "
                         +
                         "ct.card_number IS NOT NULL AND ct.card_number <> 'N/A' AND ct.card_number <> '' " +
+                        "AND LOWER(ct.name) NOT LIKE '%code%' " +
+                        "AND LOWER(ct.name) NOT LIKE '%blister%' " +
+                        "AND LOWER(ct.name) NOT LIKE '%box%' " +
+                        "AND LOWER(ct.name) NOT LIKE '%deck%' " +
+                        "AND LOWER(ct.name) NOT LIKE '%decks%' " +
                         "ORDER BY ct.id", nativeQuery = true)
         Page<CardTemplate> findWithFilters(
                         @Param("tcgType") String tcgType,
@@ -190,17 +201,28 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
         @Query(value = "SELECT * FROM card_templates ct WHERE " +
                         "ct.date_created >= NOW() - MAKE_INTERVAL(YEARS => :years) AND " +
                         "ct.card_number IS NOT NULL AND ct.card_number <> 'N/A' AND ct.card_number <> '' " +
+                        "AND LOWER(ct.name) NOT LIKE '%code%' " +
+                        "AND LOWER(ct.name) NOT LIKE '%blister%' " +
+                        "AND LOWER(ct.name) NOT LIKE '%box%' " +
+                        "AND LOWER(ct.name) NOT LIKE '%deck%' " +
+                        "AND LOWER(ct.name) NOT LIKE '%decks%' " +
                         "ORDER BY RANDOM() " +
                         "LIMIT :limit", nativeQuery = true)
         List<CardTemplate> findRandomRecentCards(@Param("years") int years, @Param("limit") int limit);
 
         // Card Rating Arena - Rankings by likes/dislikes
-        Page<CardTemplate> findByTcgTypeOrderByLikesCountDesc(TCGType tcgType, Pageable pageable);
+        @Query("SELECT c FROM CardTemplate c WHERE c.tcgType = :tcgType AND " + EXCLUDE_NA_CONDITION
+                        + " ORDER BY c.likesCount DESC")
+        Page<CardTemplate> findByTcgTypeOrderByLikesCountDesc(@Param("tcgType") TCGType tcgType, Pageable pageable);
 
+        @Query("SELECT c FROM CardTemplate c WHERE " + EXCLUDE_NA_CONDITION + " ORDER BY c.likesCount DESC")
         Page<CardTemplate> findAllByOrderByLikesCountDesc(Pageable pageable);
 
-        Page<CardTemplate> findByTcgTypeOrderByDislikesCountDesc(TCGType tcgType, Pageable pageable);
+        @Query("SELECT c FROM CardTemplate c WHERE c.tcgType = :tcgType AND " + EXCLUDE_NA_CONDITION
+                        + " ORDER BY c.dislikesCount DESC")
+        Page<CardTemplate> findByTcgTypeOrderByDislikesCountDesc(@Param("tcgType") TCGType tcgType, Pageable pageable);
 
+        @Query("SELECT c FROM CardTemplate c WHERE " + EXCLUDE_NA_CONDITION + " ORDER BY c.dislikesCount DESC")
         Page<CardTemplate> findAllByOrderByDislikesCountDesc(Pageable pageable);
 
         @Modifying
