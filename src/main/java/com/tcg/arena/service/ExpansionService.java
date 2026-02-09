@@ -242,7 +242,17 @@ public class ExpansionService {
             if (years != null && !years.isEmpty()) {
                 jakarta.persistence.criteria.Join<Expansion, TCGSet> setsJoin = root.join("sets",
                         jakarta.persistence.criteria.JoinType.LEFT);
-                predicates.add(cb.function("year", Integer.class, setsJoin.get("releaseDate")).in(years));
+
+                // PostgreSQL 'date_part' returns Double/Float
+                jakarta.persistence.criteria.Expression<Double> yearExpr = cb.function("date_part", Double.class,
+                        cb.literal("year"), setsJoin.get("releaseDate"));
+
+                // Convert input integers to doubles for comparison
+                java.util.List<Double> doubleYears = years.stream()
+                        .map(Integer::doubleValue)
+                        .collect(java.util.stream.Collectors.toList());
+
+                predicates.add(yearExpr.in(doubleYears));
                 querySpec.distinct(true);
             }
 
