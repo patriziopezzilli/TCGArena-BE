@@ -99,6 +99,7 @@ public class SecurityConfig {
                         .requestMatchers("GET", "/api/shops/subscriptions").authenticated()
                         // Public shop endpoints
                         .requestMatchers("GET", "/api/shops/**").permitAll()
+                        .requestMatchers("GET", "/api/expansions/list").permitAll()
                         .requestMatchers("GET", "/api/expansions/**").permitAll()
                         .requestMatchers("GET", "/api/sets/**").permitAll()
                         .requestMatchers("GET", "/api/decks/public").permitAll()
