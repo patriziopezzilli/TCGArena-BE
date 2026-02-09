@@ -176,9 +176,7 @@ public class ExpansionService {
             cardVoteRepository.deleteByCardTemplateExpansionId(id);
 
             // Delete all associated card templates first
-            if (!associatedCards.isEmpty()) {
-                cardTemplateRepository.deleteAll(associatedCards);
-            }
+            cardTemplateRepository.deleteByExpansionId(id);
 
             // Delete all associated sets
             if (expansion.getSets() != null && !expansion.getSets().isEmpty()) {

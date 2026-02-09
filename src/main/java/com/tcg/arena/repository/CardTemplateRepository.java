@@ -229,4 +229,9 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
         @Transactional
         @Query("DELETE FROM CardTemplate c WHERE c.setCode = :setCode")
         int deleteBySetCode(@Param("setCode") String setCode);
+
+        @Modifying
+        @Transactional
+        @Query("DELETE FROM CardTemplate c WHERE c.expansion.id = :expansionId")
+        int deleteByExpansionId(@Param("expansionId") Long expansionId);
 }
