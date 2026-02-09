@@ -47,6 +47,11 @@ public interface CardVoteRepository extends JpaRepository<CardVote, Long> {
 
         @Modifying
         @Transactional
+        @Query("DELETE FROM CardVote v WHERE v.cardTemplate.expansion.id = :expansionId")
+        int deleteByCardTemplateExpansionId(@Param("expansionId") Long expansionId);
+
+        @Modifying
+        @Transactional
         @Query("DELETE FROM CardVote v WHERE v.cardTemplate.setCode = :setCode")
         int deleteByCardTemplateSetCode(@Param("setCode") String setCode);
 }

@@ -121,6 +121,12 @@ public class ExpansionService {
     @Autowired
     private TCGSetRepository tcgSetRepository;
 
+    @Autowired
+    private com.tcg.arena.repository.TradeListEntryRepository tradeListEntryRepository;
+
+    @Autowired
+    private com.tcg.arena.repository.CardVoteRepository cardVoteRepository;
+
     /**
      * Get deletion info for an expansion (how many sets and cards would be deleted)
      */
@@ -165,6 +171,10 @@ public class ExpansionService {
         }
 
         if (force) {
+            // Delete associated data first to prevent foreign key violations
+            tradeListEntryRepository.deleteByCardTemplateExpansionId(id);
+            cardVoteRepository.deleteByCardTemplateExpansionId(id);
+
             // Delete all associated card templates first
             if (!associatedCards.isEmpty()) {
                 cardTemplateRepository.deleteAll(associatedCards);

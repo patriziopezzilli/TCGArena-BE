@@ -23,6 +23,11 @@ public interface TradeListEntryRepository extends JpaRepository<TradeListEntry, 
 
     @Modifying
     @Transactional
+    @Query("DELETE FROM TradeListEntry tle WHERE tle.cardTemplate.expansion.id = :expansionId")
+    int deleteByCardTemplateExpansionId(@Param("expansionId") Long expansionId);
+
+    @Modifying
+    @Transactional
     @Query("DELETE FROM TradeListEntry tle WHERE tle.cardTemplate.setCode = :setCode")
     int deleteByCardTemplateSetCode(@Param("setCode") String setCode);
 
