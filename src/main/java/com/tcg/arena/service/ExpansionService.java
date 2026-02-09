@@ -199,7 +199,9 @@ public class ExpansionService {
                 TCGType.YUGIOH,
                 TCGType.DIGIMON,
                 TCGType.LORCANA,
-                TCGType.RIFTBOUND);
+                TCGType.RIFTBOUND,
+                TCGType.UNION_ARENA,
+                TCGType.DRAGON_BALL_SUPER_FUSION_WORLD);
 
         Map<TCGType, TCGStatsDTO> statsMap = new HashMap<>();
 
