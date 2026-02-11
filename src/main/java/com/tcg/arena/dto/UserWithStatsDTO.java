@@ -74,6 +74,7 @@ public class UserWithStatsDTO {
             statsDTO.setTournamentsPlayed(stats.getTotalTournaments());
             statsDTO.setTournamentsWon(stats.getTotalWins());
             statsDTO.setWinRate(stats.getWinRate());
+            statsDTO.setAppreciationCount(stats.getAppreciationCount());
             dto.stats = statsDTO;
         } else {
             // Return empty stats if none found
@@ -83,6 +84,7 @@ public class UserWithStatsDTO {
             statsDTO.setTournamentsPlayed(0);
             statsDTO.setTournamentsWon(0);
             statsDTO.setWinRate(0.0);
+            statsDTO.setAppreciationCount(0);
             dto.stats = statsDTO;
         }
 

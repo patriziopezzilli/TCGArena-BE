@@ -170,4 +170,9 @@ public class UserStatsService {
     public void invalidateUserStats(User user) {
         // Force cache invalidation
     }
+
+    @CacheEvict(value = "userStats", key = "#stats.user.id")
+    public UserStats saveUserStats(UserStats stats) {
+        return userStatsRepository.save(stats);
+    }
 }

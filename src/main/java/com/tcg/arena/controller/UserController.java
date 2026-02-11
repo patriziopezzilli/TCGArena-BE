@@ -480,20 +480,32 @@ public class UserController {
                         @SuppressWarnings("unchecked")
                         java.util.List<String> favoriteTCGs = (java.util.List<String>) requestBody.get("favoriteTCGs");
 
-                        if (favoriteTCGs == null || favoriteTCGs.isEmpty()) {
-                                user.setFavoriteTCGTypesString("");
-                        } else {
-                                // Convert list to comma-separated string
-                                String tcgString = String.join(",", favoriteTCGs);
-                                user.setFavoriteTCGTypesString(tcgString);
+                        String newTcgString = "";
+                        if (favoriteTCGs != null && !favoriteTCGs.isEmpty()) {
+                                newTcgString = String.join(",", favoriteTCGs);
                         }
 
+                        String currentTcgString = user.getFavoriteTCGTypesString();
+                        if (currentTcgString == null) {
+                                currentTcgString = "";
+                        }
+
+                        // Check if changed
+                        if (newTcgString.equals(currentTcgString)) {
+                                java.util.Map<String, Object> response = new java.util.HashMap<>();
+                                response.put("message", "Favorite TCGs unchanged");
+                                response.put("favoriteTCGs", favoriteTCGs);
+                                return ResponseEntity.ok(response);
+                        }
+
+                        user.setFavoriteTCGTypesString(newTcgString);
                         User updatedUser = userRepository.save(user);
 
                         // Log activity
+                        String logList = favoriteTCGs != null ? String.join(", ", favoriteTCGs) : "";
                         userActivityService.logActivity(user.getId(),
                                         com.tcg.arena.model.ActivityType.USER_PREFERENCES_UPDATED,
-                                        "Aggiornati TCG favoriti per notifiche: " + String.join(", ", favoriteTCGs));
+                                        "Aggiornati TCG favoriti per notifiche: " + logList);
 
                         java.util.Map<String, Object> response = new java.util.HashMap<>();
                         response.put("message", "Favorite TCGs updated successfully");
@@ -537,5 +549,54 @@ public class UserController {
                         errorResponse.put("error", "User not found");
                         return ResponseEntity.status(404).body(errorResponse);
                 });
+        }
+
+        @PostMapping("/{id}/appreciate")
+        @Operation(summary = "Toggle user appreciation", description = "Toggles the appreciation status for a user profile")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Appreciation status toggled successfully"),
+                        @ApiResponse(responseCode = "404", description = "User not found"),
+                        @ApiResponse(responseCode = "400", description = "Invalid request (e.g. self-appreciation)")
+        })
+        public ResponseEntity<java.util.Map<String, Object>> toggleAppreciation(
+                        @Parameter(description = "Unique identifier of the target user") @PathVariable Long id,
+                        @Parameter(description = "Unique identifier of the user performing the action") @RequestParam Long userId) {
+                try {
+                        boolean isAppreciated = userService.toggleAppreciation(id, userId);
+                        // Re-fetch stats to get updated count
+                        UserStats stats = userStatsService.getUserStats(id).orElse(null);
+                        int appreciationCount = stats != null ? stats.getAppreciationCount() : 0;
+
+                        java.util.Map<String, Object> response = new java.util.HashMap<>();
+                        response.put("isAppreciated", isAppreciated);
+                        response.put("appreciationCount", appreciationCount);
+
+                        return ResponseEntity.ok(response);
+                } catch (IllegalArgumentException e) {
+                        return ResponseEntity.badRequest().build();
+                } catch (RuntimeException e) {
+                        return ResponseEntity.notFound().build();
+                }
+        }
+
+        @GetMapping("/{id}/appreciation")
+        @Operation(summary = "Get user appreciation", description = "Retrieves the appreciation status for a user")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Appreciation info retrieved successfully")
+        })
+        public ResponseEntity<java.util.Map<String, Object>> getUserAppreciation(
+                        @Parameter(description = "Unique identifier of the target user") @PathVariable Long id,
+                        @Parameter(description = "Unique identifier of the user checking status") @RequestParam Long userId) {
+
+                boolean isAppreciated = userService.isAppreciatedBy(id, userId);
+
+                UserStats stats = userStatsService.getUserStats(id).orElse(null);
+                int appreciationCount = stats != null ? stats.getAppreciationCount() : 0;
+
+                java.util.Map<String, Object> response = new java.util.HashMap<>();
+                response.put("isAppreciated", isAppreciated);
+                response.put("appreciationCount", appreciationCount);
+
+                return ResponseEntity.ok(response);
         }
 }

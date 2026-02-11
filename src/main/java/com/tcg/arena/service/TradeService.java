@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import org.springframework.data.domain.Sort;
 
 @Service
 public class TradeService {
@@ -570,7 +571,7 @@ public class TradeService {
      * Supports optional filtering by TCG type and list type.
      */
     public List<com.tcg.arena.dto.PublicTradeListingDTO> getPublicListings(String tcgType, String listType) {
-        List<TradeListEntry> allEntries = tradeListEntryRepository.findAll();
+        List<TradeListEntry> allEntries = tradeListEntryRepository.findAll(Sort.by(Sort.Direction.DESC, "addedAt"));
 
         return allEntries.stream()
                 .filter(entry -> {

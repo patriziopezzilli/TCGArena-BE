@@ -42,6 +42,15 @@ public class DeckService {
     @Autowired
     private RewardService rewardService;
 
+    @Autowired
+    private com.tcg.arena.repository.UserRepository userRepository;
+
+    @Autowired
+    private com.tcg.arena.repository.DeckLikeRepository deckLikeRepository;
+
+    @Autowired
+    private NotificationService notificationService;
+
     public List<Deck> getAllDecks() {
         return deckRepository.findAll();
     }
@@ -152,7 +161,8 @@ public class DeckService {
 
         // Log deck update activity
         userActivityService.logActivity(userId, ActivityType.DECK_UPDATED,
-                "Aggiunte " + quantity + "x " + card.getCardTemplate().getName() + " al mazzo '" + deck.getName() + "'");
+                "Aggiunte " + quantity + "x " + card.getCardTemplate().getName() + " al mazzo '" + deck.getName()
+                        + "'");
 
         return savedDeck;
     }
@@ -504,7 +514,8 @@ public class DeckService {
 
     /**
      * Toggle the hidden status of a deck.
-     * Hidden decks are not visible on public profiles - useful for competitive players
+     * Hidden decks are not visible on public profiles - useful for competitive
+     * players
      * who want to keep their strategies secret.
      */
     public Optional<Deck> toggleDeckHidden(Long deckId, Boolean isHidden, Long userId) {
@@ -513,15 +524,15 @@ public class DeckService {
             if (!deck.getOwnerId().equals(userId)) {
                 throw new SecurityException("User not authorized to modify this deck");
             }
-            
+
             deck.setIsHidden(isHidden);
             deck.setDateModified(LocalDateTime.now());
             Deck updatedDeck = deckRepository.save(deck);
-            
+
             String action = isHidden ? "nascosto" : "reso visibile";
-            userActivityService.logActivity(userId, ActivityType.DECK_UPDATED, 
+            userActivityService.logActivity(userId, ActivityType.DECK_UPDATED,
                     "Mazzo '" + deck.getName() + "' " + action + " dal profilo pubblico");
-            
+
             return updatedDeck;
         });
     }
@@ -532,4 +543,51 @@ public class DeckService {
     public List<Deck> getPublicDecksForProfile(Long userId) {
         return deckRepository.findByOwnerIdAndIsHiddenFalseOrderByDateCreatedDesc(userId);
     }
+
+    /**
+     * Toggles the like status for a deck by a user.
+     * Returns true if liked, false if unliked.
+     */
+    public boolean toggleLike(Long deckId, Long userId) {
+        Deck deck = deckRepository.findById(deckId)
+                .orElseThrow(() -> new RuntimeException("Deck not found"));
+
+        Optional<DeckLike> existingLike = deckLikeRepository.findByDeckIdAndUserId(deckId, userId);
+
+        if (existingLike.isPresent()) {
+            deckLikeRepository.delete(existingLike.get());
+            if (deck.getLikes() > 0) {
+                deck.setLikes(deck.getLikes() - 1);
+                deckRepository.save(deck);
+            }
+            return false;
+        } else {
+            DeckLike newLike = new DeckLike(deckId, userId);
+            deckLikeRepository.save(newLike);
+
+            deck.setLikes(deck.getLikes() + 1);
+            deckRepository.save(deck);
+
+            // Send notification to deck owner
+            // Find liker name
+            userRepository.findById(userId).ifPresent(liker -> {
+                notificationService.sendDeckLikeNotification(deck.getOwnerId(), deck.getName(), liker.getUsername());
+            });
+
+            // Log activity
+            userActivityService.logActivity(userId, ActivityType.DECK_LIKED,
+                    "Messo mi piace al mazzo '" + deck.getName() + "'");
+
+            return true;
+        }
+    }
+
+    public long getLikeCount(Long deckId) {
+        return deckLikeRepository.countByDeckId(deckId);
+    }
+
+    public boolean isLikedBy(Long deckId, Long userId) {
+        return deckLikeRepository.existsByDeckIdAndUserId(deckId, userId);
+    }
+
 }

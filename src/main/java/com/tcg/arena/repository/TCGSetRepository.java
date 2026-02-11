@@ -40,4 +40,9 @@ public interface TCGSetRepository extends JpaRepository<TCGSet, Long> {
        List<TCGSet> findSetsWithMissingCards(@Param("tcgType") TCGType tcgType);
 
        List<TCGSet> findAllByExpansionTcgType(TCGType tcgType);
+
+       @Query("SELECT DISTINCT CAST(EXTRACT(YEAR FROM s.releaseDate) AS int) FROM TCGSet s " +
+                     "WHERE s.expansion.tcgType = :tcgType AND s.releaseDate IS NOT NULL " +
+                     "ORDER BY CAST(EXTRACT(YEAR FROM s.releaseDate) AS int) DESC")
+       List<Integer> findDistinctReleaseYearsByTcgType(@Param("tcgType") TCGType tcgType);
 }

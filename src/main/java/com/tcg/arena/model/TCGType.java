@@ -10,7 +10,8 @@ public enum TCGType {
     RIFTBOUND("Riftbound: League of Legends", null, "Set", false, true),
     UNION_ARENA("Union Arena", null, "Set", false, true),
     DRAGON_BALL_SUPER_FUSION_WORLD("Dragon Ball Super Fusion World", null, "Set", false, true),
-    FLESH_AND_BLOOD("Flesh and Blood", null, "Set", false, true);
+    FLESH_AND_BLOOD("Flesh and Blood", null, "Set", false, true),
+    POKEMON_JAPAN("Pokemon Japan", "Era", "Set", true, true);
 
     private final String displayName;
     private final String level1Label; // Era, Block, etc. (null for flat hierarchy)

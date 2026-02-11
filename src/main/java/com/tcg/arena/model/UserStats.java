@@ -40,6 +40,9 @@ public class UserStats {
 
     private LocalDateTime lastActivity;
 
+    @Column(nullable = false)
+    private Integer appreciationCount = 0;
+
     // Getters and Setters
     public Long getId() {
         return id;
@@ -127,5 +130,13 @@ public class UserStats {
 
     public void setLastActivity(LocalDateTime lastActivity) {
         this.lastActivity = lastActivity;
+    }
+
+    public Integer getAppreciationCount() {
+        return appreciationCount;
+    }
+
+    public void setAppreciationCount(Integer appreciationCount) {
+        this.appreciationCount = appreciationCount;
     }
 }

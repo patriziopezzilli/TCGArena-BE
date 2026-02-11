@@ -277,4 +277,12 @@ public class ExpansionService {
 
         return expansionRepository.findAll(spec, pageable);
     }
+
+    /**
+     * Get distinct release years for expansions of a specific TCG type
+     * based on the sets within those expansions.
+     */
+    public List<Integer> getExpansionYears(TCGType tcgType) {
+        return tcgSetRepository.findDistinctReleaseYearsByTcgType(tcgType);
+    }
 }

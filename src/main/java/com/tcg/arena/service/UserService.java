@@ -30,6 +30,12 @@ public class UserService {
     @Autowired
     private UserStatsService userStatsService;
 
+    @Autowired
+    private com.tcg.arena.repository.UserAppreciationRepository userAppreciationRepository;
+
+    @Autowired
+    private NotificationService notificationService;
+
     public List<User> getAllUsers() {
         return userRepository.findAllByOrderByDateJoinedDesc();
     }
@@ -148,5 +154,53 @@ public class UserService {
             return getUserByUsername(username);
         }
         return Optional.empty();
+    }
+
+    /**
+     * Toggles appreciation for a user.
+     * Returns true if appreciated, false if un-appreciated.
+     */
+    public boolean toggleAppreciation(Long targetUserId, Long likerUserId) {
+        if (targetUserId.equals(likerUserId)) {
+            throw new IllegalArgumentException("Users cannot appreciate themselves");
+        }
+
+        User targetUser = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        UserStats stats = userStatsService.getOrCreateUserStats(targetUser);
+
+        Optional<com.tcg.arena.model.UserAppreciation> existingAppreciation = userAppreciationRepository
+                .findByTargetUserIdAndLikerUserId(targetUserId, likerUserId);
+
+        if (existingAppreciation.isPresent()) {
+            userAppreciationRepository.delete(existingAppreciation.get());
+            if (stats.getAppreciationCount() > 0) {
+                stats.setAppreciationCount(stats.getAppreciationCount() - 1);
+                userStatsService.saveUserStats(stats);
+            }
+            return false;
+        } else {
+            com.tcg.arena.model.UserAppreciation newAppreciation = new com.tcg.arena.model.UserAppreciation(
+                    targetUserId, likerUserId);
+            userAppreciationRepository.save(newAppreciation); // Removed cast, direct instantiation
+
+            stats.setAppreciationCount(stats.getAppreciationCount() + 1);
+            userStatsService.saveUserStats(stats);
+
+            // Send notification
+            userRepository.findById(likerUserId).ifPresent(liker -> {
+                notificationService.sendProfileAppreciationNotification(targetUserId, liker.getUsername());
+            });
+
+            // Log activity
+            userActivityService.logActivity(likerUserId, com.tcg.arena.model.ActivityType.PROFILE_APPRECIATED,
+                    "Apprezzato il profilo di " + targetUser.getUsername());
+
+            return true;
+        }
+    }
+
+    public boolean isAppreciatedBy(Long targetUserId, Long likerUserId) {
+        return userAppreciationRepository.existsByTargetUserIdAndLikerUserId(targetUserId, likerUserId);
     }
 }

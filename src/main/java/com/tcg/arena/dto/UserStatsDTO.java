@@ -8,21 +8,57 @@ public class UserStatsDTO {
     private Double winRate;
 
     // Constructors, Getters, Setters
-    public UserStatsDTO() {}
+    public UserStatsDTO() {
+    }
 
     // Getters and Setters
-    public Integer getTotalCards() { return totalCards; }
-    public void setTotalCards(Integer totalCards) { this.totalCards = totalCards; }
+    public Integer getTotalCards() {
+        return totalCards;
+    }
 
-    public Integer getTotalDecks() { return totalDecks; }
-    public void setTotalDecks(Integer totalDecks) { this.totalDecks = totalDecks; }
+    public void setTotalCards(Integer totalCards) {
+        this.totalCards = totalCards;
+    }
 
-    public Integer getTournamentsPlayed() { return tournamentsPlayed; }
-    public void setTournamentsPlayed(Integer tournamentsPlayed) { this.tournamentsPlayed = tournamentsPlayed; }
+    public Integer getTotalDecks() {
+        return totalDecks;
+    }
 
-    public Integer getTournamentsWon() { return tournamentsWon; }
-    public void setTournamentsWon(Integer tournamentsWon) { this.tournamentsWon = tournamentsWon; }
+    public void setTotalDecks(Integer totalDecks) {
+        this.totalDecks = totalDecks;
+    }
 
-    public Double getWinRate() { return winRate; }
-    public void setWinRate(Double winRate) { this.winRate = winRate; }
+    public Integer getTournamentsPlayed() {
+        return tournamentsPlayed;
+    }
+
+    public void setTournamentsPlayed(Integer tournamentsPlayed) {
+        this.tournamentsPlayed = tournamentsPlayed;
+    }
+
+    public Integer getTournamentsWon() {
+        return tournamentsWon;
+    }
+
+    public void setTournamentsWon(Integer tournamentsWon) {
+        this.tournamentsWon = tournamentsWon;
+    }
+
+    public Double getWinRate() {
+        return winRate;
+    }
+
+    public void setWinRate(Double winRate) {
+        this.winRate = winRate;
+    }
+
+    private Integer appreciationCount;
+
+    public Integer getAppreciationCount() {
+        return appreciationCount;
+    }
+
+    public void setAppreciationCount(Integer appreciationCount) {
+        this.appreciationCount = appreciationCount;
+    }
 }

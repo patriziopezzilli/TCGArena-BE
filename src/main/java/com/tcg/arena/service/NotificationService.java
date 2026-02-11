@@ -363,6 +363,36 @@ public class NotificationService {
         logger.info("Sent pull like notification to user {}", userId);
     }
 
+    /**
+     * Notifica quando qualcuno mette like a un deck
+     */
+    public void sendDeckLikeNotification(Long deckOwnerId, String deckName, String likerName) {
+        String title = getMessage("notification.like.deck.title", null, deckOwnerId);
+        String message = getMessage("notification.like.deck.message", new Object[] { likerName, deckName },
+                deckOwnerId);
+
+        java.util.Map<String, String> data = new java.util.HashMap<>();
+        data.put("type", "DECK_LIKE");
+
+        sendPushNotification(deckOwnerId, title, message, data);
+        logger.info("Sent deck like notification to user {}", deckOwnerId);
+    }
+
+    /**
+     * Notifica quando qualcuno apprezza il profilo
+     */
+    public void sendProfileAppreciationNotification(Long targetUserId, String likerName) {
+        String title = getMessage("notification.appreciation.profile.title", null, targetUserId);
+        String message = getMessage("notification.appreciation.profile.message", new Object[] { likerName },
+                targetUserId);
+
+        java.util.Map<String, String> data = new java.util.HashMap<>();
+        data.put("type", "PROFILE_APPRECIATION");
+
+        sendPushNotification(targetUserId, title, message, data);
+        logger.info("Sent profile appreciation notification to user {}", targetUserId);
+    }
+
     private String getPlacementText(int placement) {
         return switch (placement) {
             case 1 -> "1°";

@@ -179,4 +179,21 @@ public class ExpansionController {
             return ResponseEntity.badRequest().body(java.util.Map.of("error", message));
         }
     }
+
+    @GetMapping("/years")
+    public List<Integer> getExpansionYears(@RequestParam(required = false) String tcgType) {
+        if (tcgType != null && !tcgType.isEmpty()) {
+            try {
+                TCGType type = TCGType.valueOf(tcgType.toUpperCase());
+                return expansionService.getExpansionYears(type);
+            } catch (IllegalArgumentException e) {
+                // Return empty list for invalid type
+                return List.of();
+            }
+        }
+        // If no TCG type specified, maybe return all years?
+        // For now, let's require TCG type or return empty as the UI always
+        // context-switches.
+        return List.of();
+    }
 }

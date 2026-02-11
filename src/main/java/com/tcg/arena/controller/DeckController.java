@@ -39,7 +39,8 @@ public class DeckController {
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Successfully retrieved list of public decks")
     })
-    public List<Deck> getPublicDecks(@Parameter(description = "User ID to get public decks for") @RequestParam Long userId) {
+    public List<Deck> getPublicDecks(
+            @Parameter(description = "User ID to get public decks for") @RequestParam Long userId) {
         return deckService.getPublicDecksForProfile(userId);
     }
 
@@ -283,5 +284,51 @@ public class DeckController {
         } catch (SecurityException e) {
             return ResponseEntity.status(403).build();
         }
+    }
+
+    @PostMapping("/{id}/like")
+    @Operation(summary = "Toggle deck like", description = "Toggles the like status for a deck by a user")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Like status toggled successfully"),
+            @ApiResponse(responseCode = "404", description = "Deck or user not found")
+    })
+    public ResponseEntity<java.util.Map<String, Object>> toggleLike(
+            @Parameter(description = "Unique identifier of the deck") @PathVariable Long id,
+            @Parameter(description = "Unique identifier of the user performing the action") @RequestParam Long userId) {
+        try {
+            boolean isLiked = deckService.toggleLike(id, userId);
+            long likeCount = deckService.getLikeCount(id);
+
+            java.util.Map<String, Object> response = new java.util.HashMap<>();
+            response.put("isLiked", isLiked);
+            response.put("likeCount", likeCount);
+
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
+
+    @GetMapping("/{id}/likes")
+    @Operation(summary = "Get deck likes", description = "Retrieves the like count and status for a deck")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Like info retrieved successfully")
+    })
+    public ResponseEntity<java.util.Map<String, Object>> getDeckLikes(
+            @Parameter(description = "Unique identifier of the deck") @PathVariable Long id,
+            @Parameter(description = "Unique identifier of the user (optional)") @RequestParam(required = false) Long userId) {
+
+        long likeCount = deckService.getLikeCount(id);
+        boolean isLiked = false;
+
+        if (userId != null) {
+            isLiked = deckService.isLikedBy(id, userId);
+        }
+
+        java.util.Map<String, Object> response = new java.util.HashMap<>();
+        response.put("likeCount", likeCount);
+        response.put("isLiked", isLiked);
+
+        return ResponseEntity.ok(response);
     }
 }

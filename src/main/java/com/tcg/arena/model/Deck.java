@@ -46,6 +46,9 @@ public class Deck {
     @JsonProperty("is_hidden")
     private Boolean isHidden = false; // Hide deck from public profile view
 
+    @Column(nullable = false)
+    private Long likes = 0L;
+
     @Column(length = 1000)
     private String description;
 
@@ -127,6 +130,14 @@ public class Deck {
 
     public void setIsHidden(Boolean isHidden) {
         this.isHidden = isHidden;
+    }
+
+    public Long getLikes() {
+        return likes;
+    }
+
+    public void setLikes(Long likes) {
+        this.likes = likes;
     }
 
     public String getDescription() {
