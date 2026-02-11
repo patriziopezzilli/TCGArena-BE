@@ -2,6 +2,7 @@ package com.tcg.arena.service;
 
 import com.tcg.arena.model.ShopNews;
 import com.tcg.arena.model.NewsType;
+import com.tcg.arena.model.TCGType;
 import com.tcg.arena.repository.ShopNewsRepository;
 import com.tcg.arena.repository.ShopRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,7 +31,7 @@ public class ShopNewsService {
     @Transactional
     public ShopNews createNews(Long shopId, String title, String content, NewsType newsType,
             LocalDateTime startDate, LocalDateTime expiryDate,
-            String imageUrl, Boolean isPinned) {
+            String imageUrl, Boolean isPinned, TCGType tcgType, String externalUrl) {
         // Verify shop exists
         var shop = shopRepository.findById(shopId)
                 .orElseThrow(() -> new IllegalArgumentException("Shop not found with id: " + shopId));
@@ -44,6 +45,8 @@ public class ShopNewsService {
         news.setExpiryDate(expiryDate);
         news.setImageUrl(imageUrl);
         news.setIsPinned(isPinned != null ? isPinned : false);
+        news.setTcgType(tcgType);
+        news.setExternalUrl(externalUrl);
 
         ShopNews saved = shopNewsRepository.save(news);
 
@@ -66,7 +69,7 @@ public class ShopNewsService {
     @Transactional
     public ShopNews updateNews(Long newsId, String title, String content, NewsType newsType,
             LocalDateTime startDate, LocalDateTime expiryDate,
-            String imageUrl, Boolean isPinned) {
+            String imageUrl, Boolean isPinned, TCGType tcgType, String externalUrl) {
         ShopNews news = shopNewsRepository.findById(newsId)
                 .orElseThrow(() -> new IllegalArgumentException("News not found with id: " + newsId));
 
@@ -83,6 +86,8 @@ public class ShopNewsService {
             news.setImageUrl(imageUrl);
         if (isPinned != null)
             news.setIsPinned(isPinned);
+        news.setTcgType(tcgType);
+        news.setExternalUrl(externalUrl);
 
         return shopNewsRepository.save(news);
     }

@@ -23,6 +23,13 @@ public class ShopNews {
     @Column(name = "news_type", nullable = false)
     private NewsType newsType;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tcg_type")
+    private TCGType tcgType;
+
+    @Column(name = "external_url", length = 500)
+    private String externalUrl;
+
     @Column(name = "start_date", nullable = false)
     private LocalDateTime startDate;
 
@@ -154,5 +161,21 @@ public class ShopNews {
 
     public void setShop(Shop shop) {
         this.shop = shop;
+    }
+
+    public TCGType getTcgType() {
+        return tcgType;
+    }
+
+    public void setTcgType(TCGType tcgType) {
+        this.tcgType = tcgType;
+    }
+
+    public String getExternalUrl() {
+        return externalUrl;
+    }
+
+    public void setExternalUrl(String externalUrl) {
+        this.externalUrl = externalUrl;
     }
 }

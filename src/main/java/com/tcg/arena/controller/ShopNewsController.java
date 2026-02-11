@@ -148,7 +148,9 @@ public class ShopNewsController {
                     request.getStartDate(),
                     request.getExpiryDate(),
                     request.getImageUrl(),
-                    request.getIsPinned());
+                    request.getIsPinned(),
+                    request.getTcgType(),
+                    request.getExternalUrl());
             return ResponseEntity.status(HttpStatus.CREATED).body(new ShopNewsDTO(news));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
@@ -185,7 +187,9 @@ public class ShopNewsController {
                     request.getStartDate(),
                     request.getExpiryDate(),
                     request.getImageUrl(),
-                    request.getIsPinned());
+                    request.getIsPinned(),
+                    request.getTcgType(),
+                    request.getExternalUrl());
             return ResponseEntity.ok(new ShopNewsDTO(news));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));

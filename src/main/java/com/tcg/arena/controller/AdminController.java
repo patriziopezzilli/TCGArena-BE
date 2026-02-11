@@ -675,7 +675,9 @@ public class AdminController {
                     request.getExpiryDate(),
                     request.getImageUrl(),
                     request.getIsPinned(),
-                    createdBy);
+                    createdBy,
+                    request.getTcgType(),
+                    request.getExternalUrl());
 
             System.out.println("✅ DEBUG - Broadcast news created with ID: " + news.getId());
             System.out.println("  Saved StartDate: " + news.getStartDate());
@@ -721,7 +723,9 @@ public class AdminController {
                     request.getStartDate(),
                     request.getExpiryDate(),
                     request.getImageUrl(),
-                    request.getIsPinned());
+                    request.getIsPinned(),
+                    request.getTcgType(),
+                    request.getExternalUrl());
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);

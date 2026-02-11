@@ -3,6 +3,7 @@ package com.tcg.arena.dto;
 import com.tcg.arena.model.BroadcastNews;
 import com.tcg.arena.model.NewsType;
 import com.tcg.arena.model.ShopNews;
+import com.tcg.arena.model.TCGType;
 
 import java.time.LocalDateTime;
 
@@ -21,6 +22,8 @@ public class NewsItemDTO {
     private String source; // "SHOP" or "BROADCAST"
     private Long shopId; // Only for shop news
     private String shopName; // Only for shop news
+    private TCGType tcgType;
+    private String externalUrl;
     private LocalDateTime createdAt;
 
     public NewsItemDTO() {
@@ -39,6 +42,8 @@ public class NewsItemDTO {
         this.source = "SHOP";
         this.shopId = shopNews.getShopId();
         this.shopName = shopName;
+        this.tcgType = shopNews.getTcgType();
+        this.externalUrl = shopNews.getExternalUrl();
         this.createdAt = shopNews.getCreatedAt();
     }
 
@@ -55,6 +60,8 @@ public class NewsItemDTO {
         this.source = "BROADCAST";
         this.shopId = null;
         this.shopName = null;
+        this.tcgType = broadcastNews.getTcgType();
+        this.externalUrl = broadcastNews.getExternalUrl();
         this.createdAt = broadcastNews.getCreatedAt();
     }
 
@@ -153,5 +160,21 @@ public class NewsItemDTO {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public TCGType getTcgType() {
+        return tcgType;
+    }
+
+    public void setTcgType(TCGType tcgType) {
+        this.tcgType = tcgType;
+    }
+
+    public String getExternalUrl() {
+        return externalUrl;
+    }
+
+    public void setExternalUrl(String externalUrl) {
+        this.externalUrl = externalUrl;
     }
 }

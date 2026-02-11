@@ -2,6 +2,7 @@ package com.tcg.arena.controller;
 
 import com.tcg.arena.model.BroadcastNews;
 import com.tcg.arena.model.NewsType;
+import com.tcg.arena.model.TCGType;
 import java.time.LocalDateTime;
 
 public class BroadcastNewsDTO {
@@ -14,6 +15,8 @@ public class BroadcastNewsDTO {
     private String imageUrl;
     private Boolean isPinned;
     private Long createdBy;
+    private TCGType tcgType;
+    private String externalUrl;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -30,6 +33,8 @@ public class BroadcastNewsDTO {
         this.imageUrl = news.getImageUrl();
         this.isPinned = news.getIsPinned();
         this.createdBy = news.getCreatedBy();
+        this.tcgType = news.getTcgType();
+        this.externalUrl = news.getExternalUrl();
         this.createdAt = news.getCreatedAt();
         this.updatedAt = news.getUpdatedAt();
     }
@@ -121,5 +126,21 @@ public class BroadcastNewsDTO {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public TCGType getTcgType() {
+        return tcgType;
+    }
+
+    public void setTcgType(TCGType tcgType) {
+        this.tcgType = tcgType;
+    }
+
+    public String getExternalUrl() {
+        return externalUrl;
+    }
+
+    public void setExternalUrl(String externalUrl) {
+        this.externalUrl = externalUrl;
     }
 }

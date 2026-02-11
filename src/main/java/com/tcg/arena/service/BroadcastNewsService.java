@@ -2,6 +2,7 @@ package com.tcg.arena.service;
 
 import com.tcg.arena.model.BroadcastNews;
 import com.tcg.arena.model.NewsType;
+import com.tcg.arena.model.TCGType;
 import com.tcg.arena.repository.BroadcastNewsRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -55,8 +56,9 @@ public class BroadcastNewsService {
      * Create new broadcast news
      */
     public BroadcastNews createNews(String title, String content, NewsType newsType,
-                                     LocalDateTime startDate, LocalDateTime expiryDate,
-                                     String imageUrl, Boolean isPinned, Long createdBy) {
+            LocalDateTime startDate, LocalDateTime expiryDate,
+            String imageUrl, Boolean isPinned, Long createdBy,
+            TCGType tcgType, String externalUrl) {
         if (title == null || title.trim().isEmpty()) {
             throw new IllegalArgumentException("Title is required");
         }
@@ -76,6 +78,8 @@ public class BroadcastNewsService {
         news.setImageUrl(imageUrl);
         news.setIsPinned(isPinned != null ? isPinned : false);
         news.setCreatedBy(createdBy);
+        news.setTcgType(tcgType);
+        news.setExternalUrl(externalUrl);
 
         return broadcastNewsRepository.save(news);
     }
@@ -84,8 +88,9 @@ public class BroadcastNewsService {
      * Update broadcast news
      */
     public BroadcastNews updateNews(Long id, String title, String content, NewsType newsType,
-                                     LocalDateTime startDate, LocalDateTime expiryDate,
-                                     String imageUrl, Boolean isPinned) {
+            LocalDateTime startDate, LocalDateTime expiryDate,
+            String imageUrl, Boolean isPinned,
+            TCGType tcgType, String externalUrl) {
         BroadcastNews news = broadcastNewsRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("News not found"));
 
@@ -106,6 +111,8 @@ public class BroadcastNewsService {
         if (isPinned != null) {
             news.setIsPinned(isPinned);
         }
+        news.setTcgType(tcgType);
+        news.setExternalUrl(externalUrl);
 
         return broadcastNewsRepository.save(news);
     }
