@@ -82,6 +82,12 @@ public class Shop {
     @Column(nullable = false)
     private Boolean isPartner = false;
 
+    @org.hibernate.annotations.Formula("(SELECT AVG(r.rating) FROM shop_reviews r WHERE r.shop_id = id)")
+    private Double averageRating;
+
+    @org.hibernate.annotations.Formula("(SELECT COUNT(r.id) FROM shop_reviews r WHERE r.shop_id = id)")
+    private Integer reviewCount;
+
     @OneToMany(mappedBy = "shopId", cascade = CascadeType.ALL)
     private List<ShopInventory> inventory = new ArrayList<>();
 
@@ -341,5 +347,21 @@ public class Shop {
         } else {
             this.services = String.join(",", servicesList);
         }
+    }
+
+    public Double getAverageRating() {
+        return averageRating;
+    }
+
+    public void setAverageRating(Double averageRating) {
+        this.averageRating = averageRating;
+    }
+
+    public Integer getReviewCount() {
+        return reviewCount;
+    }
+
+    public void setReviewCount(Integer reviewCount) {
+        this.reviewCount = reviewCount;
     }
 }
