@@ -34,6 +34,9 @@ public class UserWithStatsDTO {
     private Integer tradeRatingCount;
     private Boolean emailNotificationsEnabled;
 
+    @JsonProperty("is_appreciated")
+    private Boolean isAppreciated;
+
     // Embedded stats
     private UserStatsDTO stats;
 
@@ -228,6 +231,14 @@ public class UserWithStatsDTO {
 
     public void setEmailNotificationsEnabled(Boolean emailNotificationsEnabled) {
         this.emailNotificationsEnabled = emailNotificationsEnabled;
+    }
+
+    public Boolean getIsAppreciated() {
+        return isAppreciated;
+    }
+
+    public void setIsAppreciated(Boolean isAppreciated) {
+        this.isAppreciated = isAppreciated;
     }
 
     public UserStatsDTO getStats() {

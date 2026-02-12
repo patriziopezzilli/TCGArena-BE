@@ -78,10 +78,19 @@ public class UserController {
 
         @GetMapping("/{id}")
         @Operation(summary = "Get user by ID", description = "Retrieves a specific user by their unique ID with stats")
-        public ResponseEntity<UserWithStatsDTO> getUserById(@PathVariable Long id) {
+        public ResponseEntity<UserWithStatsDTO> getUserById(
+                        @PathVariable Long id,
+                        @Parameter(description = "Unique identifier of the user checking status") @RequestParam(required = false) Long userId) {
                 return userService.getUserById(id).map(user -> {
                         UserStats stats = userStatsService.getOrCreateUserStats(user);
-                        return ResponseEntity.ok(UserWithStatsDTO.fromUserAndStats(user, stats));
+                        UserWithStatsDTO dto = UserWithStatsDTO.fromUserAndStats(user, stats);
+
+                        // Populate appreciation status if userId is provided
+                        if (userId != null) {
+                                dto.setIsAppreciated(userService.isAppreciatedBy(id, userId));
+                        }
+
+                        return ResponseEntity.ok(dto);
                 }).orElse(ResponseEntity.notFound().build());
         }
 
