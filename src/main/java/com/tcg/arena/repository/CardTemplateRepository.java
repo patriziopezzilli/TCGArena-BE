@@ -121,7 +121,7 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
                         "AND LOWER(ct.name) NOT LIKE '%blister%' " +
                         "AND LOWER(ct.name) NOT LIKE '%box%' " +
                         "AND LOWER(ct.name) NOT LIKE '%deck%' " +
-                "AND LOWER(c.name) NOT LIKE '%pack%' " +
+                        "AND LOWER(ct.name) NOT LIKE '%pack%' " +
                         "AND LOWER(ct.name) NOT LIKE '%decks%' " +
                         "ORDER BY ct.id", nativeQuery = true)
         Page<CardTemplate> findWithFilters(
@@ -207,7 +207,7 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
                         "AND LOWER(ct.name) NOT LIKE '%blister%' " +
                         "AND LOWER(ct.name) NOT LIKE '%box%' " +
                         "AND LOWER(ct.name) NOT LIKE '%deck%' " +
-                "AND LOWER(c.name) NOT LIKE '%pack%' " +
+                        "AND LOWER(ct.name) NOT LIKE '%pack%' " +
                         "AND LOWER(ct.name) NOT LIKE '%decks%' " +
                         "ORDER BY RANDOM() " +
                         "LIMIT :limit", nativeQuery = true)
