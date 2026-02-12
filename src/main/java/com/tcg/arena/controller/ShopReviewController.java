@@ -1,8 +1,10 @@
 package com.tcg.arena.controller;
 
 import com.tcg.arena.model.ShopReview;
+import com.tcg.arena.model.Shop;
 import com.tcg.arena.model.User;
 import com.tcg.arena.repository.ShopReviewRepository;
+import com.tcg.arena.repository.ShopRepository;
 import com.tcg.arena.repository.UserRepository;
 import com.tcg.arena.service.UserActivityService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,6 +29,9 @@ public class ShopReviewController {
 
     @Autowired
     private ShopReviewRepository shopReviewRepository;
+
+    @Autowired
+    private ShopRepository shopRepository;
 
     @Autowired
     private UserRepository userRepository;
@@ -102,6 +107,15 @@ public class ShopReviewController {
             review.setCreatedAt(LocalDateTime.now());
 
             ShopReview savedReview = shopReviewRepository.save(review);
+
+            // Update shop's averageRating and reviewCount
+            shopRepository.findById(id).ifPresent(shop -> {
+                Double avgRating = shopReviewRepository.getAverageRating(id);
+                Long count = shopReviewRepository.countByShopId(id);
+                shop.setAverageRating(avgRating);
+                shop.setReviewCount(count != null ? count.intValue() : 0);
+                shopRepository.save(shop);
+            });
 
             // Populate transient fields for immediate return
             savedReview.setUsername(user.getUsername());
