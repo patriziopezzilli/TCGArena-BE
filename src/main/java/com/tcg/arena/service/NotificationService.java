@@ -411,29 +411,94 @@ public class NotificationService {
      * @param message Notification message
      * @return Number of users notified
      */
+    /**
+     * Send broadcast notification to ALL users with registered device tokens
+     * 
+     * @param title   Notification title
+     * @param message Notification message
+     * @return Number of users notified
+     */
     public int sendBroadcastNotification(String title, String message) {
+        return sendBroadcastNewsNotification(title, message, null, null);
+    }
+
+    /**
+     * Send broadcast news notification with TCG filtering and deep link
+     * 
+     * @param title       Notification title
+     * @param message     Notification message
+     * @param tcgType     TCG type to filter by (null for all)
+     * @param externalUrl External link to open
+     * @return Number of users notified
+     */
+    public int sendBroadcastNewsNotification(String title, String message, com.tcg.arena.model.TCGType tcgType,
+            String externalUrl) {
         // Get all unique user IDs from device tokens
         List<DeviceToken> allDeviceTokens = deviceTokenRepository.findAll();
+
+        if (allDeviceTokens.isEmpty()) {
+            return 0;
+        }
+
+        // Optimisation: Fetch all relevant users in one go to avoid N+1 queries
+        java.util.Set<Long> userIds = allDeviceTokens.stream()
+                .map(DeviceToken::getUserId)
+                .collect(java.util.stream.Collectors.toSet());
+
+        List<com.tcg.arena.model.User> users = userRepository.findAllById(userIds);
+        java.util.Map<Long, com.tcg.arena.model.User> userMap = users.stream()
+                .collect(java.util.stream.Collectors.toMap(com.tcg.arena.model.User::getId, u -> u));
 
         // Count unique users
         java.util.Set<Long> notifiedUsers = new java.util.HashSet<>();
         int successCount = 0;
         int failCount = 0;
 
-        logger.info("📢 Starting broadcast notification to {} device tokens", allDeviceTokens.size());
+        logger.info("📢 Starting broadcast news notification to {} device tokens (TCG: {}, URL: {})",
+                allDeviceTokens.size(), tcgType, externalUrl);
 
         for (DeviceToken deviceToken : allDeviceTokens) {
             Long userId = deviceToken.getUserId();
+            com.tcg.arena.model.User user = userMap.get(userId);
+
+            if (user == null) {
+                continue;
+            }
+
+            // Filter by TCG Type
+            if (tcgType != null) {
+                List<com.tcg.arena.model.TCGType> favorites = user.getFavoriteTCGTypes();
+                // If user has no favorites, they might want all news?
+                // Logic: If user has specific favorites, only show those + general
+                // If user has NO favorites (empty list), maybe show all?
+                // Current implementation: Strict filtering. If TCG specified, user MUST have it
+                // in favorites.
+                if (!favorites.isEmpty() && !favorites.contains(tcgType)) {
+                    continue; // Skip if user is not interested in this TCG
+                }
+            }
 
             // Create in-app notification only once per user
             if (!notifiedUsers.contains(userId)) {
-                createNotification(userId, title, message, "admin_broadcast");
+                // Determine notification type based on TCG
+                String notifType = tcgType != null ? "news_tcg_" + tcgType.name().toLowerCase() : "news_broadcast";
+                createNotification(userId, title, message, notifType);
                 notifiedUsers.add(userId);
+            }
+
+            // Prepare data payload
+            java.util.Map<String, String> data = new java.util.HashMap<>();
+            data.put("type", "NEWS_BROADCAST");
+            if (externalUrl != null && !externalUrl.isEmpty()) {
+                data.put("link", externalUrl);
+            }
+            if (tcgType != null) {
+                data.put("tcg", tcgType.name());
             }
 
             // Send push notification to each device
             try {
-                firebaseMessagingService.sendPushNotification(deviceToken.getToken(), title, message);
+                firebaseMessagingService.sendPushNotification(deviceToken.getToken(), title, message, data);
                 successCount++;
             } catch (FirebaseMessagingService.InvalidTokenException e) {
                 failCount++;
@@ -447,7 +512,7 @@ public class NotificationService {
             }
         }
 
-        logger.info("📢 Broadcast complete: {} users notified, {} push sent, {} failed",
+        logger.info("📢 Broadcast payload sent: {} users notified, {} push sent, {} failed",
                 notifiedUsers.size(), successCount, failCount);
 
         return notifiedUsers.size();

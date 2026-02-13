@@ -690,9 +690,11 @@ public class AdminController {
 
             // Opzionalmente manda anche una push notification
             if (sendPushNotification) {
-                int usersNotified = notificationService.sendBroadcastNotification(
+                int usersNotified = notificationService.sendBroadcastNewsNotification(
                         news.getTitle(),
-                        news.getContent());
+                        news.getContent(),
+                        news.getTcgType(),
+                        news.getExternalUrl());
                 response.put("pushNotificationSent", true);
                 response.put("usersNotified", usersNotified);
             } else {
