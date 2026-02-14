@@ -146,13 +146,13 @@ public class DeckService {
         System.out.println("DeckService: Found deck " + deck.getName());
 
         Card card = cardRepository.findById(cardId)
-                .orElseThrow(() -> new RuntimeException("Card not found"));
+                .orElseThrow(() -> new RuntimeException("Card not found with ID: " + cardId));
 
         System.out.println("DeckService: Found card " + card.getCardTemplate().getName() + " with ownerId " + card.getOwnerId());
 
         // Verify the card belongs to the user
         if (!card.getOwnerId().equals(userId)) {
-            throw new RuntimeException("Card does not belong to user");
+            throw new RuntimeException("Card with ID " + cardId + " does not belong to user " + userId + " (belongs to user " + card.getOwnerId() + ")");
         }
 
         System.out.println("DeckService: Card ownership verified");
