@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -609,4 +610,47 @@ public class DeckService {
         return deckLikeRepository.existsByDeckIdAndUserId(deckId, userId);
     }
 
+    public Deck duplicateDeck(Long deckId, String newName, Long userId) {
+        Deck sourceDeck = deckRepository.findById(deckId)
+                .orElseThrow(() -> new RuntimeException("Source deck not found"));
+
+        Deck newDeck = new Deck();
+        newDeck.setName(newName);
+        newDeck.setDescription(sourceDeck.getDescription());
+        newDeck.setTcgType(sourceDeck.getTcgType());
+        newDeck.setDeckType(sourceDeck.getDeckType());
+        newDeck.setOwnerId(userId);
+        newDeck.setDateCreated(LocalDateTime.now());
+        newDeck.setDateModified(LocalDateTime.now());
+        newDeck.setIsPublic(false);
+        newDeck.setIsHidden(sourceDeck.getIsHidden());
+        if (sourceDeck.getTags() != null) {
+            newDeck.setTags(new java.util.ArrayList<>(sourceDeck.getTags()));
+        }
+
+        Deck savedDeck = deckRepository.save(newDeck);
+
+        List<DeckCard> sourceCards = deckCardRepository.findByDeckId(deckId);
+        for (DeckCard sourceCard : sourceCards) {
+            DeckCard newCard = new DeckCard();
+            newCard.setDeck(savedDeck);
+            newCard.setCardId(sourceCard.getCardId());
+            newCard.setQuantity(sourceCard.getQuantity());
+            newCard.setCardName(sourceCard.getCardName());
+            newCard.setCardImageUrl(sourceCard.getCardImageUrl());
+            newCard.setSection(sourceCard.getSection());
+            newCard.setCondition(sourceCard.getCondition());
+            newCard.setIsGraded(sourceCard.getIsGraded());
+            newCard.setGradeService(sourceCard.getGradeService());
+            newCard.setGrade(sourceCard.getGrade());
+            newCard.setCertificateNumber(sourceCard.getCertificateNumber());
+            newCard.setNationality(sourceCard.getNationality());
+            deckCardRepository.save(newCard);
+        }
+
+        userActivityService.logActivity(userId, ActivityType.DECK_CREATED,
+                "Duplicato mazzo '" + sourceDeck.getName() + "' come '" + newName + "'");
+
+        return savedDeck;
+    }
 }

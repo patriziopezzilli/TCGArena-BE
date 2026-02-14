@@ -268,6 +268,25 @@ public class DeckController {
         }
     }
 
+    @PostMapping("/{id}/duplicate")
+    @Operation(summary = "Duplicate an existing deck", description = "Creates a new deck with all cards from the source deck")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Deck duplicated successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid request or source deck not found"),
+            @ApiResponse(responseCode = "404", description = "Source deck not found")
+    })
+    public ResponseEntity<Deck> duplicateDeck(
+            @Parameter(description = "Unique identifier of the source deck") @PathVariable Long id,
+            @Parameter(description = "New name for the duplicated deck") @RequestParam String newName,
+            @Parameter(description = "Unique identifier of the user performing the action") @RequestParam Long userId) {
+        try {
+            Deck duplicatedDeck = deckService.duplicateDeck(id, newName, userId);
+            return ResponseEntity.ok(duplicatedDeck);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
     @PutMapping("/{id}/visibility")
     @Operation(summary = "Toggle deck visibility", description = "Toggles the hidden status of a deck. Hidden decks are not visible on public profiles. Useful for competitive players who want to keep their strategies secret.")
     @ApiResponses(value = {
