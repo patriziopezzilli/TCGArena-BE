@@ -138,17 +138,27 @@ public class DeckService {
     }
 
     public Deck addCardToDeck(Long deckId, Long cardId, int quantity, String section, Long userId) {
+        System.out.println("DeckService: Adding card " + cardId + " to deck " + deckId + " in section " + section + " with quantity " + quantity + " for user " + userId);
+
         Deck deck = deckRepository.findById(deckId)
                 .orElseThrow(() -> new RuntimeException("Deck not found"));
+
+        System.out.println("DeckService: Found deck " + deck.getName());
 
         Card card = cardRepository.findById(cardId)
                 .orElseThrow(() -> new RuntimeException("Card not found"));
 
+        System.out.println("DeckService: Found card " + card.getCardTemplate().getName());
+
         // Check if card exists in the same section
         List<DeckCard> existingCards = deckCardRepository.findByDeckId(deckId);
+        System.out.println("DeckService: Found " + existingCards.size() + " existing cards in deck");
+
         for (DeckCard existing : existingCards) {
+            System.out.println("DeckService: Checking existing card " + existing.getCardId() + " in section " + existing.getSection());
             if (existing.getCardId().equals(cardId) &&
                     (existing.getSection() == null ? section == null : existing.getSection().equals(section))) {
+                System.out.println("DeckService: Found existing card, incrementing quantity from " + existing.getQuantity() + " to " + (existing.getQuantity() + quantity));
                 existing.setQuantity(existing.getQuantity() + quantity);
                 deckCardRepository.save(existing);
 
@@ -157,6 +167,7 @@ public class DeckService {
             }
         }
 
+        System.out.println("DeckService: Creating new deck card");
         DeckCard deckCard = new DeckCard();
         deckCard.setDeck(deck);
         deckCard.setCardId(cardId);
@@ -179,6 +190,7 @@ public class DeckService {
                 "Aggiunte " + quantity + "x " + card.getCardTemplate().getName() + " al mazzo '" + deck.getName()
                         + "' (" + deckCard.getSection() + ")");
 
+        System.out.println("DeckService: Successfully added card to deck");
         return savedDeck;
     }
 
@@ -263,28 +275,49 @@ public class DeckService {
     }
 
     public boolean removeCardFromDeck(Long deckId, Long cardId, Long userId) {
+        System.out.println("DeckService: Attempting to remove card " + cardId + " from deck " + deckId + " for user " + userId);
+
         Deck deck = deckRepository.findById(deckId).orElse(null);
-        if (deck == null)
+        if (deck == null) {
+            System.out.println("DeckService: Deck " + deckId + " not found");
             return false;
+        }
 
         Card card = cardRepository.findById(cardId).orElse(null);
-        if (card == null)
+        if (card == null) {
+            System.out.println("DeckService: Card " + cardId + " not found");
             return false;
+        }
 
         List<DeckCard> deckCards = deckCardRepository.findByDeckId(deckId);
+        System.out.println("DeckService: Found " + deckCards.size() + " cards in deck " + deckId);
+
         for (DeckCard deckCard : deckCards) {
+            System.out.println("DeckService: Checking deckCard with cardId " + deckCard.getCardId() + " against target " + cardId);
             if (deckCard.getCardId().equals(cardId)) {
-                deckCardRepository.delete(deckCard);
+                System.out.println("DeckService: Found matching deckCard with quantity " + deckCard.getQuantity());
+                if (deckCard.getQuantity() > 1) {
+                    // Decrement quantity instead of deleting
+                    System.out.println("DeckService: Decrementing quantity from " + deckCard.getQuantity() + " to " + (deckCard.getQuantity() - 1));
+                    deckCard.setQuantity(deckCard.getQuantity() - 1);
+                    deckCardRepository.save(deckCard);
+                } else {
+                    // Remove the deck card entirely
+                    System.out.println("DeckService: Deleting deckCard as quantity is 1");
+                    deckCardRepository.delete(deckCard);
+                }
+
                 deck.setDateModified(LocalDateTime.now());
                 deckRepository.save(deck);
 
                 // Log deck update activity
-                userActivityService.logActivity(userId, ActivityType.DECK_UPDATED, "Rimosse " + deckCard.getQuantity()
-                        + "x " + card.getCardTemplate().getName() + " dal mazzo '" + deck.getName() + "'");
+                userActivityService.logActivity(userId, ActivityType.DECK_UPDATED, "Rimosse 1x " + card.getCardTemplate().getName() + " dal mazzo '" + deck.getName() + "'");
 
                 return true;
             }
         }
+
+        System.out.println("DeckService: No matching deckCard found for card " + cardId + " in deck " + deckId);
         return false;
     }
 
