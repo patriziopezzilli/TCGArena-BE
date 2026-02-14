@@ -284,6 +284,7 @@ public class UserCardController {
     public ResponseEntity<UserCardDeck> assignCardToDeck(
             @Parameter(description = "User card ID") @PathVariable Long userCardId,
             @Parameter(description = "Deck ID") @PathVariable Long deckId,
+            @Parameter(description = "Section in the deck (e.g., MAIN, SIDE, EXTRA)") @RequestParam(required = false) String section,
             @AuthenticationPrincipal UserDetails userDetails) {
         String username = userDetails.getUsername();
         Optional<User> userOpt = userCardService.getUserByUsername(username);
@@ -336,7 +337,9 @@ public class UserCardController {
             // Simplified match: mostly Template + Condition
             if (dc.getCardId().equals(userCard.getCardTemplate().getId())
                     && dc.getCondition() == userCard.getCondition()
-                    && gradeMatch) {
+                    && gradeMatch
+                    && (dc.getSection() == null ? (section == null || section.equals("MAIN"))
+                            : dc.getSection().equals(section))) {
 
                 dc.setQuantity(dc.getQuantity() + 1);
                 found = true;
@@ -352,6 +355,7 @@ public class UserCardController {
             newDc.setCardName(userCard.getCardTemplate().getName());
             newDc.setCardImageUrl(userCard.getCardTemplate().getImageUrl());
             newDc.setCondition(userCard.getCondition());
+            newDc.setSection(section != null ? section : "MAIN");
             // Sync grading info
             newDc.setIsGraded(userCard.getIsGraded());
             newDc.setGradeService(userCard.getGradeService());
