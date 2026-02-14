@@ -111,6 +111,8 @@ public class DeckController {
         try {
             return ResponseEntity.ok(deckService.addCardToDeck(id, cardId, quantity, section, userId));
         } catch (Exception e) {
+            System.out.println("DeckController: Error adding card to deck: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.badRequest().build();
         }
     }
