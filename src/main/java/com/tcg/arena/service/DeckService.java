@@ -148,14 +148,21 @@ public class DeckService {
         Card card = cardRepository.findById(cardId)
                 .orElseThrow(() -> new RuntimeException("Card not found"));
 
-        System.out.println("DeckService: Found card " + card.getCardTemplate().getName());
+        System.out.println("DeckService: Found card " + card.getCardTemplate().getName() + " with ownerId " + card.getOwnerId());
+
+        // Verify the card belongs to the user
+        if (!card.getOwnerId().equals(userId)) {
+            throw new RuntimeException("Card does not belong to user");
+        }
+
+        System.out.println("DeckService: Card ownership verified");
 
         // Check if card exists in the same section
         List<DeckCard> existingCards = deckCardRepository.findByDeckId(deckId);
         System.out.println("DeckService: Found " + existingCards.size() + " existing cards in deck");
 
         for (DeckCard existing : existingCards) {
-            System.out.println("DeckService: Checking existing card " + existing.getCardId() + " in section " + existing.getSection());
+            System.out.println("DeckService: Checking existing card " + existing.getCardId() + " in section " + existing.getSection() + " vs cardId " + cardId + " in section " + section);
             if (existing.getCardId().equals(cardId) &&
                     (existing.getSection() == null ? section == null : existing.getSection().equals(section))) {
                 System.out.println("DeckService: Found existing card, incrementing quantity from " + existing.getQuantity() + " to " + (existing.getQuantity() + quantity));
