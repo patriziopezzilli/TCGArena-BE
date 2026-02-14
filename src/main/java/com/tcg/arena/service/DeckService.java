@@ -275,7 +275,7 @@ public class DeckService {
     }
 
     public boolean removeCardFromDeck(Long deckId, Long cardId, Long userId) {
-        System.out.println("DeckService: Attempting to remove card " + cardId + " from deck " + deckId + " for user " + userId);
+        System.out.println("DeckService: Attempting to remove card template " + cardId + " from deck " + deckId + " for user " + userId);
 
         Deck deck = deckRepository.findById(deckId).orElse(null);
         if (deck == null) {
@@ -283,9 +283,9 @@ public class DeckService {
             return false;
         }
 
-        Card card = cardRepository.findById(cardId).orElse(null);
-        if (card == null) {
-            System.out.println("DeckService: Card " + cardId + " not found");
+        // Verify the user owns the deck
+        if (!deck.getOwnerId().equals(userId)) {
+            System.out.println("DeckService: User " + userId + " does not own deck " + deckId);
             return false;
         }
 
@@ -311,13 +311,14 @@ public class DeckService {
                 deckRepository.save(deck);
 
                 // Log deck update activity
-                userActivityService.logActivity(userId, ActivityType.DECK_UPDATED, "Rimosse 1x " + card.getCardTemplate().getName() + " dal mazzo '" + deck.getName() + "'");
+                userActivityService.logActivity(userId, ActivityType.DECK_UPDATED,
+                    "Rimosse 1x " + deckCard.getCardName() + " dal mazzo '" + deck.getName() + "'");
 
                 return true;
             }
         }
 
-        System.out.println("DeckService: No matching deckCard found for card " + cardId + " in deck " + deckId);
+        System.out.println("DeckService: No matching deckCard found for card template " + cardId + " in deck " + deckId);
         return false;
     }
 
