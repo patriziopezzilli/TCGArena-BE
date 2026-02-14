@@ -26,6 +26,9 @@ public class GlobalChatMessage {
     @Column(name = "display_name", length = 100)
     private String displayName;
 
+    @Column(name = "profile_image_url")
+    private String profileImageUrl;
+
     @Column(nullable = false, length = 500)
     private String content;
 
@@ -36,10 +39,11 @@ public class GlobalChatMessage {
     public GlobalChatMessage() {
     }
 
-    public GlobalChatMessage(Long userId, String username, String displayName, String content) {
+    public GlobalChatMessage(Long userId, String username, String displayName, String profileImageUrl, String content) {
         this.userId = userId;
         this.username = username;
         this.displayName = displayName;
+        this.profileImageUrl = profileImageUrl;
         this.content = content;
         this.timestamp = LocalDateTime.now();
     }
@@ -75,6 +79,14 @@ public class GlobalChatMessage {
 
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
+    }
+
+    public String getProfileImageUrl() {
+        return profileImageUrl;
+    }
+
+    public void setProfileImageUrl(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
     }
 
     public String getContent() {

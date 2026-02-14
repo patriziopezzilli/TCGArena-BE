@@ -22,6 +22,7 @@ public class CommunityEventDTO {
     private String status;
     private String creatorUsername;
     private String creatorDisplayName;
+    private String creatorAvatarUrl;
     private Long creatorId;
     private boolean isJoined;
     private boolean isCreator;
@@ -51,6 +52,7 @@ public class CommunityEventDTO {
         dto.setStatus(event.getStatus().name());
         dto.setCreatorUsername(event.getCreator().getUsername());
         dto.setCreatorDisplayName(event.getCreator().getDisplayName());
+        dto.setCreatorAvatarUrl(event.getCreator().getProfileImageUrl());
         dto.setCreatorId(event.getCreator().getId());
         dto.setCreatedAt(event.getCreatedAt());
         dto.setFull(event.isFull());
@@ -191,6 +193,14 @@ public class CommunityEventDTO {
 
     public void setCreatorDisplayName(String creatorDisplayName) {
         this.creatorDisplayName = creatorDisplayName;
+    }
+
+    public String getCreatorAvatarUrl() {
+        return creatorAvatarUrl;
+    }
+
+    public void setCreatorAvatarUrl(String creatorAvatarUrl) {
+        this.creatorAvatarUrl = creatorAvatarUrl;
     }
 
     public Long getCreatorId() {

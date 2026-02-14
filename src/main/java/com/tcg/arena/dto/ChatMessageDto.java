@@ -11,6 +11,7 @@ public class ChatMessageDto {
     private LocalDateTime timestamp;
     @JsonProperty("isRead")
     private boolean isRead;
+    private String senderAvatarUrl;
 
     // Getters and Setters
     public Long getId() {
@@ -59,5 +60,13 @@ public class ChatMessageDto {
 
     public void setRead(boolean read) {
         isRead = read;
+    }
+
+    public String getSenderAvatarUrl() {
+        return senderAvatarUrl;
+    }
+
+    public void setSenderAvatarUrl(String senderAvatarUrl) {
+        this.senderAvatarUrl = senderAvatarUrl;
     }
 }

@@ -385,6 +385,7 @@ public class TradeService {
                     dto.setSenderName(msg.getSender().getUsername());
                     dto.setSentAt(msg.getSentAt());
                     dto.setCurrentUser(msg.getSender().getId().equals(currentUserId));
+                    dto.setSenderAvatarUrl(msg.getSender().getProfileImageUrl());
                     return dto;
                 })
                 .collect(Collectors.toList());

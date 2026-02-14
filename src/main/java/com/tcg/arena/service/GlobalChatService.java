@@ -70,6 +70,7 @@ public class GlobalChatService {
                 userId,
                 user.getUsername(),
                 user.getDisplayName(),
+                user.getProfileImageUrl(),
                 trimmedContent);
         message = chatRepository.save(message);
 

@@ -202,6 +202,7 @@ public class ChatService {
         dto.setContent(message.getContent());
         dto.setTimestamp(message.getTimestamp());
         dto.setRead(message.isRead());
+        dto.setSenderAvatarUrl(message.getSender().getProfileImageUrl());
         return dto;
     }
 

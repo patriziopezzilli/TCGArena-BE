@@ -13,6 +13,7 @@ public class GlobalChatMessageDto {
     private String displayName;
     private String content;
     private LocalDateTime timestamp;
+    private String userAvatarUrl;
 
     // Default constructor
     public GlobalChatMessageDto() {
@@ -26,6 +27,7 @@ public class GlobalChatMessageDto {
         this.displayName = message.getDisplayName();
         this.content = message.getContent();
         this.timestamp = message.getTimestamp();
+        this.userAvatarUrl = message.getProfileImageUrl();
     }
 
     // Getters and Setters
@@ -75,5 +77,13 @@ public class GlobalChatMessageDto {
 
     public void setTimestamp(LocalDateTime timestamp) {
         this.timestamp = timestamp;
+    }
+
+    public String getUserAvatarUrl() {
+        return userAvatarUrl;
+    }
+
+    public void setUserAvatarUrl(String userAvatarUrl) {
+        this.userAvatarUrl = userAvatarUrl;
     }
 }
