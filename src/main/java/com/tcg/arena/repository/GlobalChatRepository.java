@@ -16,12 +16,12 @@ public interface GlobalChatRepository extends JpaRepository<GlobalChatMessage, L
     /**
      * Get the most recent messages, ordered by timestamp descending.
      */
-    @Query("SELECT m FROM GlobalChatMessage m ORDER BY m.timestamp DESC LIMIT 50")
+    @Query("SELECT m FROM GlobalChatMessage m JOIN FETCH m.user ORDER BY m.timestamp DESC LIMIT 50")
     List<GlobalChatMessage> findRecentMessages();
 
     /**
      * Get messages newer than a specific ID (for pagination/sync).
      */
-    @Query("SELECT m FROM GlobalChatMessage m WHERE m.id > :afterId ORDER BY m.timestamp ASC")
+    @Query("SELECT m FROM GlobalChatMessage m JOIN FETCH m.user WHERE m.id > :afterId ORDER BY m.timestamp ASC")
     List<GlobalChatMessage> findMessagesAfterId(Long afterId);
 }

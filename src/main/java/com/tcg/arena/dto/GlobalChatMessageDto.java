@@ -27,7 +27,7 @@ public class GlobalChatMessageDto {
         this.displayName = message.getDisplayName();
         this.content = message.getContent();
         this.timestamp = message.getTimestamp();
-        this.userAvatarUrl = message.getProfileImageUrl();
+        this.userAvatarUrl = message.getUser() != null ? message.getUser().getProfileImageUrl() : null;
     }
 
     // Getters and Setters

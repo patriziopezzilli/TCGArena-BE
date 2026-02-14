@@ -26,8 +26,12 @@ public class GlobalChatMessage {
     @Column(name = "display_name", length = 100)
     private String displayName;
 
-    @Column(name = "profile_image_url")
+    @Transient
     private String profileImageUrl;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", insertable = false, updatable = false)
+    private User user;
 
     @Column(nullable = false, length = 500)
     private String content;
@@ -103,5 +107,13 @@ public class GlobalChatMessage {
 
     public void setTimestamp(LocalDateTime timestamp) {
         this.timestamp = timestamp;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 }
