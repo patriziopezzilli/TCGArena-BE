@@ -46,6 +46,8 @@ public class NewsAggregationService {
                 List<BroadcastNews> broadcastNews = broadcastNewsRepository.findActiveNews(now);
 
                 allNews.addAll(broadcastNews.stream()
+                                .filter(n -> n.getIsGlobal() || (n.getLanguage() != null
+                                                && n.getLanguage().equalsIgnoreCase(user.getLocale())))
                                 .map(NewsItemDTO::new)
                                 .collect(Collectors.toList()));
 
@@ -104,6 +106,14 @@ public class NewsAggregationService {
 
                         allNews.addAll(broadcastNews.stream()
                                         .filter(n -> {
+                                                // Language Filter: Include if Global OR matches User Language
+                                                boolean languageMatch = n.getIsGlobal() ||
+                                                                (n.getLanguage() != null && n.getLanguage()
+                                                                                .equalsIgnoreCase(user.getLocale()));
+
+                                                if (!languageMatch)
+                                                        return false;
+
                                                 if (category == NewsCategory.GENERAL)
                                                         return n.getTcgType() == null;
                                                 if (category == NewsCategory.TCG_SPECIFIC)
@@ -132,6 +142,10 @@ public class NewsAggregationService {
 
                                 allNews.addAll(shopNews.stream()
                                                 .filter(n -> {
+                                                        // Shop news are considered local/relevant to the user by
+                                                        // subscription,
+                                                        // so we don't filter by language here (assuming shop speaks
+                                                        // user's language)
                                                         if (category == NewsCategory.SHOP)
                                                                 return true; // All shop news if specifically requested
                                                         if (tcgType != null)

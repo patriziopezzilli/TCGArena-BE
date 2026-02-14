@@ -58,7 +58,8 @@ public class BroadcastNewsService {
     public BroadcastNews createNews(String title, String content, NewsType newsType,
             LocalDateTime startDate, LocalDateTime expiryDate,
             String imageUrl, Boolean isPinned, Long createdBy,
-            TCGType tcgType, String externalUrl) {
+            TCGType tcgType, String externalUrl,
+            String language, Boolean isGlobal) {
         if (title == null || title.trim().isEmpty()) {
             throw new IllegalArgumentException("Title is required");
         }
@@ -80,6 +81,8 @@ public class BroadcastNewsService {
         news.setCreatedBy(createdBy);
         news.setTcgType(tcgType);
         news.setExternalUrl(externalUrl);
+        news.setLanguage(language);
+        news.setIsGlobal(isGlobal != null ? isGlobal : false);
 
         return broadcastNewsRepository.save(news);
     }
@@ -90,7 +93,8 @@ public class BroadcastNewsService {
     public BroadcastNews updateNews(Long id, String title, String content, NewsType newsType,
             LocalDateTime startDate, LocalDateTime expiryDate,
             String imageUrl, Boolean isPinned,
-            TCGType tcgType, String externalUrl) {
+            TCGType tcgType, String externalUrl,
+            String language, Boolean isGlobal) {
         BroadcastNews news = broadcastNewsRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("News not found"));
 
@@ -113,6 +117,10 @@ public class BroadcastNewsService {
         }
         news.setTcgType(tcgType);
         news.setExternalUrl(externalUrl);
+        news.setLanguage(language);
+        if (isGlobal != null) {
+            news.setIsGlobal(isGlobal);
+        }
 
         return broadcastNewsRepository.save(news);
     }

@@ -17,6 +17,8 @@ public class BroadcastNewsDTO {
     private Long createdBy;
     private TCGType tcgType;
     private String externalUrl;
+    private String language;
+    private Boolean isGlobal;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -35,6 +37,8 @@ public class BroadcastNewsDTO {
         this.createdBy = news.getCreatedBy();
         this.tcgType = news.getTcgType();
         this.externalUrl = news.getExternalUrl();
+        this.language = news.getLanguage();
+        this.isGlobal = news.getIsGlobal() != null ? news.getIsGlobal() : false;
         this.createdAt = news.getCreatedAt();
         this.updatedAt = news.getUpdatedAt();
     }
@@ -142,5 +146,21 @@ public class BroadcastNewsDTO {
 
     public void setExternalUrl(String externalUrl) {
         this.externalUrl = externalUrl;
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
+    }
+
+    public Boolean getIsGlobal() {
+        return isGlobal;
+    }
+
+    public void setIsGlobal(Boolean isGlobal) {
+        this.isGlobal = isGlobal;
     }
 }

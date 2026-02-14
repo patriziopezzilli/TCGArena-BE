@@ -524,6 +524,8 @@ public class AdminController {
     public static class BroadcastNotificationRequest {
         private String title;
         private String message;
+        private String language;
+        private Boolean isGlobal;
 
         public String getTitle() {
             return title;
@@ -539,6 +541,22 @@ public class AdminController {
 
         public void setMessage(String message) {
             this.message = message;
+        }
+
+        public String getLanguage() {
+            return language;
+        }
+
+        public void setLanguage(String language) {
+            this.language = language;
+        }
+
+        public Boolean getIsGlobal() {
+            return isGlobal;
+        }
+
+        public void setIsGlobal(Boolean isGlobal) {
+            this.isGlobal = isGlobal;
         }
     }
 
@@ -571,9 +589,16 @@ public class AdminController {
             return ResponseEntity.badRequest().body("Message is required");
         }
 
-        int usersNotified = notificationService.sendBroadcastNotification(
+        String targetLanguage = (request.getIsGlobal() != null && request.getIsGlobal()) ? null : request.getLanguage();
+
+        // Use sendBroadcastNewsNotification to leverage language filtering
+        // passing null for TCG type and external URL
+        int usersNotified = notificationService.sendBroadcastNewsNotification(
                 request.getTitle().trim(),
-                request.getMessage().trim());
+                request.getMessage().trim(),
+                null,
+                null,
+                targetLanguage);
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
@@ -677,7 +702,9 @@ public class AdminController {
                     request.getIsPinned(),
                     createdBy,
                     request.getTcgType(),
-                    request.getExternalUrl());
+                    request.getExternalUrl(),
+                    request.getLanguage(),
+                    request.getIsGlobal());
 
             System.out.println("✅ DEBUG - Broadcast news created with ID: " + news.getId());
             System.out.println("  Saved StartDate: " + news.getStartDate());
@@ -694,7 +721,8 @@ public class AdminController {
                         news.getTitle(),
                         news.getContent(),
                         news.getTcgType(),
-                        news.getExternalUrl());
+                        news.getExternalUrl(),
+                        news.getLanguage());
                 response.put("pushNotificationSent", true);
                 response.put("usersNotified", usersNotified);
             } else {
@@ -727,7 +755,9 @@ public class AdminController {
                     request.getImageUrl(),
                     request.getIsPinned(),
                     request.getTcgType(),
-                    request.getExternalUrl());
+                    request.getExternalUrl(),
+                    request.getLanguage(),
+                    request.getIsGlobal());
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);

@@ -39,6 +39,12 @@ public class BroadcastNews {
     @Column(name = "is_pinned", nullable = false)
     private Boolean isPinned = false;
 
+    @Column(name = "language", length = 2)
+    private String language; // "it", "en", etc.
+
+    @Column(name = "is_global", nullable = false)
+    private Boolean isGlobal = false;
+
     @Column(name = "created_by")
     private Long createdBy; // Admin user ID
 
@@ -165,5 +171,21 @@ public class BroadcastNews {
 
     public void setExternalUrl(String externalUrl) {
         this.externalUrl = externalUrl;
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
+    }
+
+    public Boolean getIsGlobal() {
+        return isGlobal;
+    }
+
+    public void setIsGlobal(Boolean isGlobal) {
+        this.isGlobal = isGlobal;
     }
 }

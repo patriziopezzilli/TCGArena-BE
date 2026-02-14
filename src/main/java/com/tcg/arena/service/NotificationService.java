@@ -419,20 +419,22 @@ public class NotificationService {
      * @return Number of users notified
      */
     public int sendBroadcastNotification(String title, String message) {
-        return sendBroadcastNewsNotification(title, message, null, null);
+        return sendBroadcastNewsNotification(title, message, null, null, null);
     }
 
     /**
-     * Send broadcast news notification with TCG filtering and deep link
+     * Send broadcast news notification with TCG filtering, language targeting and
+     * deep link
      * 
      * @param title       Notification title
      * @param message     Notification message
      * @param tcgType     TCG type to filter by (null for all)
      * @param externalUrl External link to open
+     * @param language    Target language (e.g. "it", "en"). Null for global.
      * @return Number of users notified
      */
     public int sendBroadcastNewsNotification(String title, String message, com.tcg.arena.model.TCGType tcgType,
-            String externalUrl) {
+            String externalUrl, String language) {
         // Get all unique user IDs from device tokens
         List<DeviceToken> allDeviceTokens = deviceTokenRepository.findAll();
 
@@ -454,8 +456,8 @@ public class NotificationService {
         int successCount = 0;
         int failCount = 0;
 
-        logger.info("📢 Starting broadcast news notification to {} device tokens (TCG: {}, URL: {})",
-                allDeviceTokens.size(), tcgType, externalUrl);
+        logger.info("📢 Starting broadcast news notification to {} device tokens (TCG: {}, URL: {}, Lang: {})",
+                allDeviceTokens.size(), tcgType, externalUrl, language);
 
         for (DeviceToken deviceToken : allDeviceTokens) {
             Long userId = deviceToken.getUserId();
@@ -465,14 +467,23 @@ public class NotificationService {
                 continue;
             }
 
+            // Filter by Language
+            if (language != null) {
+                String userLocale = user.getLocale();
+                // If user has no locale, default to "it" or skip?
+                // Let's match exact language or default if user locale is null (unlikely but
+                // safe)
+                if (userLocale == null)
+                    userLocale = "it";
+
+                if (!userLocale.equalsIgnoreCase(language)) {
+                    continue; // Skip if user language doesn't match target
+                }
+            }
+
             // Filter by TCG Type
             if (tcgType != null) {
                 List<com.tcg.arena.model.TCGType> favorites = user.getFavoriteTCGTypes();
-                // If user has no favorites, they might want all news?
-                // Logic: If user has specific favorites, only show those + general
-                // If user has NO favorites (empty list), maybe show all?
-                // Current implementation: Strict filtering. If TCG specified, user MUST have it
-                // in favorites.
                 if (!favorites.isEmpty() && !favorites.contains(tcgType)) {
                     continue; // Skip if user is not interested in this TCG
                 }
