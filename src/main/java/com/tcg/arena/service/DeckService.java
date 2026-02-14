@@ -136,12 +136,25 @@ public class DeckService {
         return savedDeck;
     }
 
-    public Deck addCardToDeck(Long deckId, Long cardId, int quantity, Long userId) {
+    public Deck addCardToDeck(Long deckId, Long cardId, int quantity, String section, Long userId) {
         Deck deck = deckRepository.findById(deckId)
                 .orElseThrow(() -> new RuntimeException("Deck not found"));
 
         Card card = cardRepository.findById(cardId)
                 .orElseThrow(() -> new RuntimeException("Card not found"));
+
+        // Check if card exists in the same section
+        List<DeckCard> existingCards = deckCardRepository.findByDeckId(deckId);
+        for (DeckCard existing : existingCards) {
+            if (existing.getCardId().equals(cardId) &&
+                    (existing.getSection() == null ? section == null : existing.getSection().equals(section))) {
+                existing.setQuantity(existing.getQuantity() + quantity);
+                deckCardRepository.save(existing);
+
+                deck.setDateModified(LocalDateTime.now());
+                return deckRepository.save(deck);
+            }
+        }
 
         DeckCard deckCard = new DeckCard();
         deckCard.setDeck(deck);
@@ -149,6 +162,7 @@ public class DeckService {
         deckCard.setQuantity(quantity);
         deckCard.setCardName(card.getCardTemplate().getName());
         deckCard.setCardImageUrl(card.getCardTemplate().getImageUrl());
+        deckCard.setSection(section != null ? section : "MAIN");
         deckCard.setCondition(CardCondition.MINT); // Default condition
         deckCard.setIsGraded(false); // Default grading status
         deckCard.setNationality(CardNationality.EN); // Default nationality
@@ -162,42 +176,46 @@ public class DeckService {
         // Log deck update activity
         userActivityService.logActivity(userId, ActivityType.DECK_UPDATED,
                 "Aggiunte " + quantity + "x " + card.getCardTemplate().getName() + " al mazzo '" + deck.getName()
-                        + "'");
+                        + "' (" + deckCard.getSection() + ")");
 
         return savedDeck;
     }
 
-    public Deck addCardTemplateToDeck(Long deckId, Long templateId, Long userId) {
+    public Deck addCardTemplateToDeck(Long deckId, Long templateId, String section, Long userId) {
         Deck deck = deckRepository.findById(deckId)
                 .orElseThrow(() -> new RuntimeException("Deck not found"));
 
         CardTemplate template = cardTemplateRepository.findById(templateId)
                 .orElseThrow(() -> new RuntimeException("Card template not found"));
 
-        // Check if a card with this template already exists in the deck
+        // Check if a card with this template already exists in the deck AND in the same
+        // section
         List<DeckCard> existingCards = deckCardRepository.findByDeckId(deckId);
         for (DeckCard existingCard : existingCards) {
-            if (existingCard.getCardId().equals(templateId)) {
-                // Card already exists, increment quantity
+            if (existingCard.getCardId().equals(templateId) &&
+                    (existingCard.getSection() == null ? section == null : existingCard.getSection().equals(section))) {
+                // Card already exists in this section, increment quantity
                 existingCard.setQuantity(existingCard.getQuantity() + 1);
                 deckCardRepository.save(existingCard);
                 deck.setDateModified(LocalDateTime.now());
                 Deck savedDeck = deckRepository.save(deck);
 
                 userActivityService.logActivity(userId, ActivityType.DECK_UPDATED,
-                        "Aggiunta 1x " + template.getName() + " al mazzo '" + deck.getName() + "'");
+                        "Aggiunta 1x " + template.getName() + " al mazzo '" + deck.getName() + "'" +
+                                (section != null ? " (" + section + ")" : ""));
 
                 return savedDeck;
             }
         }
 
-        // Card doesn't exist, create new DeckCard entry
+        // Card doesn't exist in this section, create new DeckCard entry
         DeckCard deckCard = new DeckCard();
         deckCard.setDeck(deck);
         deckCard.setCardId(templateId);
         deckCard.setQuantity(1);
         deckCard.setCardName(template.getName());
         deckCard.setCardImageUrl(template.getImageUrl());
+        deckCard.setSection(section != null ? section : "MAIN");
         deckCard.setCondition(CardCondition.MINT); // Default condition
 
         // Check if user has this card in their personal collection and copy grading
@@ -232,7 +250,8 @@ public class DeckService {
 
         // Log deck update activity
         userActivityService.logActivity(userId, ActivityType.DECK_UPDATED,
-                "Aggiunta 1x " + template.getName() + " al mazzo '" + deck.getName() + "'");
+                "Aggiunta 1x " + template.getName() + " al mazzo '" + deck.getName() + "'" +
+                        (section != null ? " (" + section + ")" : ""));
 
         // Award points for adding to wishlist (+2 points)
         if (deck.getName() != null && deck.getName().toLowerCase().contains("wishlist")) {

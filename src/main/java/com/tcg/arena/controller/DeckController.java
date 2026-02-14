@@ -106,9 +106,10 @@ public class DeckController {
             @Parameter(description = "Unique identifier of the deck") @PathVariable Long id,
             @Parameter(description = "Unique identifier of the card") @RequestParam Long cardId,
             @Parameter(description = "Quantity of cards to add") @RequestParam int quantity,
+            @Parameter(description = "Section of the deck (e.g., MAIN, SIDE, EXTRA)") @RequestParam(required = false, defaultValue = "MAIN") String section,
             @Parameter(description = "Unique identifier of the user performing the action") @RequestParam Long userId) {
         try {
-            return ResponseEntity.ok(deckService.addCardToDeck(id, cardId, quantity, userId));
+            return ResponseEntity.ok(deckService.addCardToDeck(id, cardId, quantity, section, userId));
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
         }
@@ -124,9 +125,10 @@ public class DeckController {
     public ResponseEntity<Deck> addCardTemplateToDeck(
             @Parameter(description = "Unique identifier of the deck") @PathVariable Long id,
             @Parameter(description = "Unique identifier of the card template") @RequestParam Long templateId,
+            @Parameter(description = "Section of the deck (e.g., MAIN, SIDE, EXTRA)") @RequestParam(required = false, defaultValue = "MAIN") String section,
             @Parameter(description = "Unique identifier of the user performing the action") @RequestParam Long userId) {
         try {
-            return ResponseEntity.ok(deckService.addCardTemplateToDeck(id, templateId, userId));
+            return ResponseEntity.ok(deckService.addCardTemplateToDeck(id, templateId, section, userId));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().build();
         }

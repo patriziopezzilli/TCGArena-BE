@@ -52,6 +52,9 @@ public class DeckCard {
     @Column(nullable = true)
     private CardNationality nationality;
 
+    @Column(nullable = false, length = 50)
+    private String section = "MAIN"; // Default to MAIN deck
+
     // Relation to CardTemplate for derived fields (rarity, set_name)
     // References CardTemplate by matching cardId field to CardTemplate.id
     @ManyToOne(fetch = FetchType.LAZY)
@@ -162,6 +165,14 @@ public class DeckCard {
 
     public void setCardTemplate(CardTemplate cardTemplate) {
         this.cardTemplate = cardTemplate;
+    }
+
+    public String getSection() {
+        return section;
+    }
+
+    public void setSection(String section) {
+        this.section = section;
     }
 
     // Derived from CardTemplate

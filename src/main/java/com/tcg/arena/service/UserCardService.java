@@ -155,7 +155,7 @@ public class UserCardService {
                 
                 if (!cardExists) {
                     // Add card to collection deck
-                    deckService.addCardTemplateToDeck(collectionDeck.getId(), cardTemplate.getId(), owner.getId());
+                    deckService.addCardTemplateToDeck(collectionDeck.getId(), cardTemplate.getId(), "MAIN", owner.getId());
                 }
             }
         } catch (Exception e) {
