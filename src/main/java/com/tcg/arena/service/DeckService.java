@@ -2,7 +2,6 @@ package com.tcg.arena.service;
 
 import com.tcg.arena.dto.DeckCardUpdateDTO;
 import com.tcg.arena.model.*;
-import com.tcg.arena.repository.CardRepository;
 import com.tcg.arena.repository.CardTemplateRepository;
 import com.tcg.arena.repository.DeckCardRepository;
 import com.tcg.arena.repository.DeckRepository;
@@ -27,9 +26,6 @@ public class DeckService {
 
     @Autowired
     private DeckCardRepository deckCardRepository;
-
-    @Autowired
-    private CardRepository cardRepository;
 
     @Autowired
     private CardTemplateRepository cardTemplateRepository;
@@ -146,18 +142,19 @@ public class DeckService {
 
         System.out.println("DeckService: Found deck " + deck.getName());
 
-        Card card = cardRepository.findById(cardId)
+        UserCard card = userCardRepository.findById(cardId)
                 .orElseThrow(() -> new RuntimeException("Card not found with ID: " + cardId
                         + ". Available cards for user " + userId + ": "
-                        + cardRepository.findByOwnerId(userId).stream().map(c -> c.getId().toString()).toList()));
+                        + userCardRepository.findByOwnerId(userId).stream().map(uc -> uc.getId().toString()).toList()));
 
         System.out.println(
-                "DeckService: Found card " + card.getCardTemplate().getName() + " with ownerId " + card.getOwnerId());
+                "DeckService: Found card " + card.getCardTemplate().getName() + " with ownerId "
+                        + card.getOwner().getId());
 
         // Verify the card belongs to the user
-        if (!card.getOwnerId().equals(userId)) {
+        if (!card.getOwner().getId().equals(userId)) {
             throw new RuntimeException("Card with ID " + cardId + " does not belong to user " + userId
-                    + " (belongs to user " + card.getOwnerId() + ")");
+                    + " (belongs to user " + card.getOwner().getId() + ")");
         }
 
         System.out.println("DeckService: Card ownership verified");
@@ -200,7 +197,7 @@ public class DeckService {
         if (card.getGradeScore() != null) {
             deckCard.setGrade(card.getGradeScore().toString());
         }
-        deckCard.setNationality(CardNationality.EN); // Default nationality
+        deckCard.setNationality(card.getNationality() != null ? card.getNationality() : CardNationality.EN);
 
         deckCardRepository.save(deckCard);
         deck.getCards().add(deckCard);
