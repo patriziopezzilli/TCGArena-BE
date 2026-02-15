@@ -138,7 +138,8 @@ public class DeckService {
     }
 
     public Deck addCardToDeck(Long deckId, Long cardId, int quantity, String section, Long userId) {
-        System.out.println("DeckService: Adding card " + cardId + " to deck " + deckId + " in section " + section + " with quantity " + quantity + " for user " + userId);
+        System.out.println("DeckService: Adding card " + cardId + " to deck " + deckId + " in section " + section
+                + " with quantity " + quantity + " for user " + userId);
 
         Deck deck = deckRepository.findById(deckId)
                 .orElseThrow(() -> new RuntimeException("Deck not found"));
@@ -146,26 +147,35 @@ public class DeckService {
         System.out.println("DeckService: Found deck " + deck.getName());
 
         Card card = cardRepository.findById(cardId)
-                .orElseThrow(() -> new RuntimeException("Card not found with ID: " + cardId));
+                .orElseThrow(() -> new RuntimeException("Card not found with ID: " + cardId
+                        + ". Available cards for user " + userId + ": "
+                        + cardRepository.findByOwnerId(userId).stream().map(c -> c.getId().toString()).toList()));
 
-        System.out.println("DeckService: Found card " + card.getCardTemplate().getName() + " with ownerId " + card.getOwnerId());
+        System.out.println(
+                "DeckService: Found card " + card.getCardTemplate().getName() + " with ownerId " + card.getOwnerId());
 
         // Verify the card belongs to the user
         if (!card.getOwnerId().equals(userId)) {
-            throw new RuntimeException("Card with ID " + cardId + " does not belong to user " + userId + " (belongs to user " + card.getOwnerId() + ")");
+            throw new RuntimeException("Card with ID " + cardId + " does not belong to user " + userId
+                    + " (belongs to user " + card.getOwnerId() + ")");
         }
 
         System.out.println("DeckService: Card ownership verified");
+
+        Long templateId = card.getCardTemplate().getId();
+        System.out.println("DeckService: Using templateId " + templateId + " for duplicate checks and storage");
 
         // Check if card exists in the same section
         List<DeckCard> existingCards = deckCardRepository.findByDeckId(deckId);
         System.out.println("DeckService: Found " + existingCards.size() + " existing cards in deck");
 
         for (DeckCard existing : existingCards) {
-            System.out.println("DeckService: Checking existing card " + existing.getCardId() + " in section " + existing.getSection() + " vs cardId " + cardId + " in section " + section);
-            if (existing.getCardId().equals(cardId) &&
+            System.out.println("DeckService: Checking existing card " + existing.getCardId() + " in section "
+                    + existing.getSection() + " vs templateId " + templateId + " in section " + section);
+            if (existing.getCardId().equals(templateId) &&
                     (existing.getSection() == null ? section == null : existing.getSection().equals(section))) {
-                System.out.println("DeckService: Found existing card, incrementing quantity from " + existing.getQuantity() + " to " + (existing.getQuantity() + quantity));
+                System.out.println("DeckService: Found existing card, incrementing quantity from "
+                        + existing.getQuantity() + " to " + (existing.getQuantity() + quantity));
                 existing.setQuantity(existing.getQuantity() + quantity);
                 deckCardRepository.save(existing);
 
@@ -177,13 +187,19 @@ public class DeckService {
         System.out.println("DeckService: Creating new deck card");
         DeckCard deckCard = new DeckCard();
         deckCard.setDeck(deck);
-        deckCard.setCardId(cardId);
+        deckCard.setCardId(templateId);
         deckCard.setQuantity(quantity);
         deckCard.setCardName(card.getCardTemplate().getName());
         deckCard.setCardImageUrl(card.getCardTemplate().getImageUrl());
         deckCard.setSection(section != null ? section : "MAIN");
-        deckCard.setCondition(CardCondition.MINT); // Default condition
-        deckCard.setIsGraded(false); // Default grading status
+
+        // Copy properties from the specific User Card
+        deckCard.setCondition(card.getCondition());
+        deckCard.setIsGraded(card.getIsGraded());
+        deckCard.setGradeService(card.getGradeService());
+        if (card.getGradeScore() != null) {
+            deckCard.setGrade(card.getGradeScore().toString());
+        }
         deckCard.setNationality(CardNationality.EN); // Default nationality
 
         deckCardRepository.save(deckCard);
@@ -282,7 +298,8 @@ public class DeckService {
     }
 
     public boolean removeCardFromDeck(Long deckId, Long cardId, Long userId) {
-        System.out.println("DeckService: Attempting to remove card template " + cardId + " from deck " + deckId + " for user " + userId);
+        System.out.println("DeckService: Attempting to remove card template " + cardId + " from deck " + deckId
+                + " for user " + userId);
 
         Deck deck = deckRepository.findById(deckId).orElse(null);
         if (deck == null) {
@@ -300,12 +317,14 @@ public class DeckService {
         System.out.println("DeckService: Found " + deckCards.size() + " cards in deck " + deckId);
 
         for (DeckCard deckCard : deckCards) {
-            System.out.println("DeckService: Checking deckCard with cardId " + deckCard.getCardId() + " against target " + cardId);
+            System.out.println(
+                    "DeckService: Checking deckCard with cardId " + deckCard.getCardId() + " against target " + cardId);
             if (deckCard.getCardId().equals(cardId)) {
                 System.out.println("DeckService: Found matching deckCard with quantity " + deckCard.getQuantity());
                 if (deckCard.getQuantity() > 1) {
                     // Decrement quantity instead of deleting
-                    System.out.println("DeckService: Decrementing quantity from " + deckCard.getQuantity() + " to " + (deckCard.getQuantity() - 1));
+                    System.out.println("DeckService: Decrementing quantity from " + deckCard.getQuantity() + " to "
+                            + (deckCard.getQuantity() - 1));
                     deckCard.setQuantity(deckCard.getQuantity() - 1);
                     deckCardRepository.save(deckCard);
                 } else {
@@ -319,13 +338,14 @@ public class DeckService {
 
                 // Log deck update activity
                 userActivityService.logActivity(userId, ActivityType.DECK_UPDATED,
-                    "Rimosse 1x " + deckCard.getCardName() + " dal mazzo '" + deck.getName() + "'");
+                        "Rimosse 1x " + deckCard.getCardName() + " dal mazzo '" + deck.getName() + "'");
 
                 return true;
             }
         }
 
-        System.out.println("DeckService: No matching deckCard found for card template " + cardId + " in deck " + deckId);
+        System.out
+                .println("DeckService: No matching deckCard found for card template " + cardId + " in deck " + deckId);
         return false;
     }
 
