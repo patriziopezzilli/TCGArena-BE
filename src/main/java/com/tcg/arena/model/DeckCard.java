@@ -192,4 +192,60 @@ public class DeckCard {
         }
         return null;
     }
+
+    // Derived from CardTemplate's prices based on condition
+    @JsonProperty("market_price")
+    public Double getMarketPrice() {
+        if (cardTemplate == null) {
+            return 0.0;
+        }
+
+        // Return 0 if no market price is set at all (base)
+        if (cardTemplate.getMarketPrice() == null && cardTemplate.getPriceNearMint() == null) {
+            return 0.0;
+        }
+
+        // Note: currently we don't have a specific isFoil flag in DeckCard,
+        // assuming standard non-foil prices unless we add that field later.
+
+        CardCondition currentCondition = getCondition();
+        Double price = null;
+
+        switch (currentCondition) {
+            case MINT:
+            case NEAR_MINT:
+                price = cardTemplate.getPriceNearMint();
+                break;
+            case LIGHTLY_PLAYED:
+                price = cardTemplate.getPriceLightlyPlayed();
+                break;
+            case MODERATELY_PLAYED:
+                price = cardTemplate.getPriceModeratelyPlayed();
+                break;
+            case HEAVILY_PLAYED:
+                price = cardTemplate.getPriceHeavilyPlayed();
+                break;
+            case DAMAGED:
+                price = cardTemplate.getPriceDamaged();
+                break;
+        }
+
+        // Fallback hierarchy:
+        // 1. Specific condition price
+        // 2. Generic Market Price
+        // 3. Low Price (conservative estimate)
+        if (price != null) {
+            return price;
+        }
+
+        if (cardTemplate.getMarketPrice() != null) {
+            return cardTemplate.getMarketPrice();
+        }
+
+        if (cardTemplate.getPriceLow() != null) {
+            return cardTemplate.getPriceLow();
+        }
+
+        return 0.0;
+    }
 }
