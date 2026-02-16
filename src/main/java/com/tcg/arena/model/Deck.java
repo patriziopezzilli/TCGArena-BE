@@ -163,4 +163,16 @@ public class Deck {
     public void setCards(List<DeckCard> cards) {
         this.cards = cards;
     }
+
+    @Transient
+    @JsonProperty("owner_name")
+    private String ownerName;
+
+    public String getOwnerName() {
+        return ownerName;
+    }
+
+    public void setOwnerName(String ownerName) {
+        this.ownerName = ownerName;
+    }
 }

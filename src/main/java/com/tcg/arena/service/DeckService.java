@@ -725,10 +725,25 @@ public class DeckService {
      * Only includes public, non-hidden decks.
      */
     public List<Deck> getPopularDecks(Optional<TCGType> tcgType) {
+        List<Deck> decks;
         if (tcgType.isPresent()) {
-            return deckRepository.findTop10ByTcgTypeAndIsHiddenFalseOrderByLikesDesc(tcgType.get());
+            decks = deckRepository.findTop10ByTcgTypeAndIsHiddenFalseOrderByLikesDesc(tcgType.get());
         } else {
-            return deckRepository.findTop10ByIsHiddenFalseOrderByLikesDesc();
+            decks = deckRepository.findTop10ByIsHiddenFalseOrderByLikesDesc();
         }
+
+        // Populate owner names
+        if (!decks.isEmpty()) {
+            List<Long> ownerIds = decks.stream().map(Deck::getOwnerId).distinct().collect(Collectors.toList());
+            List<User> owners = userRepository.findAllById(ownerIds);
+            java.util.Map<Long, String> ownerNames = owners.stream()
+                    .collect(Collectors.toMap(User::getId, User::getUsername));
+
+            for (Deck deck : decks) {
+                deck.setOwnerName(ownerNames.getOrDefault(deck.getOwnerId(), "Unknown"));
+            }
+        }
+
+        return decks;
     }
 }
