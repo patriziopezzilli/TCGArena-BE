@@ -726,9 +726,9 @@ public class DeckService {
      */
     public List<Deck> getPopularDecks(Optional<TCGType> tcgType) {
         if (tcgType.isPresent()) {
-            return deckRepository.findTop10ByTcgTypeAndIsPublicTrueAndIsHiddenFalseOrderByLikesDesc(tcgType.get());
+            return deckRepository.findTop10ByTcgTypeAndIsHiddenFalseOrderByLikesDesc(tcgType.get());
         } else {
-            return deckRepository.findTop10ByIsPublicTrueAndIsHiddenFalseOrderByLikesDesc();
+            return deckRepository.findTop10ByIsHiddenFalseOrderByLikesDesc();
         }
     }
 }

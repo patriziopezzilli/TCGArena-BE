@@ -23,7 +23,8 @@ public interface DeckRepository extends JpaRepository<Deck, Long> {
     List<Deck> findByOwnerIdAndIsPublicTrueAndIsHiddenFalseOrderByDateCreatedDesc(Long ownerId);
 
     // Popular decks (Top 10 most liked public & visible)
-    List<Deck> findTop10ByIsPublicTrueAndIsHiddenFalseOrderByLikesDesc();
+    // Popular decks (Top 10 most liked & visible, regardless of public status)
+    List<Deck> findTop10ByIsHiddenFalseOrderByLikesDesc();
 
-    List<Deck> findTop10ByTcgTypeAndIsPublicTrueAndIsHiddenFalseOrderByLikesDesc(TCGType tcgType);
+    List<Deck> findTop10ByTcgTypeAndIsHiddenFalseOrderByLikesDesc(TCGType tcgType);
 }
