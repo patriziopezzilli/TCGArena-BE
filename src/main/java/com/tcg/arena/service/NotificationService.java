@@ -70,6 +70,15 @@ public class NotificationService {
         });
     }
 
+    public void markAllAsRead(Long userId) {
+        List<Notification> unreadNotifications = notificationRepository
+                .findByUserIdAndIsReadFalseOrderByCreatedAtDesc(userId);
+        for (Notification notification : unreadNotifications) {
+            notification.setIsRead(true);
+        }
+        notificationRepository.saveAll(unreadNotifications);
+    }
+
     public void registerDeviceToken(Long userId, String token, String platform) {
         // Remove existing token if any
         deviceTokenRepository.findByToken(token).ifPresent(deviceTokenRepository::delete);
