@@ -709,6 +709,14 @@ public class DeckService {
         userActivityService.logActivity(userId, ActivityType.DECK_CREATED,
                 "Duplicato mazzo '" + sourceDeck.getName() + "' come '" + newName + "'");
 
+        // Trigger deck import notification if duplicating someone else's deck
+        if (!userId.equals(sourceDeck.getOwnerId())) {
+            userRepository.findById(userId).ifPresent(importer -> {
+                notificationService.sendDeckImportNotification(sourceDeck.getOwnerId(), sourceDeck.getName(),
+                        importer.getUsername());
+            });
+        }
+
         return savedDeck;
     }
 }

@@ -6,6 +6,8 @@ import com.tcg.arena.model.Deck;
 import com.tcg.arena.model.DeckType;
 import com.tcg.arena.model.TCGType;
 import com.tcg.arena.service.DeckService;
+import com.tcg.arena.service.NotificationService;
+import com.tcg.arena.repository.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -24,6 +26,12 @@ public class DeckController {
 
     @Autowired
     private DeckService deckService;
+
+    @Autowired
+    private NotificationService notificationService;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @GetMapping
     @Operation(summary = "Get user's decks", description = "Retrieves all decks owned by the specified user")
@@ -51,9 +59,19 @@ public class DeckController {
             @ApiResponse(responseCode = "404", description = "Deck not found")
     })
     public ResponseEntity<Deck> getDeckById(
-            @Parameter(description = "Unique identifier of the deck") @PathVariable Long id) {
+            @Parameter(description = "Unique identifier of the deck") @PathVariable Long id,
+            @Parameter(description = "Unique identifier of the user checking status") @RequestParam(required = false) Long userId) {
         return deckService.getDeckById(id)
-                .map(ResponseEntity::ok)
+                .map(deck -> {
+                    // Trigger deck view notification if viewing someone else's deck
+                    if (userId != null && !userId.equals(deck.getOwnerId())) {
+                        userRepository.findById(userId).ifPresent(viewer -> {
+                            notificationService.sendDeckViewNotification(deck.getOwnerId(), deck.getName(),
+                                    viewer.getUsername());
+                        });
+                    }
+                    return ResponseEntity.ok(deck);
+                })
                 .orElse(ResponseEntity.notFound().build());
     }
 

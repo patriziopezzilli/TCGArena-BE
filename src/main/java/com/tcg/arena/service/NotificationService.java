@@ -40,23 +40,8 @@ public class NotificationService {
      * Helper to get localized message
      */
     private String getMessage(String key, Object[] args, Long userId) {
-        String localeStr = "it";
-        try {
-            localeStr = userRepository.findById(userId)
-                    .map(com.tcg.arena.model.User::getLocale)
-                    .orElse("it");
-        } catch (Exception e) {
-            logger.warn("Failed to fetch locale for user {}, defaulting to it", userId);
-        }
-
-        java.util.Locale locale = java.util.Locale.ITALIAN;
-        if (localeStr != null) {
-            try {
-                locale = new java.util.Locale(localeStr);
-            } catch (Exception e) {
-                // ignore
-            }
-        }
+        String localeStr = userRepository.findById(userId).map(com.tcg.arena.model.User::getLocale).orElse("it");
+        java.util.Locale locale = java.util.Locale.forLanguageTag(localeStr);
         return messageSource.getMessage(key, args, locale);
     }
 
@@ -391,6 +376,51 @@ public class NotificationService {
 
         sendPushNotification(targetUserId, title, message, data);
         logger.info("Sent profile appreciation notification to user {}", targetUserId);
+    }
+
+    /**
+     * Notifica quando qualcuno visualizza il profilo
+     */
+    public void sendProfileViewNotification(Long targetUserId, String viewerName) {
+        String title = getMessage("notification.view.profile.title", null, targetUserId);
+        String message = getMessage("notification.view.profile.message", new Object[] { viewerName },
+                targetUserId);
+
+        java.util.Map<String, String> data = new java.util.HashMap<>();
+        data.put("type", "PROFILE_VIEW");
+
+        sendPushNotification(targetUserId, title, message, data);
+        logger.info("Sent profile view notification to user {}", targetUserId);
+    }
+
+    /**
+     * Notifica quando qualcuno visualizza un deck
+     */
+    public void sendDeckViewNotification(Long deckOwnerId, String deckName, String viewerName) {
+        String title = getMessage("notification.view.deck.title", null, deckOwnerId);
+        String message = getMessage("notification.view.deck.message", new Object[] { viewerName, deckName },
+                deckOwnerId);
+
+        java.util.Map<String, String> data = new java.util.HashMap<>();
+        data.put("type", "DECK_VIEW");
+
+        sendPushNotification(deckOwnerId, title, message, data);
+        logger.info("Sent deck view notification to user {}", deckOwnerId);
+    }
+
+    /**
+     * Notifica quando qualcuno importa (duplica) un deck
+     */
+    public void sendDeckImportNotification(Long deckOwnerId, String deckName, String importerName) {
+        String title = getMessage("notification.import.deck.title", null, deckOwnerId);
+        String message = getMessage("notification.import.deck.message", new Object[] { importerName, deckName },
+                deckOwnerId);
+
+        java.util.Map<String, String> data = new java.util.HashMap<>();
+        data.put("type", "DECK_IMPORT");
+
+        sendPushNotification(deckOwnerId, title, message, data);
+        logger.info("Sent deck import notification to user {}", deckOwnerId);
     }
 
     private String getPlacementText(int placement) {

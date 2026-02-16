@@ -5,11 +5,12 @@ import com.tcg.arena.dto.UserWithStatsDTO;
 import com.tcg.arena.model.User;
 import com.tcg.arena.model.UserCard;
 import com.tcg.arena.service.UserService;
-import com.tcg.arena.service.UserStatsService;
-import com.tcg.arena.service.UserCardService;
 import com.tcg.arena.model.UserStats;
 import com.tcg.arena.repository.UserRepository;
 import com.tcg.arena.service.UserActivityService;
+import com.tcg.arena.service.UserCardService;
+import com.tcg.arena.service.NotificationService;
+import com.tcg.arena.service.UserStatsService;
 import com.tcg.arena.security.JwtTokenUtil;
 import com.tcg.arena.security.JwtUserDetailsService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -19,6 +20,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -41,13 +43,16 @@ public class UserController {
         private UserStatsService userStatsService;
 
         @Autowired
-        private UserCardService userCardService;
-
-        @Autowired
         private JwtTokenUtil jwtTokenUtil;
 
         @Autowired
         private JwtUserDetailsService userDetailsService;
+
+        @Autowired
+        private NotificationService notificationService;
+
+        @Autowired
+        private UserCardService userCardService;
 
         @GetMapping
         @Operation(summary = "Get all users with stats", description = "Retrieves a list of all registered users with their statistics")
@@ -65,7 +70,7 @@ public class UserController {
                         @ApiResponse(responseCode = "401", description = "Not authenticated")
         })
         public ResponseEntity<?> getCurrentUser(
-                        org.springframework.security.core.Authentication authentication) {
+                        Authentication authentication) {
                 if (authentication == null || !authentication.isAuthenticated()) {
                         return ResponseEntity.status(401).body("Not authenticated");
                 }
@@ -88,6 +93,14 @@ public class UserController {
                         // Populate appreciation status if userId is provided
                         if (userId != null) {
                                 dto.setIsAppreciated(userService.isAppreciatedBy(id, userId));
+
+                                // Trigger profile view notification if viewing someone else's profile
+                                if (!userId.equals(id)) {
+                                        userRepository.findById(userId).ifPresent(viewer -> {
+                                                notificationService.sendProfileViewNotification(id,
+                                                                viewer.getUsername());
+                                        });
+                                }
                         }
 
                         return ResponseEntity.ok(dto);
@@ -489,36 +502,43 @@ public class UserController {
                         @SuppressWarnings("unchecked")
                         java.util.List<String> favoriteTCGs = (java.util.List<String>) requestBody.get("favoriteTCGs");
 
-                        String newTcgString = "";
-                        if (favoriteTCGs != null && !favoriteTCGs.isEmpty()) {
-                                newTcgString = String.join(",", favoriteTCGs);
+                        // Normalize and sort the new list
+                        java.util.List<String> sortedNewTCGs = new java.util.ArrayList<>();
+                        if (favoriteTCGs != null) {
+                                sortedNewTCGs.addAll(favoriteTCGs);
+                                java.util.Collections.sort(sortedNewTCGs);
                         }
+                        String newTcgString = String.join(",", sortedNewTCGs);
 
+                        // Normalize and sort current list for canonical comparison
                         String currentTcgString = user.getFavoriteTCGTypesString();
-                        if (currentTcgString == null) {
-                                currentTcgString = "";
+                        java.util.List<String> currentTCGList = new java.util.ArrayList<>();
+                        if (currentTcgString != null && !currentTcgString.isEmpty()) {
+                                currentTCGList.addAll(java.util.Arrays.asList(currentTcgString.split(",")));
+                                java.util.Collections.sort(currentTCGList);
                         }
+                        String canonicalCurrentTcgString = String.join(",", currentTCGList);
 
-                        // Check if changed
-                        if (newTcgString.equals(currentTcgString)) {
+                        // Check if substantively changed
+                        if (newTcgString.equals(canonicalCurrentTcgString)) {
                                 java.util.Map<String, Object> response = new java.util.HashMap<>();
                                 response.put("message", "Favorite TCGs unchanged");
-                                response.put("favoriteTCGs", favoriteTCGs);
+                                response.put("favoriteTCGs", sortedNewTCGs);
                                 return ResponseEntity.ok(response);
                         }
 
                         user.setFavoriteTCGTypesString(newTcgString);
-                        User updatedUser = userRepository.save(user);
+                        userRepository.save(user);
 
-                        // Log activity
-                        String logList = favoriteTCGs != null ? String.join(", ", favoriteTCGs) : "";
+                        // Log activity only when there's an actual change
+                        String logList = String.join(", ", sortedNewTCGs);
                         userActivityService.logActivity(user.getId(),
                                         com.tcg.arena.model.ActivityType.USER_PREFERENCES_UPDATED,
                                         "Aggiornati TCG favoriti per notifiche: " + logList);
 
                         java.util.Map<String, Object> response = new java.util.HashMap<>();
                         response.put("message", "Favorite TCGs updated successfully");
-                        response.put("favoriteTCGs", favoriteTCGs);
+                        response.put("favoriteTCGs", sortedNewTCGs);
 
                         return ResponseEntity.ok(response);
                 }).orElseGet(() -> {
