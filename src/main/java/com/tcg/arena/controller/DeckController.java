@@ -52,6 +52,16 @@ public class DeckController {
         return deckService.getPublicDecksForProfile(userId);
     }
 
+    @GetMapping("/popular")
+    @Operation(summary = "Get popular decks", description = "Retrieves the top 10 most liked public decks, optionally filtered by TCG type")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Successfully retrieved list of popular decks")
+    })
+    public List<Deck> getPopularDecks(
+            @Parameter(description = "Optional TCG type to filter by") @RequestParam(required = false) TCGType tcgType) {
+        return deckService.getPopularDecks(java.util.Optional.ofNullable(tcgType));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get deck by ID", description = "Retrieves a specific deck by its unique ID")
     @ApiResponses(value = {

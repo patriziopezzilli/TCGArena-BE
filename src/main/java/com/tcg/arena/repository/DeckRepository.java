@@ -10,11 +10,20 @@ import java.util.List;
 @Repository
 public interface DeckRepository extends JpaRepository<Deck, Long> {
     List<Deck> findByOwnerIdOrderByDateCreatedDesc(Long ownerId);
+
     List<Deck> findByIsPublicTrueOrderByDateCreatedDesc();
+
     List<Deck> findByTcgTypeOrderByDateCreatedDesc(TCGType tcgType);
+
     List<Deck> findByOwnerIdAndTcgTypeOrderByDateCreatedDesc(Long ownerId, TCGType tcgType);
-    
+
     // For public profile view - exclude hidden decks
     List<Deck> findByOwnerIdAndIsHiddenFalseOrderByDateCreatedDesc(Long ownerId);
+
     List<Deck> findByOwnerIdAndIsPublicTrueAndIsHiddenFalseOrderByDateCreatedDesc(Long ownerId);
+
+    // Popular decks (Top 10 most liked public & visible)
+    List<Deck> findTop10ByIsPublicTrueAndIsHiddenFalseOrderByLikesDesc();
+
+    List<Deck> findTop10ByTcgTypeAndIsPublicTrueAndIsHiddenFalseOrderByLikesDesc(TCGType tcgType);
 }

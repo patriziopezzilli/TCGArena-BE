@@ -719,4 +719,16 @@ public class DeckService {
 
         return savedDeck;
     }
+
+    /**
+     * Get popular decks (top 10 by likes), optionally filtered by TCG.
+     * Only includes public, non-hidden decks.
+     */
+    public List<Deck> getPopularDecks(Optional<TCGType> tcgType) {
+        if (tcgType.isPresent()) {
+            return deckRepository.findTop10ByTcgTypeAndIsPublicTrueAndIsHiddenFalseOrderByLikesDesc(tcgType.get());
+        } else {
+            return deckRepository.findTop10ByIsPublicTrueAndIsHiddenFalseOrderByLikesDesc();
+        }
+    }
 }
