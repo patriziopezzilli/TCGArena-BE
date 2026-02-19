@@ -17,8 +17,7 @@ public class CardImportScheduler {
     @Autowired
     private Job importCardsJob;
 
-    // DISABLED: Cron job disabled - run imports manually only
-    // @Scheduled(cron = "0 0 2 * * ?") // Every night at 2 AM
+    @Scheduled(cron = "0 0 2 * * ?") // Every night at 2 AM
     public void runImportJob() {
         try {
             JobParameters jobParameters = new JobParametersBuilder()
