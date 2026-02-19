@@ -769,96 +769,62 @@ public class TCGApiClient {
                         row -> (Long) row[1]));
         logger.info("[IMPORT] [{}] Retrieved card counts for {} sets", tcgType, actualCardCounts.size());
 
-        // Find sets with missing cards in memory
-        // We need all sets for this TCG type to compare
-        List<com.tcg.arena.model.TCGSet> allDbSets = tcgSetRepository.findAllByExpansionTcgType(tcgType); // Ensure this
-                                                                                                          // method
-                                                                                                          // exists or
-                                                                                                          // use
-                                                                                                          // alternative
 
-        List<com.tcg.arena.model.TCGSet> setsWithMissingCards = allDbSets.stream()
-                .filter(set -> {
-                    if (set.getCardCount() == null || set.getCardCount() <= 0)
-                        return false;
-                    long actualCount = actualCardCounts.getOrDefault(set.getSetCode(), 0L);
-                    return actualCount < set.getCardCount();
-                })
-                .collect(Collectors.toList());
-
-        logger.info("[IMPORT] [{}] Found {} sets with missing cards (need delta import)", tcgType,
-                setsWithMissingCards.size());
+        // NON si fa più delta: importiamo solo set nuovi o con 0 carte
 
         // Step 1: Fetch all sets from API
         return getAllSets(gameId)
-                .collectList()
-                .flatMap(apiSets -> {
-                    logger.info("[IMPORT] [{}] PHASE 1: Fetched {} sets from API", tcgType, apiSets.size());
+            .collectList()
+            .flatMap(apiSets -> {
+                logger.info("[IMPORT] [{}] PHASE 1: Fetched {} sets from API", tcgType, apiSets.size());
 
-                    // Identify NEW sets (not in database)
-                    List<TCGSet> newSets = apiSets.stream()
-                            .filter(set -> !existingSetCodes.contains(set.id))
-                            .toList();
+                // Identify NEW sets (not in database)
+                List<TCGSet> newSets = apiSets.stream()
+                    .filter(set -> !existingSetCodes.contains(set.id))
+                    .toList();
 
-                    // Identify empty sets from API (sets in DB with 0 cards)
-                    List<TCGSet> emptyApiSets = apiSets.stream()
-                            .filter(apiSet -> emptySetsInDb.stream()
-                                    .anyMatch(dbSet -> dbSet.getSetCode().equals(apiSet.id)))
-                            .toList();
+                // Identify empty sets from API (sets in DB con 0 carte)
+                List<TCGSet> emptyApiSets = apiSets.stream()
+                    .filter(apiSet -> emptySetsInDb.stream()
+                        .anyMatch(dbSet -> dbSet.getSetCode().equals(apiSet.id)))
+                    .toList();
 
-                    // Identify sets with missing cards from API
-                    List<TCGSet> deltaApiSets = apiSets.stream()
-                            .filter(apiSet -> setsWithMissingCards.stream()
-                                    .anyMatch(dbSet -> dbSet.getSetCode().equals(apiSet.id)))
-                            .toList();
+                // Solo questi set vanno importati
+                List<TCGSet> setsForFullImport = new java.util.ArrayList<>();
+                setsForFullImport.addAll(newSets);
+                setsForFullImport.addAll(emptyApiSets);
 
-                    // Combine new sets and empty sets for FULL import
-                    List<TCGSet> setsForFullImport = new java.util.ArrayList<>();
-                    setsForFullImport.addAll(newSets);
-                    setsForFullImport.addAll(emptyApiSets);
+                if (setsForFullImport.isEmpty()) {
+                logger.info("[IMPORT] [{}] No new or empty sets found. Import complete.", tcgType);
+                return Mono.just(0);
+                }
 
-                    if (setsForFullImport.isEmpty() && deltaApiSets.isEmpty()) {
-                        logger.info("[IMPORT] [{}] No new, empty, or delta sets found. Import complete.", tcgType);
-                        return Mono.just(0);
-                    }
+                logger.info("[IMPORT] [{}] PHASE 2: Found {} NEW sets, {} EMPTY sets",
+                    tcgType, newSets.size(), emptyApiSets.size());
 
-                    logger.info("[IMPORT] [{}] PHASE 2: Found {} NEW sets, {} EMPTY sets, {} DELTA sets",
-                            tcgType, newSets.size(), emptyApiSets.size(), deltaApiSets.size());
+                for (TCGSet set : newSets) {
+                logger.info("[IMPORT] [{}]   - NEW: {} ({})", tcgType, set.name, set.id);
+                }
+                for (TCGSet set : emptyApiSets) {
+                logger.info("[IMPORT] [{}]   - EMPTY: {} ({})", tcgType, set.name, set.id);
+                }
 
-                    for (TCGSet set : newSets) {
-                        logger.info("[IMPORT] [{}]   - NEW: {} ({})", tcgType, set.name, set.id);
-                    }
-                    for (TCGSet set : emptyApiSets) {
-                        logger.info("[IMPORT] [{}]   - EMPTY: {} ({})", tcgType, set.name, set.id);
-                    }
-                    for (TCGSet set : deltaApiSets) {
-                        logger.info("[IMPORT] [{}]   - DELTA: {} ({})", tcgType, set.name, set.id);
-                    }
-
-                    // Process full import sets, then delta import sets
-                    Mono<Integer> fullImportMono = Flux.fromIterable(setsForFullImport)
-                            .concatMap(apiSet -> importCardsForSet(apiSet, tcgType, stats))
-                            .reduce(0, Integer::sum);
-
-                    Mono<Integer> deltaImportMono = Flux.fromIterable(deltaApiSets)
-                            .concatMap(apiSet -> importDeltaCardsForSet(apiSet, tcgType, stats))
-                            .reduce(0, Integer::sum);
-
-                    return fullImportMono
-                            .flatMap(fullCount -> deltaImportMono.map(deltaCount -> fullCount + deltaCount))
-                            .doOnSuccess(total -> {
-                                stats.newCardsSaved = total;
-                                logImportCompleteNewSets(tcgType, stats,
-                                        setsForFullImport.size() + deltaApiSets.size());
-                            });
-                })
-                .doOnError(e -> {
-                    logger.error("[IMPORT] [{}] FATAL ERROR: {}", tcgType, e.getMessage(), e);
-                })
-                .doFinally(signal -> {
-                    expansionCache.clear();
-                    tcgSetCache.clear();
-                });
+                // Importa solo questi set
+                return Flux.fromIterable(setsForFullImport)
+                    .concatMap(apiSet -> importCardsForSet(apiSet, tcgType, stats))
+                    .reduce(0, Integer::sum)
+                    .doOnSuccess(total -> {
+                    stats.newCardsSaved = total;
+                    logImportCompleteNewSets(tcgType, stats, setsForFullImport.size());
+                    });
+            })
+            .doOnError(e -> {
+                logger.error("[IMPORT] [{}] FATAL ERROR: {}", tcgType, e.getMessage(), e);
+            })
+            .doFinally(signal -> {
+                expansionCache.clear();
+                tcgSetCache.clear();
+            });
     }
 
     /**
