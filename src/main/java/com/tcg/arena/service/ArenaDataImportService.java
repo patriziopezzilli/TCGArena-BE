@@ -417,6 +417,10 @@ public class ArenaDataImportService {
                 "disney-lorcana",
                 "one-piece-card-game",
                 "digimon-card-game",
-                "union-arena");
+                "union-arena",
+                "pokemon-japan",
+                "flesh-and-blood-tcg",
+                "dragon-ball-super-fusion-world",
+                "riftbound-league-of-legends-trading-card-game");
     }
 }

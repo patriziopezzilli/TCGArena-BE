@@ -71,17 +71,17 @@ class TCGCardReader implements ItemReader<CardTemplate> {
             } catch (IllegalArgumentException e) {
                 logger.warn("Invalid TCG type: '{}', falling back to all types. Valid types: {}", param,
                         java.util.Arrays.toString(TCGType.values()));
-                tcgTypes = new TCGType[] { TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE };
+                tcgTypes = TCGType.values();
             }
         } else {
             logger.info("No specific TCG type provided, importing all types");
-            tcgTypes = new TCGType[] { TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE };
+            tcgTypes = TCGType.values();
         }
 
         // Final safety check
         if (tcgTypes == null || tcgTypes.length == 0) {
             logger.error("CRITICAL: TCG types array is null or empty, forcing default values");
-            tcgTypes = new TCGType[] { TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE };
+            tcgTypes = TCGType.values();
         }
 
         logger.info("Final TCG types configuration: {}", java.util.Arrays.toString(tcgTypes));
@@ -92,7 +92,7 @@ class TCGCardReader implements ItemReader<CardTemplate> {
         // Safety check: ensure tcgTypes is initialized
         if (tcgTypes == null) {
             logger.warn("tcgTypes was null, initializing with all types");
-            tcgTypes = new TCGType[] { TCGType.POKEMON, TCGType.MAGIC, TCGType.ONE_PIECE };
+            tcgTypes = TCGType.values();
         }
 
         if (!initialized) {
@@ -144,38 +144,14 @@ class TCGCardReader implements ItemReader<CardTemplate> {
         try {
             // Fetch cards and convert to CardTemplate
             List<Card> rawCards = null;
-            switch (currentTcg) {
-                case POKEMON:
-                    logger.info("Starting Pokemon card fetch...");
-                    tcgApiClient.importCardsForTCG(TCGType.POKEMON).block();
-                    logger.info("Pokemon cards imported successfully");
-                    rawCards = new ArrayList<>(); // Empty list since cards are already saved
-                    break;
-                case MAGIC:
-                    logger.info("Starting Magic card fetch...");
-                    tcgApiClient.importCardsForTCG(TCGType.MAGIC).block();
-                    logger.info("Magic cards imported successfully");
-                    rawCards = new ArrayList<>(); // Empty list since cards are already saved
-                    break;
-                case ONE_PIECE:
-                    logger.info("Starting One Piece card fetch...");
-                    tcgApiClient.importCardsForTCG(TCGType.ONE_PIECE).block();
-                    logger.info("One Piece cards imported successfully");
-                    rawCards = new ArrayList<>(); // Empty list since cards are already saved
-                    break;
-                case DIGIMON:
-                    logger.warn("Digimon card import not implemented yet");
-                    rawCards = new ArrayList<>();
-                    break;
-                case YUGIOH:
-                    logger.warn("Yu-Gi-Oh card import not implemented yet");
-                    rawCards = new ArrayList<>();
-                    break;
-                default:
-                    // Handle other TCG types (Dragon Ball, Flesh and Blood, Lorcana, etc.)
-                    logger.warn("{} card import not implemented yet", currentTcg.getDisplayName());
-                    rawCards = new ArrayList<>();
-                    break;
+            if (tcgApiClient.isTCGSupported(currentTcg)) {
+                logger.info("Starting {} card fetch...", currentTcg);
+                tcgApiClient.importCardsForTCG(currentTcg).block();
+                logger.info("{} cards imported successfully", currentTcg);
+                rawCards = new ArrayList<>(); // Empty list since cards are already saved by the API client
+            } else {
+                logger.warn("{} card import not supported by JustTCG API", currentTcg.getDisplayName());
+                rawCards = new ArrayList<>();
             }
 
             // Convert Card to CardTemplate

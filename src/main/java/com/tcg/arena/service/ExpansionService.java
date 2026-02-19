@@ -201,7 +201,9 @@ public class ExpansionService {
                 TCGType.LORCANA,
                 TCGType.RIFTBOUND,
                 TCGType.UNION_ARENA,
-                TCGType.DRAGON_BALL_SUPER_FUSION_WORLD);
+                TCGType.DRAGON_BALL_SUPER_FUSION_WORLD,
+                TCGType.POKEMON_JAPAN,
+                TCGType.FLESH_AND_BLOOD);
 
         Map<TCGType, TCGStatsDTO> statsMap = new HashMap<>();
 
