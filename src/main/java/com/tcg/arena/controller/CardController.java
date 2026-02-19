@@ -98,17 +98,30 @@ public class CardController {
         }
 
         @GetMapping("/search")
-        @Operation(summary = "Search card templates", description = "Search for card templates by name or set code (minimum 2 characters required)")
+        @Operation(summary = "Search card templates", description = "Search for card templates by name or set code (minimum 2 characters required). Supports optional pagination.")
         @ApiResponses(value = {
                         @ApiResponse(responseCode = "200", description = "Search completed successfully, returns matching card templates"),
                         @ApiResponse(responseCode = "400", description = "Query string is too short (minimum 2 characters required)")
         })
         public ResponseEntity<?> searchCards(
-                        @Parameter(description = "Search query (minimum 2 characters)") @RequestParam(name = "q") String query) {
+                        @Parameter(description = "Search query (minimum 2 characters)") @RequestParam(name = "q") String query,
+                        @Parameter(description = "Page number (optional, 0-based)") @RequestParam(required = false) Integer page,
+                        @Parameter(description = "Number of items per page (optional)") @RequestParam(required = false) Integer size) {
                 if (query == null || query.trim().length() < 2) {
                         return ResponseEntity.badRequest().body("Search query must be at least 2 characters long");
                 }
-                List<CardTemplate> results = cardTemplateService.searchCardTemplates(query.trim());
+
+                String trimmedQuery = query.trim();
+
+                // If pagination parameters are provided, return a Page object
+                if (page != null || size != null) {
+                        Pageable pageable = PageRequest.of(page != null ? page : 0, size != null ? size : 20);
+                        return ResponseEntity
+                                        .ok(cardTemplateService.searchCardTemplatesPaginated(trimmedQuery, pageable));
+                }
+
+                // Otherwise, return a List for backward compatibility
+                List<CardTemplate> results = cardTemplateService.searchCardTemplates(trimmedQuery);
                 return ResponseEntity.ok(results);
         }
 
@@ -194,8 +207,9 @@ public class CardController {
         })
         public TCGType[] getTcgTypes() {
                 return java.util.Arrays.stream(TCGType.values())
-                        .filter(tcgType -> tcgType != TCGType.UNION_ARENA && tcgType != TCGType.DRAGON_BALL_SUPER_FUSION_WORLD)
-                        .toArray(TCGType[]::new);
+                                .filter(tcgType -> tcgType != TCGType.UNION_ARENA
+                                                && tcgType != TCGType.DRAGON_BALL_SUPER_FUSION_WORLD)
+                                .toArray(TCGType[]::new);
         }
 
         @GetMapping("/filters/rarities")

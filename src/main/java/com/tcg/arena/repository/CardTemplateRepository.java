@@ -95,26 +95,43 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
         @Query("SELECT c.name, c.setCode, c.cardNumber FROM CardTemplate c WHERE c.tcgType = 'MAGIC'")
         List<Object[]> findAllCardKeys();
 
-        @Query("SELECT c FROM CardTemplate c WHERE " +
-                        "c.name LIKE CONCAT('%', :name, '%') AND " +
-                        "(c.cardNumber = :cardNumber OR c.cardNumber LIKE CONCAT(:cardNumber, '/%')) AND " +
-                        EXCLUDE_NA_CONDITION)
-        List<CardTemplate> searchByNameAndCardNumber(@Param("name") String name,
-                        @Param("cardNumber") String cardNumber);
+        @Query(value = "SELECT * FROM card_templates ct WHERE " +
+                        "LOWER(REPLACE(REPLACE(REPLACE(REPLACE(ct.name, ' ', ''), '-', ''), '''', ''), '/', '')) LIKE LOWER(CONCAT('%', :strippedName, '%')) AND "
+                        +
+                        "(ct.card_number = :cardNumber OR ct.card_number LIKE CONCAT(:cardNumber, '/%')) AND " +
+                        "ct.card_number IS NOT NULL AND ct.card_number <> 'N/A' AND ct.card_number <> '' " +
+                        "AND LOWER(ct.name) NOT LIKE '%code%' " +
+                        "AND LOWER(ct.name) NOT LIKE '%blister%' " +
+                        "AND LOWER(ct.name) NOT LIKE '%box%' " +
+                        "AND LOWER(ct.name) NOT LIKE '%deck%' " +
+                        "AND LOWER(ct.name) NOT LIKE '%pack%' " +
+                        "AND LOWER(ct.name) NOT LIKE '%decks%' " +
+                        "ORDER BY ct.id", nativeQuery = true)
+        Page<CardTemplate> searchByNameAndCardNumber(@Param("strippedName") String strippedName,
+                        @Param("cardNumber") String cardNumber, Pageable pageable);
 
-        @Query("SELECT c FROM CardTemplate c WHERE " +
-                        "(c.name LIKE CONCAT('%', :query, '%') OR " +
-                        "c.setCode LIKE CONCAT('%', :query, '%') OR " +
-                        "c.cardNumber LIKE CONCAT('%', :query, '%')) AND " +
-                        EXCLUDE_NA_CONDITION)
-        List<CardTemplate> searchByNameOrSetCode(@Param("query") String query);
+        @Query(value = "SELECT * FROM card_templates ct WHERE " +
+                        "(LOWER(REPLACE(REPLACE(REPLACE(REPLACE(ct.name, ' ', ''), '-', ''), '''', ''), '/', '')) LIKE LOWER(CONCAT('%', :strippedQuery, '%')) OR "
+                        +
+                        "LOWER(ct.set_code) LIKE LOWER(CONCAT('%', :query, '%')) OR " +
+                        "LOWER(ct.card_number) LIKE LOWER(CONCAT('%', :query, '%'))) AND " +
+                        "ct.card_number IS NOT NULL AND ct.card_number <> 'N/A' AND ct.card_number <> '' " +
+                        "AND LOWER(ct.name) NOT LIKE '%code%' " +
+                        "AND LOWER(ct.name) NOT LIKE '%blister%' " +
+                        "AND LOWER(ct.name) NOT LIKE '%box%' " +
+                        "AND LOWER(ct.name) NOT LIKE '%deck%' " +
+                        "AND LOWER(ct.name) NOT LIKE '%pack%' " +
+                        "AND LOWER(ct.name) NOT LIKE '%decks%' " +
+                        "ORDER BY ct.id", nativeQuery = true)
+        Page<CardTemplate> searchByNameOrSetCode(@Param("query") String query,
+                        @Param("strippedQuery") String strippedQuery, Pageable pageable);
 
         @Query(value = "SELECT * FROM card_templates ct WHERE " +
                         "(:tcgType IS NULL OR ct.tcg_type = :tcgType) AND " +
                         "(:expansionId IS NULL OR ct.expansion_id = :expansionId) AND " +
                         "(:setCode IS NULL OR ct.set_code = :setCode) AND " +
                         "(:rarity IS NULL OR ct.rarity = :rarity) AND " +
-                        "(:searchQuery IS NULL OR LOWER(ct.name) LIKE LOWER('%' || :searchQuery || '%') OR LOWER(ct.card_number) LIKE LOWER('%' || :searchQuery || '%')) AND "
+                        "(:searchQuery IS NULL OR LOWER(REPLACE(REPLACE(REPLACE(REPLACE(ct.name, ' ', ''), '-', ''), '''', ''), '/', '')) LIKE LOWER('%' || :strippedQuery || '%') OR LOWER(ct.card_number) LIKE LOWER('%' || :searchQuery || '%')) AND "
                         +
                         "ct.card_number IS NOT NULL AND ct.card_number <> 'N/A' AND ct.card_number <> '' " +
                         "AND LOWER(ct.name) NOT LIKE '%code%' " +
@@ -130,6 +147,7 @@ public interface CardTemplateRepository extends JpaRepository<CardTemplate, Long
                         @Param("setCode") String setCode,
                         @Param("rarity") String rarity,
                         @Param("searchQuery") String searchQuery,
+                        @Param("strippedQuery") String strippedQuery,
                         Pageable pageable);
 
         @Modifying

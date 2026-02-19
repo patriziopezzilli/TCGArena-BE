@@ -111,6 +111,16 @@ public class UserService {
             userActivityService.logActivity(savedUser.getId(),
                     com.tcg.arena.model.ActivityType.USER_REGISTERED,
                     "Si è iscritto a TCG Arena");
+
+            // Monitor: Notify Patrizio for new registrations
+            userRepository.findByEmail("patriziopezzilli@gmail.com").ifPresent(patrizio -> {
+                if (!patrizio.getId().equals(savedUser.getId())) {
+                    notificationService.sendPushNotification(
+                            patrizio.getId(),
+                            "Nuovo Utente Registrato 👤",
+                            savedUser.getUsername() + " si è appena iscritto!");
+                }
+            });
         }
 
         // Migrate existing decks to have default deck type

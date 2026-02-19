@@ -11,6 +11,7 @@ import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -72,9 +73,15 @@ public class CardTemplateService {
     }
 
     public List<CardTemplate> searchCardTemplates(String query) {
+        return searchCardTemplatesPaginated(query, PageRequest.of(0, 100)).getContent();
+    }
+
+    public Page<CardTemplate> searchCardTemplatesPaginated(String query, Pageable pageable) {
         if (query == null || query.isBlank()) {
-            return List.of();
+            return Page.empty();
         }
+
+        String strippedQuery = stripQuery(query);
 
         // Smart search: Check for "Name Number" pattern
         String[] parts = query.trim().split("\\s+");
@@ -85,8 +92,10 @@ public class CardTemplateService {
             String potentialName = query.substring(0, query.lastIndexOf(potentialNumber)).trim();
 
             if (!potentialName.isEmpty()) {
-                List<CardTemplate> smartResults = cardTemplateRepository.searchByNameAndCardNumber(potentialName,
-                        potentialNumber);
+                String strippedPotentialName = stripQuery(potentialName);
+                Page<CardTemplate> smartResults = cardTemplateRepository.searchByNameAndCardNumber(
+                        strippedPotentialName,
+                        potentialNumber, pageable);
                 if (!smartResults.isEmpty()) {
                     return smartResults;
                 }
@@ -94,7 +103,16 @@ public class CardTemplateService {
         }
 
         // Fallback to standard search
-        return cardTemplateRepository.searchByNameOrSetCode(query);
+        return cardTemplateRepository.searchByNameOrSetCode(query, strippedQuery, pageable);
+    }
+
+    /**
+     * Helper to strip special characters for fuzzy matching
+     */
+    private String stripQuery(String query) {
+        if (query == null)
+            return "";
+        return query.replaceAll("[\\s\\-'/.]", "");
     }
 
     public List<CardTemplate> smartScan(List<String> rawTexts, String tcgType) {
@@ -128,14 +146,14 @@ public class CardTemplateService {
         for (String token : tokens) {
             // Simple LIKE %token% search
             List<CardTemplate> matches = cardTemplateRepository.findByNameContainingIgnoreCase(token);
-            
+
             // Filter by TCG Type if provided
             if (tcgType != null && !tcgType.isBlank()) {
                 matches = matches.stream()
-                    .filter(card -> card.getTcgType() != null && card.getTcgType().name().equalsIgnoreCase(tcgType))
-                    .collect(java.util.stream.Collectors.toList());
+                        .filter(card -> card.getTcgType() != null && card.getTcgType().name().equalsIgnoreCase(tcgType))
+                        .collect(java.util.stream.Collectors.toList());
             }
-            
+
             resultSet.addAll(matches);
 
             // Safety break if too many results?
@@ -159,26 +177,28 @@ public class CardTemplateService {
             String rarity,
             String searchQuery,
             Pageable pageable) {
-        return cardTemplateRepository.findWithFilters(tcgType, expansionId, setCode, rarity, searchQuery, pageable);
+        String strippedQuery = stripQuery(searchQuery);
+        return cardTemplateRepository.findWithFilters(tcgType, expansionId, setCode, rarity, searchQuery, strippedQuery,
+                pageable);
     }
 
-    @CacheEvict(value = {CacheConfig.CARD_TEMPLATES_CACHE, CacheConfig.CARD_TEMPLATE_BY_ID_CACHE, 
-                         CacheConfig.CARD_SEARCH_CACHE, CacheConfig.EXPANSION_CARDS_CACHE, 
-                         CacheConfig.SET_CARDS_CACHE}, allEntries = true)
+    @CacheEvict(value = { CacheConfig.CARD_TEMPLATES_CACHE, CacheConfig.CARD_TEMPLATE_BY_ID_CACHE,
+            CacheConfig.CARD_SEARCH_CACHE, CacheConfig.EXPANSION_CARDS_CACHE,
+            CacheConfig.SET_CARDS_CACHE }, allEntries = true)
     public CardTemplate saveCardTemplate(CardTemplate cardTemplate) {
         return cardTemplateRepository.save(cardTemplate);
     }
 
-    @CacheEvict(value = {CacheConfig.CARD_TEMPLATES_CACHE, CacheConfig.CARD_TEMPLATE_BY_ID_CACHE, 
-                         CacheConfig.CARD_SEARCH_CACHE, CacheConfig.EXPANSION_CARDS_CACHE, 
-                         CacheConfig.SET_CARDS_CACHE}, allEntries = true)
+    @CacheEvict(value = { CacheConfig.CARD_TEMPLATES_CACHE, CacheConfig.CARD_TEMPLATE_BY_ID_CACHE,
+            CacheConfig.CARD_SEARCH_CACHE, CacheConfig.EXPANSION_CARDS_CACHE,
+            CacheConfig.SET_CARDS_CACHE }, allEntries = true)
     public List<CardTemplate> saveAllCardTemplates(List<? extends CardTemplate> cardTemplates) {
         return cardTemplateRepository.saveAll(cardTemplates.stream().map(card -> (CardTemplate) card).toList());
     }
 
-    @CacheEvict(value = {CacheConfig.CARD_TEMPLATES_CACHE, CacheConfig.CARD_TEMPLATE_BY_ID_CACHE, 
-                         CacheConfig.CARD_SEARCH_CACHE, CacheConfig.EXPANSION_CARDS_CACHE, 
-                         CacheConfig.SET_CARDS_CACHE}, allEntries = true)
+    @CacheEvict(value = { CacheConfig.CARD_TEMPLATES_CACHE, CacheConfig.CARD_TEMPLATE_BY_ID_CACHE,
+            CacheConfig.CARD_SEARCH_CACHE, CacheConfig.EXPANSION_CARDS_CACHE,
+            CacheConfig.SET_CARDS_CACHE }, allEntries = true)
     public Optional<CardTemplate> updateCardTemplate(Long id, CardTemplate cardDetails) {
         return cardTemplateRepository.findById(id).map(card -> {
             card.setName(cardDetails.getName());
@@ -195,9 +215,9 @@ public class CardTemplateService {
         });
     }
 
-    @CacheEvict(value = {CacheConfig.CARD_TEMPLATES_CACHE, CacheConfig.CARD_TEMPLATE_BY_ID_CACHE, 
-                         CacheConfig.CARD_SEARCH_CACHE, CacheConfig.EXPANSION_CARDS_CACHE, 
-                         CacheConfig.SET_CARDS_CACHE}, allEntries = true)
+    @CacheEvict(value = { CacheConfig.CARD_TEMPLATES_CACHE, CacheConfig.CARD_TEMPLATE_BY_ID_CACHE,
+            CacheConfig.CARD_SEARCH_CACHE, CacheConfig.EXPANSION_CARDS_CACHE,
+            CacheConfig.SET_CARDS_CACHE }, allEntries = true)
     public boolean deleteCardTemplate(Long id) {
         if (cardTemplateRepository.existsById(id)) {
             cardTemplateRepository.deleteById(id);
@@ -206,9 +226,9 @@ public class CardTemplateService {
         return false;
     }
 
-    @CacheEvict(value = {CacheConfig.CARD_TEMPLATES_CACHE, CacheConfig.CARD_TEMPLATE_BY_ID_CACHE, 
-                         CacheConfig.CARD_SEARCH_CACHE, CacheConfig.EXPANSION_CARDS_CACHE, 
-                         CacheConfig.SET_CARDS_CACHE}, allEntries = true)
+    @CacheEvict(value = { CacheConfig.CARD_TEMPLATES_CACHE, CacheConfig.CARD_TEMPLATE_BY_ID_CACHE,
+            CacheConfig.CARD_SEARCH_CACHE, CacheConfig.EXPANSION_CARDS_CACHE,
+            CacheConfig.SET_CARDS_CACHE }, allEntries = true)
     @Transactional
     public void deleteByTcgType(TCGType tcgType) {
         cardTemplateRepository.deleteByTcgType(tcgType);
