@@ -159,12 +159,12 @@ public class ArenaApiController {
             @RequestParam(required = false) String set,
             @RequestParam(required = false) String q,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "100") int size,
             HttpServletRequest request) {
 
         // Get max batch size from API key
         ArenaApiKey apiKey = (ArenaApiKey) request.getAttribute("arenaApiKey");
-        int maxSize = apiKey != null ? apiKey.getPlan().getMaxBatchSize() : 20;
+        int maxSize = apiKey != null ? apiKey.getPlan().getMaxBatchSize() : 100;
 
         Pageable pageable = PageRequest.of(page, Math.min(size, maxSize));
         Page<ArenaCard> cardsPage;
@@ -230,7 +230,7 @@ public class ArenaApiController {
 
         // Get max batch size from API key
         ArenaApiKey apiKey = (ArenaApiKey) httpRequest.getAttribute("arenaApiKey");
-        int maxSize = apiKey != null ? apiKey.getPlan().getMaxBatchSize() : 20;
+        int maxSize = apiKey != null ? apiKey.getPlan().getMaxBatchSize() : 100;
 
         if (request.ids.size() > maxSize) {
             return ResponseEntity.badRequest().body(Map.of(

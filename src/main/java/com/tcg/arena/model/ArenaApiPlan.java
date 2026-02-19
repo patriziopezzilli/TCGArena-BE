@@ -5,7 +5,7 @@ package com.tcg.arena.model;
  * Each plan has different rate limits and batch sizes.
  */
 public enum ArenaApiPlan {
-    FREE(100, 20), // 100 requests/day, 20 cards/batch
+    FREE(100, 100), // 100 requests/day, 100 cards/batch
     STARTER(1000, 100), // 1,000 requests/day, 100 cards/batch
     PRO(10000, 200), // 10,000 requests/day, 200 cards/batch
     ENTERPRISE(-1, 200); // Unlimited requests, 200 cards/batch

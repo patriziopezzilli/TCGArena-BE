@@ -47,7 +47,7 @@ public class TCGApiClient {
     // Rate limiting: delay between API calls (ms) -> 5s to avoid 429 rate limit
     private static final long API_DELAY_MS = 5000;
     // Page size for card fetching
-    private static final int PAGE_SIZE = 20;
+    private static final int PAGE_SIZE = 100;
     // Progress logging interval
     private static final int LOG_PROGRESS_EVERY_N_PAGES = 10;
 
@@ -129,7 +129,7 @@ public class TCGApiClient {
     @Autowired
     private com.tcg.arena.repository.ImportProgressRepository importProgressRepository;
 
-    @Value("${tcg.api.key}")
+    @Value("${tcg.api.key:tcg_7683633d212d47ff9f396921a66ffb0c}")
     private String apiKeyPrimary;
 
     @Value("${tcg.api.key.secondary:tcg_b23de539c2c8414e854e73c449bf0e84}")
