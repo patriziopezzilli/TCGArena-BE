@@ -312,8 +312,13 @@ public class JwtAuthenticationController {
         }
 
         // Create starter decks for favorite TCG types
-        if (registerRequest.getFavoriteGames() != null && !registerRequest.getFavoriteGames().isEmpty()) {
-            deckService.createStarterDecksForUser(savedUser.getId(), registerRequest.getFavoriteGames());
+        try {
+            if (registerRequest.getFavoriteGames() != null && !registerRequest.getFavoriteGames().isEmpty()) {
+                deckService.createStarterDecksForUser(savedUser.getId(), registerRequest.getFavoriteGames());
+            }
+        } catch (Exception e) {
+            logger.error("Failed to create starter decks for user: {}", savedUser.getUsername(), e);
+            // Don't fail registration if starter deck creation fails
         }
 
         // Reload user to get updated points

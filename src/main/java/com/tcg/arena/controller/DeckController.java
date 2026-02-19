@@ -288,7 +288,7 @@ public class DeckController {
             @Parameter(description = "Name of the deck") @RequestParam String name,
             @Parameter(description = "Description of the deck") @RequestParam(required = false) String description,
             @Parameter(description = "TCG type of the deck") @RequestParam TCGType tcgType,
-            @Parameter(description = "Type of the deck (DECK or LISTA)") @RequestParam DeckType deckType,
+            @Parameter(description = "Type of the deck (DECK or LISTA)") @RequestParam(defaultValue = "LISTA") DeckType deckType,
             @Parameter(description = "Unique identifier of the user creating the deck") @RequestParam Long userId) {
         try {
             Deck deck = deckService.createDeck(name, description, tcgType, deckType, userId);
