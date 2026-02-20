@@ -395,6 +395,20 @@ public class NotificationService {
         String message = getMessage("notification.view.profile.message", new Object[] { viewerName },
                 targetUserId);
 
+        // Rate limiting: check if exact same notification was sent in the last 5
+        // minutes
+        java.util.Optional<Notification> lastNotif = notificationRepository
+                .findFirstByUserIdAndTypeOrderByCreatedAtDesc(targetUserId, "PROFILE_VIEW");
+
+        if (lastNotif.isPresent()) {
+            Notification n = lastNotif.get();
+            if (n.getMessage().equals(message) &&
+                    n.getCreatedAt().isAfter(LocalDateTime.now().minusMinutes(5))) {
+                logger.info("🚫 Profile view notification rate-limited for user {} from {}", targetUserId, viewerName);
+                return;
+            }
+        }
+
         java.util.Map<String, String> data = new java.util.HashMap<>();
         data.put("type", "PROFILE_VIEW");
 

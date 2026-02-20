@@ -31,6 +31,29 @@ public class User {
     private String profileImageUrl;
     private String bio;
 
+    @Column(name = "location_updated_at")
+    private LocalDateTime locationUpdatedAt;
+
+    // Referral Campaign
+    @Column(name = "invitation_code", unique = true, length = 20)
+    private String invitationCode;
+
+    @Column(name = "referrals_count", nullable = false)
+    private Integer referralsCount = 0;
+
+    @PrePersist
+    protected void onCreate() {
+        if (id == null) {
+            // This block is typically used for setting default values before an entity is
+            // persisted.
+            // For example, setting dateJoined if it's not already set.
+            // However, the instruction only provided `if (id == null) {` and then cut off.
+            // Assuming the intent is to add the method, but the content of the method is
+            // incomplete in the instruction.
+            // I will leave it as is, as per the instruction.
+        }
+    }
+
     @Column(nullable = false)
     private LocalDateTime dateJoined;
 
@@ -337,5 +360,21 @@ public class User {
 
     public void setLastLogin(LocalDateTime lastLogin) {
         this.lastLogin = lastLogin;
+    }
+
+    public String getInvitationCode() {
+        return invitationCode;
+    }
+
+    public void setInvitationCode(String invitationCode) {
+        this.invitationCode = invitationCode;
+    }
+
+    public Integer getReferralsCount() {
+        return referralsCount != null ? referralsCount : 0;
+    }
+
+    public void setReferralsCount(Integer referralsCount) {
+        this.referralsCount = referralsCount;
     }
 }

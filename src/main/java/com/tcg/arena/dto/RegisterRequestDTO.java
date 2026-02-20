@@ -24,6 +24,9 @@ public class RegisterRequestDTO {
 
     private String locale;
 
+    @JsonProperty("referral_code")
+    private String referralCode;
+
     // Getters and Setters
     public String getEmail() {
         return email;
@@ -103,5 +106,13 @@ public class RegisterRequestDTO {
 
     public void setLocale(String locale) {
         this.locale = locale;
+    }
+
+    public String getReferralCode() {
+        return referralCode;
+    }
+
+    public void setReferralCode(String referralCode) {
+        this.referralCode = referralCode;
     }
 }

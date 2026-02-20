@@ -213,4 +213,65 @@ public class UserService {
     public boolean isAppreciatedBy(Long targetUserId, Long likerUserId) {
         return userAppreciationRepository.existsByTargetUserIdAndLikerUserId(targetUserId, likerUserId);
     }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void processReferralCode(String invitationCode) {
+        if (invitationCode != null && !invitationCode.trim().isEmpty()) {
+            userRepository.findByInvitationCode(invitationCode.trim()).ifPresent(referrer -> {
+                referrer.setReferralsCount(referrer.getReferralsCount() + 1);
+                userRepository.save(referrer);
+
+                // Track activity for the referrer
+                userActivityService.logActivity(referrer.getId(),
+                        com.tcg.arena.model.ActivityType.USER_REGISTERED,
+                        "Un nuovo utente si è registrato con il tuo codice invito!");
+
+                // Note: we could also add a notification here or reward points
+            });
+        }
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public String getOrCreateInvitationCode(User user) {
+        if (user.getInvitationCode() != null && !user.getInvitationCode().isEmpty()) {
+            return user.getInvitationCode();
+        }
+
+        // Generate a unique core based on username and a random string
+        String baseCode = user.getUsername().replaceAll("[^a-zA-Z0-9]", "").toUpperCase();
+        if (baseCode.length() > 6) {
+            baseCode = baseCode.substring(0, 6);
+        }
+
+        String newCode;
+        boolean isUnique = false;
+        int attempts = 0;
+
+        do {
+            String randomChars = java.util.UUID.randomUUID().toString().substring(0, 4).toUpperCase();
+            newCode = baseCode + "-" + randomChars;
+            if (!userRepository.findByInvitationCode(newCode).isPresent()) {
+                isUnique = true;
+            }
+            attempts++;
+        } while (!isUnique && attempts < 10);
+
+        if (!isUnique) {
+            // Fallback to pure UUID
+            newCode = java.util.UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+        }
+
+        user.setInvitationCode(newCode);
+        userRepository.save(user);
+
+        return newCode;
+    }
+
+    public List<com.tcg.arena.dto.ReferralStatusDTO> getReferralLeaderboard() {
+        return userRepository.findTop50ByOrderByReferralsCountDesc().stream()
+                .filter(u -> u.getReferralsCount() != null && u.getReferralsCount() > 0)
+                .map(u -> new com.tcg.arena.dto.ReferralStatusDTO(u.getUsername(), u.getInvitationCode(),
+                        u.getReferralsCount()))
+                .collect(Collectors.toList());
+    }
 }

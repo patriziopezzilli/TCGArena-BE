@@ -13,7 +13,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByUsername(String username);
 
+    Optional<User> findByInvitationCode(String invitationCode);
+
     List<User> findAllByOrderByPointsDesc();
+
+    List<User> findTop50ByOrderByReferralsCountDesc();
 
     List<User> findAllByOrderByDateJoinedDesc();
 

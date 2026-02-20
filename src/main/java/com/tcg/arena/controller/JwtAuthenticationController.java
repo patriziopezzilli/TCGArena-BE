@@ -10,7 +10,6 @@ import com.tcg.arena.model.User;
 import com.tcg.arena.repository.PasswordResetTokenRepository;
 import com.tcg.arena.security.JwtTokenUtil;
 import com.tcg.arena.security.JwtUserDetailsService;
-import com.tcg.arena.service.DeckService;
 import com.tcg.arena.service.EmailService;
 import com.tcg.arena.service.ShopService;
 import com.tcg.arena.service.UserService;
@@ -58,9 +57,6 @@ public class JwtAuthenticationController {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
-
-    @Autowired
-    private DeckService deckService;
 
     @Autowired
     private EmailService emailService;
@@ -311,14 +307,17 @@ public class JwtAuthenticationController {
             // Don't fail registration if email fails
         }
 
-        // Create starter decks for favorite TCG types
-        try {
-            if (registerRequest.getFavoriteGames() != null && !registerRequest.getFavoriteGames().isEmpty()) {
-                deckService.createStarterDecksForUser(savedUser.getId(), registerRequest.getFavoriteGames());
+        // Process referral code if present
+        if (registerRequest.getReferralCode() != null && !registerRequest.getReferralCode().trim().isEmpty()) {
+            try {
+                userService.processReferralCode(registerRequest.getReferralCode());
+                logger.info("Processed referral code {} for new user {}", registerRequest.getReferralCode(),
+                        savedUser.getUsername());
+            } catch (Exception e) {
+                logger.error("Failed to process referral code {} for user {}", registerRequest.getReferralCode(),
+                        savedUser.getUsername(), e);
+                // Don't fail registration if referral processing fails
             }
-        } catch (Exception e) {
-            logger.error("Failed to create starter decks for user: {}", savedUser.getUsername(), e);
-            // Don't fail registration if starter deck creation fails
         }
 
         // Reload user to get updated points
@@ -474,14 +473,11 @@ public class JwtAuthenticationController {
         if (email == null || email.trim().isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("message", "Email is required"));
         }
-
         Optional<User> userOpt = userService.getUserByEmail(email);
         if (!userOpt.isPresent()) {
             // Per sicurezza, non rivelare se l'email esiste o meno
             return ResponseEntity.ok(Map.of("message", "If the email exists, an OTP has been sent"));
         }
-
-        User user = userOpt.get();
 
         // Check if user has an Apple private relay email (cannot receive emails)
         if (isApplePrivateRelayEmail(email)) {

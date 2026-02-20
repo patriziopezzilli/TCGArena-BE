@@ -169,7 +169,7 @@ public class CardTemplateService {
         return results;
     }
 
-    @Cacheable(value = CacheConfig.CARD_SEARCH_CACHE, key = "'filters_' + #tcgType + '_' + #expansionId + '_' + #setCode + '_' + #rarity + '_' + #searchQuery + '_' + #pageable.pageNumber + '_' + #pageable.pageSize")
+    @Cacheable(value = CacheConfig.CARD_SEARCH_CACHE, key = "'filters_smart_' + #tcgType + '_' + #expansionId + '_' + #setCode + '_' + #rarity + '_' + #searchQuery + '_' + #pageable.pageNumber + '_' + #pageable.pageSize")
     public Page<CardTemplate> searchCardTemplatesWithFilters(
             String tcgType,
             Long expansionId,
@@ -177,7 +177,12 @@ public class CardTemplateService {
             String rarity,
             String searchQuery,
             Pageable pageable) {
+        if (searchQuery == null || searchQuery.isBlank()) {
+            return cardTemplateRepository.findWithFilters(tcgType, expansionId, setCode, rarity, null, null, pageable);
+        }
+
         String strippedQuery = stripQuery(searchQuery);
+
         return cardTemplateRepository.findWithFilters(tcgType, expansionId, setCode, rarity, searchQuery, strippedQuery,
                 pageable);
     }
