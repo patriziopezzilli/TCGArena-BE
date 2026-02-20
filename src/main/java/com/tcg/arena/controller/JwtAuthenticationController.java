@@ -133,6 +133,7 @@ public class JwtAuthenticationController {
             // Check if user exists
             Optional<User> userOpt = userService.getUserByEmail(email);
             User user;
+            boolean isNewUser = false;
 
             if (userOpt.isPresent()) {
                 user = userOpt.get();
@@ -146,6 +147,7 @@ public class JwtAuthenticationController {
                 userService.saveUser(user);
             } else {
                 // Register new user
+                isNewUser = true;
                 user = new User();
                 user.setEmail(email);
 
@@ -211,6 +213,7 @@ public class JwtAuthenticationController {
             response.put("token", token);
             response.put("refreshToken", refreshToken);
             response.put("user", user);
+            response.put("isNewUser", isNewUser);
 
             return ResponseEntity.ok(response);
         } catch (com.google.firebase.auth.FirebaseAuthException e) {
@@ -310,7 +313,7 @@ public class JwtAuthenticationController {
         // Process referral code if present
         if (registerRequest.getReferralCode() != null && !registerRequest.getReferralCode().trim().isEmpty()) {
             try {
-                userService.processReferralCode(registerRequest.getReferralCode());
+                userService.processReferralCode(registerRequest.getReferralCode(), savedUser.getUsername());
                 logger.info("Processed referral code {} for new user {}", registerRequest.getReferralCode(),
                         savedUser.getUsername());
             } catch (Exception e) {

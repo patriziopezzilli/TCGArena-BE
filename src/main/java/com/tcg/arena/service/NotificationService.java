@@ -446,6 +446,22 @@ public class NotificationService {
         logger.info("Sent deck import notification to user {}", deckOwnerId);
     }
 
+    // ========== REFERRAL ==========
+
+    /**
+     * Notifica al referrer quando qualcuno si registra con il suo codice invito
+     */
+    public void sendReferralUsedNotification(Long referrerId, String newUsername) {
+        String title = getMessage("notification.referral.used.title", null, referrerId);
+        String message = getMessage("notification.referral.used.message", new Object[] { newUsername }, referrerId);
+
+        java.util.Map<String, String> data = new java.util.HashMap<>();
+        data.put("type", "REFERRAL_USED");
+
+        sendPushNotification(referrerId, title, message, data);
+        logger.info("Sent referral used notification to user {}", referrerId);
+    }
+
     private String getPlacementText(int placement) {
         return switch (placement) {
             case 1 -> "1°";

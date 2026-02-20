@@ -216,6 +216,11 @@ public class UserService {
 
     @org.springframework.transaction.annotation.Transactional
     public void processReferralCode(String invitationCode) {
+        processReferralCode(invitationCode, null);
+    }
+
+    @org.springframework.transaction.annotation.Transactional
+    public void processReferralCode(String invitationCode, String newUsername) {
         if (invitationCode != null && !invitationCode.trim().isEmpty()) {
             userRepository.findByInvitationCode(invitationCode.trim()).ifPresent(referrer -> {
                 referrer.setReferralsCount(referrer.getReferralsCount() + 1);
@@ -226,7 +231,14 @@ public class UserService {
                         com.tcg.arena.model.ActivityType.USER_REGISTERED,
                         "Un nuovo utente si è registrato con il tuo codice invito!");
 
-                // Note: we could also add a notification here or reward points
+                // Send push notification to referrer
+                try {
+                    String displayName = (newUsername != null && !newUsername.isEmpty()) ? newUsername
+                            : "Un nuovo utente";
+                    notificationService.sendReferralUsedNotification(referrer.getId(), displayName);
+                } catch (Exception e) {
+                    // Don't fail referral processing if notification fails
+                }
             });
         }
     }

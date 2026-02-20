@@ -41,6 +41,9 @@ public class User {
     @Column(name = "referrals_count", nullable = false)
     private Integer referralsCount = 0;
 
+    @Column(name = "referred_by", length = 20)
+    private String referredBy;
+
     @PrePersist
     protected void onCreate() {
         if (id == null) {
@@ -376,5 +379,13 @@ public class User {
 
     public void setReferralsCount(Integer referralsCount) {
         this.referralsCount = referralsCount;
+    }
+
+    public String getReferredBy() {
+        return referredBy;
+    }
+
+    public void setReferredBy(String referredBy) {
+        this.referredBy = referredBy;
     }
 }
